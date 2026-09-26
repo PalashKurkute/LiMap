@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "foveagrid-25d"
+version = "0.1.0"
+description = "Adaptive Variable-Resolution 2.5D LiDAR Mapping for Dynamic Environment Perception (SIH26053 / DRDO)"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    { name = "Palash Kurkute" }
+]
+dependencies = [
+    "numpy>=1.26.0,<3.0.0",
+    "numba>=0.59.0",
+    "scipy>=1.11.0",
+    "pydantic>=2.0.0",
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "websockets>=12.0",
+    "open3d>=0.18.0",
+    "kiss-icp>=0.2.0",
+    "onnxruntime>=1.16.0",
+    "matplotlib>=3.8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-benchmark>=4.0.0",
+    "ruff>=0.3.0",
+]
+gpu = [
+    "cupy-cuda12x>=12.0.0",
+    "onnxruntime-gpu>=1.16.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["core*", "benchmark*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

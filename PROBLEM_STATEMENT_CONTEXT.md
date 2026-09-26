@@ -5,6 +5,8 @@
 **Ministry / Organization:** Ministry of Defence / Defence Research and Development Organisation (DRDO)  
 **Target Domain:** Autonomous Unmanned Ground Vehicles (UGVs), Off-road Defence Robotics, Dynamic Mixed-Traffic Operations  
 **Category:** Software  
+**Deadline:** 30 September 2026 (Idea Submission)  
+**Competition Scale (Sep 2026):** 12+ public repos already targeting this exact PS. Only 24 of 500 idea slots used (unofficial portal mirror). Win on rigour, not diagrams.
 
 ---
 
@@ -130,4 +132,4 @@ An audit of existing public SIH 26053 solutions reveals common pitfalls and arch
 * **Q3: "How do you distinguish a dynamic vehicle from a parked vehicle?"**  
   * *Answer:* "We apply ego-motion compensation via odometry (KISS-ICP / FAST-LIO2) first, followed by temporal multi-frame differencing and semantic class gating. A stationary car remains in the static elevation layer with zero velocity variance; a moving car is tracked in the dynamic entity layer with an active Kalman state vector."
 * **Q4: "What is your mIoU on off-road terrain?"**  
-  * *Answer:* "On the challenging RELLIS-3D benchmark, state-of-the-art models reach approximately $43\%\text{ mIoU}$. We do not overclaim $95\%$ accuracy on off-road terrain. We report validated distance-binned mIoU ($0\text{–}10\text{ m}$, $10\text{–}30\text{ m}$, $30\text{–}60\text{ m}$) and back it up with geometric roughness variance."
+  * *Answer:* "Published baselines on RELLIS-3D LiDAR data: SalsaNext **43.07% mIoU**, KPConv **19.07% mIoU** — state of the art. We report our number against these published baselines, broken into distance bands: 0–10m, 10–25m, 25–50m, 50–100m. We never overclaim. Honest distance-binned reporting is itself a differentiator."

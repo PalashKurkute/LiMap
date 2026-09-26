@@ -39,7 +39,10 @@ dist-ssr/
 *.local
 
 # Datasets & Large Weights (local only)
-data/
+data/*
+!data/*.py
+!data/*.sh
+!data/README.md
 datasets/
 *.bin
 *.pcd

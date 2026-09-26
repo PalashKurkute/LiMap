@@ -53,4 +53,5 @@ export interface CrossSectionResponse {
 export type SceneId = 'scene_a_bridge' | 'scene_b_potholes' | 'scene_c_moving' | 'scene_d_poles';
 
 export type CameraViewMode = 'orbit' | 'bev' | 'cockpit' | 'cross_cut';
-export type ColorMapMode = 'elevation' | 'semantics' | 'traversability';
+export type ColorMapMode = 'elevation' | 'traversability' | 'uncertainty' | 'semantics';
+export type DEMDisplayMode = 'surface' | 'voxels' | 'points';

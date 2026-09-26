@@ -1,14 +1,16 @@
 import React, { useEffect } from 'react';
 import type { SceneId } from '../types/telemetry';
-import { Shield } from 'lucide-react';
+import { Shield, Maximize2, Minimize2 } from 'lucide-react';
 
 interface HeaderProps {
   activeScene: SceneId;
   onSelectScene: (scene: SceneId) => void;
   isLoading: boolean;
+  isZenMode?: boolean;
+  onToggleZenMode?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ activeScene, onSelectScene, isLoading }) => {
+export const Header: React.FC<HeaderProps> = ({ activeScene, onSelectScene, isLoading, isZenMode, onToggleZenMode }) => {
   const scenes: { id: SceneId; label: string; badge: string; key: string }[] = [
     { id: 'scene_a_bridge', label: 'Scene A: Bridge Underpass', badge: '2.5m Clearance', key: '1' },
     { id: 'scene_b_potholes', label: 'Scene B: Potholes & Craters', badge: 'Neg. Hazard', key: '2' },
@@ -120,8 +122,30 @@ export const Header: React.FC<HeaderProps> = ({ activeScene, onSelectScene, isLo
         })}
       </div>
 
-      {/* System Status Indicator */}
+      {/* System Status & Zen View Controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <button
+          onClick={onToggleZenMode}
+          title={isZenMode ? "Show Telemetry Sidebars" : "Focus 3D View (Hide Sidebars)"}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '5px 10px',
+            borderRadius: '6px',
+            backgroundColor: isZenMode ? 'rgba(0, 240, 255, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+            border: `1px solid ${isZenMode ? 'var(--accent-cyan)' : 'var(--card-border)'}`,
+            color: isZenMode ? 'var(--accent-cyan)' : 'var(--text-muted)',
+            fontSize: '11px',
+            fontFamily: 'var(--font-mono)',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          {isZenMode ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+          <span>{isZenMode ? "Exit Zen" : "Zen View"}</span>
+        </button>
+
         <div style={{
           display: 'flex',
           alignItems: 'center',

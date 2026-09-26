@@ -11,6 +11,7 @@ export const App: React.FC = () => {
   const [telemetryData, setTelemetryData] = useState<TelemetryResponse | null>(null);
   const [crossSectionData, setCrossSectionData] = useState<CrossSectionResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isZenMode, setIsZenMode] = useState<boolean>(false);
 
   // Poll live telemetry and cross-section from backend FastAPI
   useEffect(() => {
@@ -72,6 +73,8 @@ export const App: React.FC = () => {
         activeScene={activeScene}
         onSelectScene={handleSelectScene}
         isLoading={isLoading}
+        isZenMode={isZenMode}
+        onToggleZenMode={() => setIsZenMode(!isZenMode)}
       />
 
       {/* Main Multi-Panel Workspace */}
@@ -86,14 +89,17 @@ export const App: React.FC = () => {
         {/* Left Telemetry Column: Memory Paradox & Ring Breakdown */}
         <div
           style={{
-            width: '360px',
-            borderRight: '1px solid var(--card-border)',
-            padding: '14px',
+            width: isZenMode ? '0px' : '320px',
+            borderRight: isZenMode ? 'none' : '1px solid var(--card-border)',
+            padding: isZenMode ? '0px' : '14px',
             overflowY: 'auto',
             display: 'flex',
             flexDirection: 'column',
             gap: '14px',
             backgroundColor: 'rgba(10, 14, 22, 0.6)',
+            transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+            opacity: isZenMode ? 0 : 1,
+            pointerEvents: isZenMode ? 'none' : 'auto',
           }}
         >
           <MemoryMeter
@@ -102,7 +108,7 @@ export const App: React.FC = () => {
           />
         </div>
 
-        {/* Center: 3D Interactive Point Cloud & Fovea Rings */}
+        {/* Center: 3D Interactive Point Cloud & FastDEM Heightfield */}
         <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column' }}>
           <ThreeViewport
             sceneId={activeScene}
@@ -113,14 +119,17 @@ export const App: React.FC = () => {
         {/* Right Telemetry Column: Dual-Elevation Profile & Regret Benchmark */}
         <div
           style={{
-            width: '390px',
-            borderLeft: '1px solid var(--card-border)',
-            padding: '14px',
+            width: isZenMode ? '0px' : '340px',
+            borderLeft: isZenMode ? 'none' : '1px solid var(--card-border)',
+            padding: isZenMode ? '0px' : '14px',
             overflowY: 'auto',
             display: 'flex',
             flexDirection: 'column',
             gap: '14px',
             backgroundColor: 'rgba(10, 14, 22, 0.6)',
+            transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+            opacity: isZenMode ? 0 : 1,
+            pointerEvents: isZenMode ? 'none' : 'auto',
           }}
         >
           <CrossSectionViewer

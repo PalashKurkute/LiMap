@@ -85,10 +85,8 @@ class CostmapGenerator:
         costmap = np.zeros((self.ny, self.nx), dtype=np.uint8)
         active_cells = grid.get_active_cells()
 
-        if len(active_cells) == 0:
-            return costmap
-
-        lattice = grid.lattice
+        if len(active_cells) > 0:
+            lattice = grid.lattice
 
         for c in active_cells:
             r_id = int(c["ring_id"])
@@ -111,9 +109,13 @@ class CostmapGenerator:
             overhang_z = float(c["overhang_z"])
             clearance = float(c["clearance"])
             base_cost = SEMANTIC_COST_LOOKUP.get(sem, 0)
-            rough_cost = int(min(var_z * self.roughness_weight, 80.0))
-            uncertainty_cost = int(min(var_z * self.uncertainty_weight, 240.0))
-            terrain_risk = max(rough_cost, uncertainty_cost)
+            if overhang_z < 900.0:
+                # Dual-elevation cell: vertical gap to canopy is clearance, not ground roughness
+                terrain_risk = 0
+            else:
+                rough_cost = int(min(var_z * self.roughness_weight, 80.0))
+                uncertainty_cost = int(min(var_z * self.uncertainty_weight, 240.0))
+                terrain_risk = max(rough_cost, uncertainty_cost)
 
             # 3. Dual-elevation clearance check vs naive 2D collapse
             if ignore_overhang_clearance:
@@ -129,7 +131,7 @@ class CostmapGenerator:
                     eff_clearance = mean_z - (-1.73)  # Clearance relative to road datum (-1.73m)
 
                 if (overhang_z < 900.0 or mean_z > 0.3) and eff_clearance >= self.vehicle_height_m + 0.2:
-                    total_cost = terrain_risk  # Safe overhead underpass (nominal road cost)!
+                    total_cost = terrain_risk  # Safe overhead underpass (nominal road cost)
                 elif sem == 50 or mean_z > -1.2:
                     total_cost = COST_LETHAL      # Solid pillar, wall, or low obstacle
                 else:

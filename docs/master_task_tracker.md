@@ -87,7 +87,7 @@
 
 ## Phase 6 — Stretch Goals (only after 0–5 solid)
 
-- [ ] **6.1** Minimal Nav2 integration: ROS 2 package publishing costmap as `grid_map_msgs` layer, tested against rosbag
+- [x] **6.1** Minimal Nav2 integration: ROS 2 package publishing costmap as `nav_msgs/OccupancyGrid` (`ros2_ws/src/foveagrid_nav2`, `core/planning/nav2_bridge.py`, `benchmark/test_nav2_bridge.py`)
 - [ ] **6.2** One real embedded-hardware run (RPi 4/5 or Jetson Nano) with real latency + memory numbers
 - [x] **6.3** Dashboard: remove hardcoded footer strings (`13.4ms`, `0.00%`), wire to live benchmark report (`RegretPanel.tsx` & `App.tsx` updated)
 

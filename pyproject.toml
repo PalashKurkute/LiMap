@@ -43,3 +43,13 @@ include = ["core*", "benchmark*"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.pyright]
+reportMissingImports = false
+reportMissingModuleSource = false
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    "ros2_ws",
+]
+

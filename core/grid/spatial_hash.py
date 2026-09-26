@@ -21,6 +21,7 @@ from core.grid.dual_elevation import DualElevationExtractor, TraversabilityStatu
 from core.grid.nested_lattice import NestedLattice
 from core.grid.fovea_controller import DynamicFoveaController, FoveaState
 from core.grid.welford_fusion import WelfordElevationAccumulator
+from core.grid.local_plane import LocalGroundPlaneEstimator, LocalPatchPlane
 
 
 # Exact 32-byte Structured Cell Data Type (Cache-line aligned)
@@ -59,6 +60,7 @@ class SpatialHashGrid:
         self.lattice = lattice or NestedLattice()
         self.fovea = fovea_controller or DynamicFoveaController()
         self.dual_extractor = DualElevationExtractor()
+        self.ground_estimator = LocalGroundPlaneEstimator()
 
         # Deterministic flat memory allocation: 106,875 * 32B = 3.26 MiB
         self.cells = np.zeros(self.capacity, dtype=CELL_DTYPE)
@@ -223,3 +225,99 @@ class SpatialHashGrid:
             "total_heap_mb": round(self.total_memory_mb, 2),
             "under_drdo_bound": bool(self.total_memory_mb < 3.5),
         }
+
+    def coarsen_cells(self, factor: int = 2) -> np.ndarray:
+        """Coarsens active cells using Chan's parallel variance merge (SIH Standard 2.2).
+        
+        Preserves exact Bayesian uncertainty across scale transitions.
+        
+        Args:
+            factor: Integer downsampling factor (e.g. 2 means 2x2 fine cells -> 1 coarse cell).
+        Returns:
+            Structured array of coarsened cells with exact merged Welford statistics.
+        """
+        active = self.get_active_cells()
+        if len(active) == 0:
+            return np.zeros(0, dtype=CELL_DTYPE)
+
+        coarse_ix = np.floor_divide(active["ix"], factor)
+        coarse_iy = np.floor_divide(active["iy"], factor)
+        ring_id = active["ring_id"]
+
+        keys = (coarse_ix.astype(np.int64) << 32) ^ (coarse_iy.astype(np.int64) << 8) ^ ring_id.astype(np.int64)
+        unique_keys, inverse_idx = np.unique(keys, return_inverse=True)
+
+        num_coarse = len(unique_keys)
+        coarse_cells = np.zeros(num_coarse, dtype=CELL_DTYPE)
+
+        for u_idx in range(num_coarse):
+            mask = inverse_idx == u_idx
+            sub = active[mask]
+            if len(sub) == 1:
+                coarse_cells[u_idx] = sub[0]
+                coarse_cells[u_idx]["ix"] = coarse_ix[mask][0]
+                coarse_cells[u_idx]["iy"] = coarse_iy[mask][0]
+                continue
+
+            curr_cnt = np.array([float(sub[0]["count"])])
+            curr_mean = np.array([float(sub[0]["mean_z"])])
+            curr_m2 = np.array([float(sub[0]["m2_z"])])
+            curr_min = np.array([float(sub[0]["min_z"])])
+            curr_max = np.array([float(sub[0]["max_z"])])
+
+            for k in range(1, len(sub)):
+                next_cnt = np.array([float(sub[k]["count"])])
+                next_mean = np.array([float(sub[k]["mean_z"])])
+                next_m2 = np.array([float(sub[k]["m2_z"])])
+                next_min = np.array([float(sub[k]["min_z"])])
+                next_max = np.array([float(sub[k]["max_z"])])
+
+                curr_cnt, curr_mean, curr_m2, curr_min, curr_max = (
+                    WelfordElevationAccumulator.combine_aggregates(
+                        curr_cnt, curr_mean, curr_m2, curr_min, curr_max,
+                        next_cnt, next_mean, next_m2, next_min, next_max,
+                    )
+                )
+
+            coarse_cells[u_idx]["ix"] = coarse_ix[mask][0]
+            coarse_cells[u_idx]["iy"] = coarse_iy[mask][0]
+            coarse_cells[u_idx]["ring_id"] = sub[0]["ring_id"]
+            coarse_cells[u_idx]["occupied"] = 1
+            coarse_cells[u_idx]["sem_id"] = sub[0]["sem_id"]
+            coarse_cells[u_idx]["count"] = int(min(curr_cnt[0], 255))
+            coarse_cells[u_idx]["mean_z"] = curr_mean[0]
+            coarse_cells[u_idx]["m2_z"] = curr_m2[0]
+            coarse_cells[u_idx]["min_z"] = curr_min[0]
+            coarse_cells[u_idx]["max_z"] = curr_max[0]
+            coarse_cells[u_idx]["overhang_z"] = float(np.min(sub["overhang_z"]))
+            coarse_cells[u_idx]["clearance"] = float(np.min(sub["clearance"]))
+
+        return coarse_cells
+
+    def fit_local_ground(
+        self,
+        center_xy: Tuple[float, float],
+        radius_m: float = 3.0,
+    ) -> Optional[LocalPatchPlane]:
+        """Fits local ground tangent plane via PCA around coordinate (SIH Standard 4.4).
+        
+        Eliminates slope false alarms (8-15% grade) by estimating normal and grade.
+        """
+        active = self.get_active_cells()
+        if len(active) < self.ground_estimator.min_points:
+            return None
+
+        # Resolve active cells to world coordinates
+        ring_resolutions = np.array([r.cell_size for r in self.lattice.rings], dtype=np.float32)
+        res = ring_resolutions[active["ring_id"]]
+        cx = (active["ix"] + 0.5) * res
+        cy = (active["iy"] + 0.5) * res
+        dist_sq = (cx - center_xy[0]) ** 2 + (cy - center_xy[1]) ** 2
+
+        in_radius = dist_sq <= (radius_m ** 2)
+        if np.sum(in_radius) < self.ground_estimator.min_points:
+            return None
+
+        patch_pts = np.column_stack((cx[in_radius], cy[in_radius], active["mean_z"][in_radius]))
+        return self.ground_estimator.fit_patch_plane(patch_pts)
+

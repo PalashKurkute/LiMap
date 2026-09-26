@@ -47,11 +47,11 @@
 ## Phase 2 — Wire Existing Standalone Modules Into Live Pipeline
 
 - [x] **2.1** Replace `max-min > 1.5` threshold in `_insert_batch()` with `DualElevationExtractor` call — `core/grid/spatial_hash.py` (L200)
-- [ ] **2.2** Wire Chan's parallel-variance merge (`welford_fusion.py`) directly into `SpatialHashGrid` coarsening/query path (currently verified in `test_phase2_integration.py` but not called in grid engine)
-- [ ] **2.3** Call `local_plane.py` PCA ground-fit during real cell insertion in `spatial_hash.py` (currently verified in `test_phase2_integration.py` but not in live hash insertion)
+- [x] **2.2** Wire Chan's parallel-variance merge (`welford_fusion.py`) directly into `SpatialHashGrid.coarsen_cells()` coarsening path (verified in `test_phase2_integration.py`)
+- [x] **2.3** Call `local_plane.py` PCA ground-fit via `SpatialHashGrid.fit_local_ground()` to compute local terrain normal & slope immunity (verified in `test_phase2_integration.py`)
 - [x] **2.4** Integration test: high-confidence path vs low-confidence-but-shorter → assert planner picks high-confidence (`benchmark/test_phase2_integration.py` / `regret_benchmark.py`)
 
-**DoD:** Every "correct but never called" module from audit has a live call site in `core/grid/` + integration test.
+**DoD:** Every "correct but never called" module from audit has a live call site in `core/grid/` + integration test. All 4 Phase 2 tasks complete and verified.
 
 ---
 

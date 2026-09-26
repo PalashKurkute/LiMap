@@ -79,7 +79,20 @@ def test_2_2_chans_parallel_variance_merge():
 
     assert np.isclose(out_mean[0], true_mean, atol=1e-5), f"Chan mean mismatch: {out_mean[0]} vs {true_mean}"
     assert np.isclose(chan_var, true_var, atol=1e-4), f"Chan variance mismatch: {chan_var} vs {true_var}"
-    print(f"[PASS] Task 2.2: Chan's parallel-variance merge verified exact (var={chan_var:.6f} vs {true_var:.6f}).")
+
+    # Also verify live coarsening invocation on SpatialHashGrid
+    test_grid = SpatialHashGrid()
+    dense_pts = np.array([
+        [1.0, 1.0, -1.5, 0.5],
+        [1.0, 1.0, -1.3, 0.5],
+        [1.05, 1.05, -1.4, 0.5],
+        [1.05, 1.05, -1.2, 0.5],
+    ], dtype=np.float32)
+    test_grid.insert_points(dense_pts)
+    coarsened = test_grid.coarsen_cells(factor=2)
+    assert len(coarsened) > 0, "SpatialHashGrid.coarsen_cells produced 0 cells"
+    assert coarsened[0]["count"] >= 2, "Coarsened cell count did not aggregate"
+    print(f"[PASS] Task 2.2: Chan's parallel-variance merge verified exact & wired to SpatialHashGrid.coarsen_cells.")
 
 
 def test_2_3_local_plane_pca_ground_fit():
@@ -87,7 +100,19 @@ def test_2_3_local_plane_pca_ground_fit():
     estimator = LocalGroundPlaneEstimator()
     res = estimator.verify_slope_immunity(slope_pct=12.0, num_points=5000)
     assert res["slope_immunity_verified"], f"Slope immunity failed at 12% grade: {res}"
-    print(f"[PASS] Task 2.3: Local PCA ground-fit verified (12% slope false positive rate = {res['false_positive_rate']}).")
+
+    # Verify live local ground plane fitting on SpatialHashGrid
+    test_grid = SpatialHashGrid()
+    xs = np.linspace(-3.0, 3.0, 20)
+    ys = np.linspace(-3.0, 3.0, 20)
+    xv, yv = np.meshgrid(xs, ys)
+    ramp_pts = np.column_stack([xv.ravel(), yv.ravel(), -1.5 + 0.10 * xv.ravel(), np.full(xv.size, 0.5)]).astype(np.float32)
+    test_grid.insert_points(ramp_pts)
+    patch_plane = test_grid.fit_local_ground(center_xy=(0.0, 0.0), radius_m=3.0)
+    assert patch_plane is not None, "fit_local_ground failed to fit plane"
+    assert patch_plane.is_traversable_grade, "10% slope was marked non-traversable"
+    assert np.isclose(patch_plane.slope_pct, 10.0, atol=1.5), f"Slope percentage mismatch: {patch_plane.slope_pct}%"
+    print(f"[PASS] Task 2.3: Local PCA ground-fit verified & wired to SpatialHashGrid.fit_local_ground (grade={patch_plane.slope_pct:.1f}%).")
 
 
 def test_2_4_planner_high_confidence_vs_shortcut():

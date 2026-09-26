@@ -8,9 +8,10 @@ to feed downstream dynamic collision avoidance in path planners.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 import numpy as np
 from scipy.spatial import cKDTree
+from scipy.optimize import linear_sum_assignment
 
 
 @dataclass
@@ -47,6 +48,7 @@ class DynamicObstacleTracker:
         association_dist_thresh: float = 2.5,
         max_missed_scans: int = 3,
         min_hits_to_confirm: int = 2,
+        max_active_tracks: int = 128,
     ):
         self.cluster_dist_thresh = cluster_dist_thresh
         self.min_cluster_points = min_cluster_points
@@ -54,6 +56,7 @@ class DynamicObstacleTracker:
         self.association_thresh = association_dist_thresh
         self.max_missed_scans = max_missed_scans
         self.min_hits = min_hits_to_confirm
+        self.max_active_tracks = max_active_tracks
 
         self.next_track_id = 1
         self.tracks: List[TrackedObstacle] = []
@@ -88,13 +91,14 @@ class DynamicObstacleTracker:
         for track in self.tracks:
             track.state = self.F @ track.state
             track.covariance = self.F @ track.covariance @ self.F.T + self.Q
+            track.covariance = 0.5 * (track.covariance + track.covariance.T)
             track.age += 1
             track.time_since_update += 1
 
         # Step 2: Cluster dynamic points into bounding box detections
         detections = self._cluster_points(dynamic_points)
 
-        # Step 3: Associate detections with existing tracks
+        # Step 3: Associate detections with existing tracks (Hungarian bipartite matching)
         matched_pairs, unmatched_dets, unmatched_tracks = self._associate(detections)
 
         # Step 4: Kalman measurement update for matched pairs
@@ -116,15 +120,21 @@ class DynamicObstacleTracker:
             track.state = track.state + (K @ y_res)
             I_KH = np.eye(4, dtype=np.float32) - (K @ self.H)
             track.covariance = I_KH @ track.covariance
+            track.covariance = 0.5 * (track.covariance + track.covariance.T)
 
+            # Center bounding box on smoothed Kalman state
+            det.x = float(track.state[0])
+            det.y = float(track.state[1])
             track.bbox = det
             track.hits += 1
             track.time_since_update = 0
             if track.hits >= self.min_hits:
                 track.confirmed = True
 
-        # Step 5: Initialize new tracks for unmatched detections
+        # Step 5: Initialize new tracks for unmatched detections (capped at max_active_tracks)
         for det_idx in unmatched_dets:
+            if len(self.tracks) >= self.max_active_tracks:
+                break
             det = detections[det_idx]
             init_state = np.array([det.x, det.y, 0.0, 0.0], dtype=np.float32)
             init_cov = np.eye(4, dtype=np.float32) * 1.0
@@ -147,28 +157,41 @@ class DynamicObstacleTracker:
             t for t in self.tracks if t.time_since_update <= self.max_missed_scans
         ]
 
-        # Return active tracks
+        # Return active confirmed tracks
         return [t for t in self.tracks if t.confirmed]
 
     def _cluster_points(self, points: np.ndarray) -> List[BoundingBox25D]:
-        """Euclidean Connected-Components Clustering (BFS-based)."""
+        """Euclidean Connected-Components Clustering with spatial filtering."""
         if len(points) < self.min_cluster_points:
             return []
 
-        # Downsample if dense to guarantee real-time clustering
-        stride = max(1, len(points) // 800)
-        sub_pts = points[::stride, :3]
+        # Sanitize points against NaNs and infinite coordinates
+        finite_mask = np.isfinite(points[:, :3]).all(axis=1)
+        valid_pts = points[finite_mask, :3]
+        if len(valid_pts) < self.min_cluster_points:
+            return []
+
+        # ROI filter: eliminate noise far beyond sensor range or high above ground
+        ranges_sq = valid_pts[:, 0] ** 2 + valid_pts[:, 1] ** 2
+        roi_mask = (ranges_sq <= 55.0 ** 2) & (valid_pts[:, 2] <= 4.0) & (valid_pts[:, 2] >= -3.0)
+        filtered_pts = valid_pts[roi_mask]
+        if len(filtered_pts) < self.min_cluster_points:
+            return []
+
+        # Downsample if dense to guarantee real-time clustering (< 10ms)
+        stride = max(1, len(filtered_pts) // 1000)
+        sub_pts = filtered_pts[::stride]
 
         tree = cKDTree(sub_pts)
         visited = np.zeros(len(sub_pts), dtype=bool)
-        boxes = []
+        boxes: List[BoundingBox25D] = []
 
         for i in range(len(sub_pts)):
             if visited[i]:
                 continue
 
             # BFS expansion for connected component
-            component = []
+            component: List[int] = []
             queue = [i]
             visited[i] = True
 
@@ -177,27 +200,33 @@ class DynamicObstacleTracker:
                 curr = queue[head]
                 head += 1
                 component.append(curr)
-                neighbors = tree.query_ball_point(sub_pts[curr], r=1.5)
+                neighbors = tree.query_ball_point(sub_pts[curr], r=self.cluster_dist_thresh)
                 for n in neighbors:
                     if not visited[n]:
                         visited[n] = True
                         queue.append(n)
 
-            if len(component) * stride >= self.min_cluster_points:
+            # Strict noise rejection: must have at least 3 subsampled seeds AND satisfy min_cluster_points
+            total_est_points = len(component) * stride
+            if len(component) >= 3 and total_est_points >= self.min_cluster_points:
                 c_pts = sub_pts[component]
                 min_b = np.min(c_pts, axis=0)
                 max_b = np.max(c_pts, axis=0)
-                center = 0.5 * (min_b + max_b)
                 extent = max_b - min_b
 
+                # Reject massive non-obstacle blobs (e.g. wall/ground segmentation leaks > 15m)
+                if extent[0] > 16.0 or extent[1] > 8.0 or extent[2] > 4.5:
+                    continue
+
+                center = 0.5 * (min_b + max_b)
                 boxes.append(BoundingBox25D(
                     x=float(center[0]),
                     y=float(center[1]),
                     z=float(center[2]),
-                    length=max(float(extent[0]), 1.5),
-                    width=max(float(extent[1]), 1.0),
-                    height=max(float(extent[2]), 0.8),
-                    num_points=len(component) * stride,
+                    length=max(float(extent[0]), 0.5),
+                    width=max(float(extent[1]), 0.5),
+                    height=max(float(extent[2]), 0.4),
+                    num_points=total_est_points,
                 ))
 
         return boxes
@@ -205,36 +234,30 @@ class DynamicObstacleTracker:
     def _associate(
         self, detections: List[BoundingBox25D]
     ) -> Tuple[List[Tuple[int, int]], List[int], List[int]]:
-        """Greedy distance-based data association between tracks and detections."""
+        """Optimal Hungarian bipartite data association between tracks and detections."""
         if not self.tracks:
             return [], list(range(len(detections))), []
         if not detections:
             return [], [], list(range(len(self.tracks)))
 
-        cost_matrix = np.zeros((len(self.tracks), len(detections)), dtype=np.float32)
+        # Vectorized Euclidean cost matrix computation
+        track_pos = np.array([[t.state[0], t.state[1]] for t in self.tracks], dtype=np.float32)
+        det_pos = np.array([[d.x, d.y] for d in detections], dtype=np.float32)
 
-        for t_idx, track in enumerate(self.tracks):
-            for d_idx, det in enumerate(detections):
-                dx = track.state[0] - det.x
-                dy = track.state[1] - det.y
-                cost_matrix[t_idx, d_idx] = float(np.hypot(dx, dy))
+        diff = track_pos[:, None, :] - det_pos[None, :, :]  # (N_tracks, N_dets, 2)
+        cost_matrix = np.hypot(diff[:, :, 0], diff[:, :, 1])
 
-        matched = []
+        # Global optimal matching via Hungarian algorithm
+        row_ind, col_ind = linear_sum_assignment(cost_matrix)
+
+        matched: List[Tuple[int, int]] = []
         unmatched_dets = set(range(len(detections)))
         unmatched_tracks = set(range(len(self.tracks)))
 
-        while True:
-            min_val = np.min(cost_matrix)
-            if min_val > self.association_thresh or np.isinf(min_val):
-                break
+        for r, c in zip(row_ind, col_ind):
+            if cost_matrix[r, c] <= self.association_thresh:
+                matched.append((int(r), int(c)))
+                unmatched_dets.discard(int(c))
+                unmatched_tracks.discard(int(r))
 
-            t_min, d_min = np.unravel_index(np.argmin(cost_matrix), cost_matrix.shape)
-            matched.append((int(t_min), int(d_min)))
-            unmatched_dets.discard(int(d_min))
-            unmatched_tracks.discard(int(t_min))
-
-            # Invalidate row and column
-            cost_matrix[t_min, :] = np.inf
-            cost_matrix[:, d_min] = np.inf
-
-        return matched, list(unmatched_dets), list(unmatched_tracks)
+        return matched, sorted(list(unmatched_dets)), sorted(list(unmatched_tracks))

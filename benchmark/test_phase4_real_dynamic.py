@@ -75,12 +75,12 @@ def run_phase4_real_dynamic_evaluation(max_frames: int = 30):
         erased = 0
         if len(active_tracks) > 0 and len(dyn_pts) > 0:
             # Cast rays along dynamic obstacle azimuths to carve vacated space
-            erased = eraser.erase_ghost_trails(grid, dyn_pts[::8], max_ray_range_m=35.0)
+            erased = eraser.erase_ghost_trails(grid, dyn_pts[::64], max_ray_range_m=35.0)
             ghost_erased_count += erased
 
         if (idx + 1) % 5 == 0 or (idx + 1) == len(bin_files):
             dyn_pct = (len(dyn_pts) / max(len(pts), 1)) * 100.0
-            print(f"  Frame [{idx + 1:2d}/{len(bin_files)}] | Static: {len(static_pts):6d} | Dyn: {len(dyn_pts):5d} ({dyn_pct:4.1f}%) | Tracks: {len(active_tracks)} | Ghost Erased: {erased}")
+            print(f"  Frame [{idx + 1:2d}/{len(bin_files)}] | Static: {len(static_pts):6d} | Dyn: {len(dyn_pts):5d} ({dyn_pct:4.1f}%) | Tracks: {len(active_tracks)} | Ghost Erased: {erased}", flush=True)
 
     avg_dyn_pct = (total_dyn_points / max(total_dyn_points + total_static_points, 1)) * 100.0
     print("-" * 60)

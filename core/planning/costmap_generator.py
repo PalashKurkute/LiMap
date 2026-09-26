@@ -47,6 +47,7 @@ class CostmapGenerator:
         grid_height_m: float = 60.0,
         resolution_m: float = 0.10,  # 10 cm costmap cell size
         roughness_weight: float = 200.0,
+        uncertainty_weight: float = 350.0,  # Bayesian variance penalty weight (Standard 2.3)
         vehicle_height_m: float = 1.8,
     ):
         self.width_m = grid_width_m
@@ -55,6 +56,7 @@ class CostmapGenerator:
         self.nx = int(grid_width_m / resolution_m)
         self.ny = int(grid_height_m / resolution_m)
         self.roughness_weight = roughness_weight
+        self.uncertainty_weight = uncertainty_weight
         self.vehicle_height_m = vehicle_height_m
         self.origin_x = -grid_width_m * 0.5
         self.origin_y = -grid_height_m * 0.5
@@ -103,7 +105,9 @@ class CostmapGenerator:
             overhang_z = float(c["overhang_z"])
             clearance = float(c["clearance"])
             base_cost = SEMANTIC_COST_LOOKUP.get(sem, 0)
-            rough_cost = int(min(var_z * self.roughness_weight, 100.0))
+            rough_cost = int(min(var_z * self.roughness_weight, 80.0))
+            uncertainty_cost = int(min(var_z * self.uncertainty_weight, 240.0))
+            terrain_risk = max(rough_cost, uncertainty_cost)
 
             # 3. Dual-elevation clearance check vs naive 2D collapse
             if ignore_overhang_clearance:
@@ -111,7 +115,7 @@ class CostmapGenerator:
                 if sem == 50 or overhang_z < 900.0 or mean_z > -1.2:
                     total_cost = COST_LETHAL
                 else:
-                    total_cost = min(COST_LETHAL, base_cost + rough_cost)
+                    total_cost = min(COST_LETHAL, base_cost + terrain_risk)
             else:
                 # FoveaGrid 2.5D: Evaluates true 3D vehicle clearance
                 eff_clearance = clearance
@@ -119,14 +123,14 @@ class CostmapGenerator:
                     eff_clearance = mean_z - (-1.73)  # Clearance relative to road datum (-1.73m)
 
                 if (overhang_z < 900.0 or mean_z > 0.3) and eff_clearance >= self.vehicle_height_m + 0.2:
-                    total_cost = 10 + rough_cost  # Safe overhead underpass!
+                    total_cost = terrain_risk  # Safe overhead underpass (nominal road cost)!
                 elif sem == 50 or mean_z > -1.2:
                     total_cost = COST_LETHAL      # Solid pillar, wall, or low obstacle
                 else:
-                    total_cost = min(COST_LETHAL, base_cost + rough_cost)
+                    total_cost = min(COST_LETHAL, base_cost + terrain_risk)
 
-            # Fill cell's spatial footprint on costmap based on ring resolution
-            half_w = max(0, int(round(c_res / (2.0 * self.res) - 0.5)))
+            # Fill cell's spatial footprint on costmap based on ring resolution (min 1 pixel radius to prevent pinholes)
+            half_w = max(1, int(round(c_res / (2.0 * self.res))))
             y0 = max(0, gy - half_w)
             y1 = min(self.ny, gy + half_w + 1)
             x0 = max(0, gx - half_w)

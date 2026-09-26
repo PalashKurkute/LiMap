@@ -46,11 +46,12 @@ class HybridAStarPlanner:
         self,
         costmap_gen: CostmapGenerator,
         wheelbase_m: float = 2.0,
-        min_turning_radius_m: float = 4.5,
-        step_size_m: float = 0.5,
+        min_turning_radius_m: float = 3.5,
+        step_size_m: float = 0.8,
         xy_resolution_m: float = 0.25,
-        theta_bins: int = 24,
-        lethal_cost_thresh: int = 220,
+        theta_bins: int = 36,
+        lethal_cost_thresh: int = 250,
+        heuristic_weight: float = 2.0,
     ):
         self.costmap_gen = costmap_gen
         self.L = wheelbase_m
@@ -59,6 +60,7 @@ class HybridAStarPlanner:
         self.xy_res = xy_resolution_m
         self.theta_bins = theta_bins
         self.lethal_thresh = lethal_cost_thresh
+        self.h_weight = heuristic_weight
 
         # Maximum steering angle
         self.max_steer = np.arctan(self.L / self.R_min)
@@ -76,7 +78,7 @@ class HybridAStarPlanner:
         costmap: np.ndarray,
         start_pose: Tuple[float, float, float],  # (x, y, theta) in meters/rad
         goal_pose: Tuple[float, float, float],
-        max_iterations: int = 8000,
+        max_iterations: int = 15000,
         goal_tolerance_m: float = 1.0,
     ) -> Tuple[Optional[np.ndarray], float]:
         """Finds minimum-cost kinematically feasible trajectory from start to goal.
@@ -88,7 +90,7 @@ class HybridAStarPlanner:
         gx, gy, gtheta = goal_pose
 
         start_h = float(np.hypot(gx - sx, gy - sy))
-        start_node = Node(sx, sy, stheta, cost_g=0.0, cost_f=start_h)
+        start_node = Node(sx, sy, stheta, cost_g=0.0, cost_f=self.h_weight * start_h)
 
         open_set: List[Node] = []
         heapq.heappush(open_set, start_node)
@@ -138,13 +140,14 @@ class HybridAStarPlanner:
                 if cell_cost >= self.lethal_thresh:
                     continue  # Lethal collision!
 
-                # Cost accrual: distance + terrain roughness + steering change penalty
-                step_cost = self.step_size * (1.0 + float(cell_cost) / 30.0)
-                steer_penalty = abs(steer) * 0.15
+                # Cost accrual: distance + non-linear terrain uncertainty/roughness + steering penalty
+                cost_ratio = float(cell_cost) / 10.0
+                step_cost = self.step_size * (1.0 + cost_ratio ** 1.8)
+                steer_penalty = abs(steer) * 0.12
                 next_g = curr.cost_g + step_cost + steer_penalty
 
                 h_val = float(np.hypot(gx - next_x, gy - next_y))
-                next_f = next_g + h_val
+                next_f = next_g + self.h_weight * h_val
 
                 neighbor = Node(
                     x=next_x,

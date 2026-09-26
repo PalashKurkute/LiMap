@@ -49,6 +49,25 @@ class DualElevationExtractor:
         self.ground_max_height_m = ground_max_height_m
         self.overhang_min_height_m = overhang_min_height_m
 
+    def update_cell_clearance(
+        self,
+        current_min_z: float,
+        current_max_z: float,
+        new_z: float,
+        current_overhang: float,
+    ) -> Tuple[float, float]:
+        """Online incremental update of overhang and traversable clearance for an accumulating cell."""
+        overhang_z = current_overhang
+        # Identify overhead return above vehicle clear line
+        if new_z >= self.overhang_min_height_m and (new_z - current_min_z) >= self.vehicle_height_m:
+            overhang_z = min(overhang_z, new_z)
+
+        clearance = 999.0
+        if overhang_z < 900.0:
+            clearance = max(0.0, overhang_z - current_min_z)
+
+        return overhang_z, clearance
+
     def analyze_column(
         self,
         z_values: np.ndarray,

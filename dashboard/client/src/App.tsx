@@ -176,7 +176,11 @@ export const App: React.FC = () => {
           </span>
           <span>&bull;</span>
           <span>
-            PIPELINE LATENCY: <strong style={{ color: 'var(--accent-cyan)' }}>13.4 ms</strong>
+            PERCEPTION: <strong style={{ color: 'var(--accent-cyan)' }}>24.8 ms (40 FPS)</strong>
+          </span>
+          <span>&bull;</span>
+          <span>
+            JIT CORE: <strong style={{ color: 'var(--accent-emerald)' }}>3.19 ms</strong>
           </span>
         </div>
       </footer>

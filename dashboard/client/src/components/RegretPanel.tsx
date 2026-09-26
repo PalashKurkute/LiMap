@@ -36,7 +36,7 @@ export const RegretPanel: React.FC = () => {
                 letterSpacing: '-0.5px',
               }}
             >
-              0.0% REGRET
+              3.94% REGRET
             </div>
           </div>
           <div
@@ -50,7 +50,7 @@ export const RegretPanel: React.FC = () => {
               fontWeight: 700,
             }}
           >
-            MATHEMATICALLY PROVEN
+            PLANNED 3D BASELINE
           </div>
         </div>
 
@@ -70,20 +70,20 @@ export const RegretPanel: React.FC = () => {
             <div>
               <div style={{ fontWeight: 600, color: 'var(--accent-cyan)' }}>FoveaGrid 2.5D (Ours)</div>
               <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                Clearance 2.50m &bull; Trajectory Cost: 23.0
+                Clearance 2.50m &bull; Cost: 25.3 &bull; Fréchet: 0.97m
               </div>
             </div>
             <div
               className="mono-val"
               style={{
-                color: 'var(--accent-emerald)',
+                color: 'var(--accent-cyan)',
                 fontWeight: 700,
-                backgroundColor: 'rgba(0, 230, 118, 0.15)',
+                backgroundColor: 'rgba(0, 240, 255, 0.15)',
                 padding: '2px 6px',
                 borderRadius: '3px',
               }}
             >
-              0.00% REGRET
+              15.1% REGRET
             </div>
           </div>
 

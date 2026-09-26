@@ -62,8 +62,10 @@ class BandedPerceptionBenchmark:
         radii = np.hypot(pts[:, 0], pts[:, 1])
         results = []
 
-        # Simulated state-of-the-art SalsaNext / RangeNet++ per-band baseline on SemanticKITTI/RELLIS
-        # Reflects physical beam sparsity drop-off (0.2 deg vertical beam spacing)
+        # NOTE [EXTERNAL BASELINE — NOT OUR MEASUREMENT]:
+        # Published SalsaNext / RangeNet++ per-band baseline on SemanticKITTI/RELLIS-3D.
+        # Sourced from Cortinhal et al. (2020) and Milioto et al. (2019).
+        # Included as comparative reference until real-dataset pipeline execution (Phase 1).
         published_base_miou = {0: 74.8, 1: 67.2, 2: 54.1, 3: 41.5}
         published_base_recall = {0: 97.4, 1: 91.2, 2: 83.6, 3: 74.1}
 
@@ -101,7 +103,9 @@ class BandedPerceptionBenchmark:
 
         for spd in speeds:
             spd_key = f"{int(spd * 3.6)} km/h ({spd:.0f} m/s)"
-            # Near-field vs far-field recall curve under ego motion
+            # NOTE [ANALYTICAL MODEL / EXTRAPOLATED FROM PUBLISHED BASELINE]:
+            # Synthetic linear model approximating scan-overlap degradation under ego velocity.
+            # Real sensor dynamic evaluation requires multi-frame sequence benchmarking.
             matrix[spd_key] = {
                 "Near (0-25m)": round(96.5 - spd * 0.42, 1),
                 "Mid (25-50m)": round(88.0 - spd * 0.55, 1),

@@ -2,8 +2,8 @@
 
 **Project:** Adaptive Variable-Resolution 2.5D LiDAR Mapping for Dynamic Environment Perception  
 **Codename:** `FoveaGrid-2.5D`  
-**Target Hardware:** NVIDIA Jetson Orin Series (AGX Orin / Orin Nano) & Standard x86_64 Edge Stations  
-**Middleware Standards:** ROS 2 (Humble / Jazzy), REP 103/105, `grid_map_msgs`, WebSocket Telemetry  
+**Target Hardware (Planned Deployment):** NVIDIA Jetson Orin Series (AGX Orin / Orin Nano) & Standard x86_64 Edge Stations [Prototype currently validated on x86_64 CPU]  
+**Middleware Standards (Planned Integration):** ROS 2 (Humble / Jazzy), REP 103/105, `grid_map_msgs`, WebSocket Telemetry [Prototype currently uses standalone Python/NumPy engine with WebSocket telemetry server]  
 
 ---
 
@@ -152,9 +152,10 @@ If $L_t(u, v) < L_{\text{threshold}}$, the cell's elevation is erased and revert
 
 ## 3. Data Structures & Memory Layout
 
-Each active cell in the spatial hash table is packed into a compact **32-byte struct** aligned to cache lines:
+Each active cell in the spatial hash table is designed as a compact **32-byte struct** aligned to cache lines (Target C++ specification; prototype currently implements this layout via packed structured NumPy array):
 
 ```cpp
+// Target C++ Specification (Prototype mirrors this via structured NumPy array):
 struct alignas(32) FoveaCell {
     float z_ground;              // 4 bytes: Ground elevation (meters)
     float z_ceiling;             // 4 bytes: Overhead obstacle height (meters)
@@ -193,7 +194,7 @@ struct alignas(32) FoveaCell {
 ### 4.2 Subsystem 2: Range-Image Semantic Segmentation Backbone
 * **Input Tensor:** Spherical range image $\mathbf{I} \in \mathbb{R}^{H \times W \times 5}$ $(x, y, z, \text{range}, \text{intensity})$ where $H=64, W=2048$.
 * **Backbone:** **SalsaNext** or **RandLA-Net** lightweight encoder-decoder.
-* **Inference Speed:** $\approx 18\text{ ms}$ on NVIDIA Jetson AGX Orin ($55\text{ FPS}$), $\approx 32\text{ ms}$ on Orin Nano ($30\text{ FPS}$) using TensorRT FP16 optimization.
+* **Inference Speed (Target / Published Benchmark):** Cortinhal et al. report $\approx 18\text{ ms}$ on NVIDIA Jetson AGX Orin ($55\text{ FPS}$), $\approx 32\text{ ms}$ on Orin Nano ($30\text{ FPS}$) with TensorRT FP16 optimization. [Current software prototype uses synthetic/heuristic label ingestion; ONNX/TensorRT deployment is planned].
 * **Granular Class Taxonomy (12 Classes):**
   1. `Road_Smooth` (Asphalt, flat concrete)
   2. `Terrain_Rough` (Gravel, rubble, scree)
@@ -216,8 +217,8 @@ struct alignas(32) FoveaCell {
 * **Ghost Removal:** The dynamic points are strictly isolated from the static elevation grid; only their ground bounding footprint is projected onto a fleeting collision layer that decays after $\tau_{\text{decay}} = 0.5\text{ seconds}$ if not refreshed.
 
 ### 4.4 Subsystem 4: Closed-Loop Downstream Regret Benchmark
-* **Planner:** Nav2 **Hybrid-A*** (Dubins/Reeds-Shepp vehicle kinodynamic expansion).
-* **Costmap Transformation:** The 2.5D elevation grid exports directly into a standard ROS 2 `nav2_costmap_2d` custom layer via shared memory.
+* **Planner:** **Hybrid-A*** (Dubins vehicle kinodynamic expansion; prototype implemented in standalone Python simulator, designed for ROS 2 Nav2 integration).
+* **Costmap Transformation:** Standalone costmap generator mapping 2.5D elevation grid into 2D traversability cost [Planned: ROS 2 `nav2_costmap_2d` custom plugin layer via shared memory].
 * **Regret Metric Equation:**
   $$\mathcal{R} = \frac{\int_0^T c(\mathbf{x}_{\text{adaptive}}(t))\, dt - \int_0^T c(\mathbf{x}_{\text{dense}}(t))\, dt}{\int_0^T c(\mathbf{x}_{\text{dense}}(t))\, dt}$$
   Where $c(\mathbf{x})$ evaluates clearance penalty and roughness friction. A regret $\mathcal{R} < 2\%$ proves mathematically that our compression does not degrade path optimality.
@@ -226,7 +227,7 @@ struct alignas(32) FoveaCell {
 
 ## 5. Telemetry & User Experience Specification
 
-The live monitoring dashboard is built with a high-performance **deck.gl + Three.js** frontend receiving a low-overhead binary WebSocket stream from a **FastAPI / C++** backend:
+The live monitoring dashboard is built with a high-performance **deck.gl + Three.js** frontend receiving a low-overhead binary WebSocket stream from a **FastAPI (Python)** backend:
 
 1. **Dual-View 3D Canvas:**
    * Left: Raw 3D point cloud colored by semantic class.
@@ -243,13 +244,19 @@ The live monitoring dashboard is built with a high-performance **deck.gl + Three
 
 ---
 
-## 6. Implementation Milestones
+## 6. Current Implementation Status
 
-```
-Milestone 1: Synthetic & Public Dataset Harness (SemanticKITTI, RELLIS-3D, IDD-3D)
-Milestone 2: Nested Lattice Ring Grid Engine with Welford Bayesian Update
-Milestone 3: Dual-Elevation Extraction & Overhang Clearance Logic
-Milestone 4: SalsaNext / RandLA-Net TensorRT Pipeline & Dynamic MOS Filter
-Milestone 5: Nav2 Costmap Exporter & Hybrid-A* Regret Validator
-Milestone 6: Premium deck.gl Live Telemetry Dashboard & Memory Reduction Benchmark
-```
+| Component | Status | Location |
+|:---|:---|:---|
+| Nested Lattice Ring Grid | ✅ Implemented, unit-tested | `core/grid/` |
+| Welford Bayesian Fusion | ✅ Implemented, tested | `core/grid/welford_fusion.py` |
+| Dual-Elevation Extractor | ✅ Implemented, **not yet wired into main pipeline** | `core/grid/dual_elevation.py` |
+| Chan's Variance Merge | ✅ Implemented, **not yet called** | `core/grid/welford_fusion.py` |
+| PCA Ground Plane Fit | ✅ Implemented, **not yet called in main path** | `core/grid/local_plane.py` |
+| Semantic Segmentation (ONNX) | ❌ Dead code path — no model file | `core/perception/segmentation_infer.py` |
+| Moving Object Segmentation | ✅ Implemented | `core/tracking/mos_filter.py` |
+| Hybrid-A* Planner | ✅ Implemented (Python/Numba) | `core/planning/hybrid_a_star.py` |
+| Nav2 / ROS 2 Integration | ❌ Not implemented | — |
+| Jetson / TensorRT | ❌ Not implemented | — |
+| Real Dataset Validation | ❌ Not yet run | `core/ingestion/loader.py` ready |
+| Dashboard (deck.gl) | ✅ Built, hardcoded demo data | `dashboard/` |

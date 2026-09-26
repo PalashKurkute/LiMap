@@ -29,6 +29,26 @@ from core.planning.costmap_generator import CostmapGenerator
 from core.planning.hybrid_a_star import HybridAStarPlanner
 
 
+def discrete_frechet_distance(p: np.ndarray, q: np.ndarray) -> float:
+    """Computes discrete Fréchet distance between two 2D polygonal curves."""
+    n_p = len(p)
+    n_q = len(q)
+    if n_p == 0 or n_q == 0:
+        return 999.0
+    dp = np.full((n_p, n_q), float("inf"))
+    dp[0, 0] = float(np.linalg.norm(p[0, :2] - q[0, :2]))
+    for i in range(n_p):
+        for j in range(n_q):
+            d = float(np.linalg.norm(p[i, :2] - q[j, :2]))
+            if i > 0 and j > 0:
+                dp[i, j] = max(min(dp[i - 1, j], dp[i, j - 1], dp[i - 1, j - 1]), d)
+            elif i > 0:
+                dp[i, j] = max(dp[i - 1, j], d)
+            elif j > 0:
+                dp[i, j] = max(dp[i, j - 1], d)
+    return float(dp[n_p - 1, n_q - 1])
+
+
 class PlannerRegretBenchmark:
     """Executes closed-loop trajectory comparison across mapping paradigms."""
 
@@ -62,21 +82,19 @@ class PlannerRegretBenchmark:
         # Plan on Naive 2D Collapse Grid
         traj_naive, cost_naive = self.planner.plan(costmap_naive_2d, start_pose, goal_pose)
 
-        # Ideal Dense 3D Ground Truth cost (straight unobstructed path through 2.5m clearance)
-        dist_direct = np.hypot(goal_pose[0] - start_pose[0], goal_pose[1] - start_pose[1])
-        cost_ideal_3d = float(dist_direct)  # Nominal cost along road = distance
+        # Ideal 3D Ground Truth: Kinematically planned reference trajectory through 3D traversable corridor
+        costmap_ideal_3d = np.zeros_like(costmap_fovea)
+        traj_ideal_3d, cost_ideal_3d = self.planner.plan(costmap_ideal_3d, start_pose, goal_pose)
+        assert traj_ideal_3d is not None, "Ideal 3D planner failed"
 
         assert traj_fovea is not None, "FoveaGrid failed to navigate through traversable bridge!"
 
         fovea_regret = max(0.0, (cost_fovea - cost_ideal_3d) / cost_ideal_3d * 100.0)
         naive_regret = float("inf") if traj_naive is None else max(0.0, (cost_naive - cost_ideal_3d) / cost_ideal_3d * 100.0)
 
-        # Trajectory divergence
-        if traj_fovea is not None:
-            # Lateral deviation from ideal straight line (y = 0)
-            max_lat_dev_fovea = float(np.max(np.abs(traj_fovea[:, 1])))
-        else:
-            max_lat_dev_fovea = 999.0
+        # Fréchet distance and trajectory divergence
+        frechet_fovea = discrete_frechet_distance(traj_fovea, traj_ideal_3d)
+        max_lat_dev_fovea = float(np.max(np.abs(traj_fovea[:, 1])))
 
         return {
             "scenario": "Bridge Underpass (Scene A)",
@@ -87,6 +105,7 @@ class PlannerRegretBenchmark:
             "cost_naive_2d": "BLOCKED (INF)" if np.isinf(cost_naive) else round(cost_naive, 2),
             "foveagrid_regret_pct": round(fovea_regret, 2),
             "naive_2d_regret_pct": "FAILED / BLOCKED" if np.isinf(cost_naive) else round(naive_regret, 2),
+            "frechet_distance_m": round(frechet_fovea, 3),
             "max_lateral_divergence_m": round(max_lat_dev_fovea, 3),
             "underpass_traversable_fovea": bool(traj_fovea is not None),
             "underpass_traversable_naive": bool(traj_naive is not None),
@@ -112,16 +131,31 @@ class PlannerRegretBenchmark:
         traj, cost = self.planner.plan(costmap, start_pose, goal_pose)
         assert traj is not None, "Failed to navigate around pothole field!"
 
-        # Ideal 3D cost (optimal swerve around craters)
-        nominal_cost = 18.0 * 1.05  # Slight swerve distance ~18.9m
-        regret = max(0.0, (cost - nominal_cost) / nominal_cost * 100.0)
+        # Ideal 3D Ground Truth: Kinematically planned reference trajectory on exact 3D crater costmap
+        costmap_ideal_3d = np.zeros_like(costmap)
+        craters = [(8.0, 0.0, 0.55), (14.0, -1.2, 0.75), (6.0, 1.0, 0.40)]
+        for pcx, pcy, pr in craters:
+            gx = int((pcx - self.costmap_gen.origin_x) / self.costmap_gen.res)
+            gy = int((pcy - self.costmap_gen.origin_y) / self.costmap_gen.res)
+            r_pix = int(pr / self.costmap_gen.res)
+            y0, y1 = max(0, gy - r_pix), min(costmap.shape[0], gy + r_pix + 1)
+            x0, x1 = max(0, gx - r_pix), min(costmap.shape[1], gx + r_pix + 1)
+            costmap_ideal_3d[y0:y1, x0:x1] = 180
+
+        traj_ideal_3d, cost_ideal_3d = self.planner.plan(costmap_ideal_3d, start_pose, goal_pose)
+        assert traj_ideal_3d is not None, "Ideal 3D pothole planner failed"
+
+        frechet_pothole = discrete_frechet_distance(traj, traj_ideal_3d)
+        regret = max(0.0, (cost - cost_ideal_3d) / cost_ideal_3d * 100.0)
 
         return {
             "scenario": "Pothole Cluster (Scene B)",
             "start": start_pose,
             "goal": goal_pose,
+            "cost_dense_3d_ideal": round(cost_ideal_3d, 2),
             "cost_foveagrid_25d": round(cost, 2),
-            "foveagrid_regret_pct": round(min(regret, 1.2), 2),  # Validates < 1.5% bound
+            "foveagrid_regret_pct": round(regret, 2),
+            "frechet_distance_m": round(frechet_pothole, 3),
             "waypoints_count": len(traj),
         }
 
@@ -197,14 +231,17 @@ def run_full_regret_benchmark() -> None:
     print(f"   - Ideal Dense 3D Ground Truth Cost: {res_bridge['cost_dense_3d_ideal']}")
     print(f"   - FoveaGrid 2.5D Path Cost:          {res_bridge['cost_foveagrid_25d']} (Regret = {res_bridge['foveagrid_regret_pct']}%)")
     print(f"   - Naive 2D Elevation Grid:          {res_bridge['cost_naive_2d']} (Regret = {res_bridge['naive_2d_regret_pct']})")
+    print(f"   - Discrete Fréchet Distance:        {res_bridge['frechet_distance_m']} m")
     print(f"   - Max Lateral Divergence from 3D:   {res_bridge['max_lateral_divergence_m']} m")
     print(f"   --> FoveaGrid Underpass Traversable: {res_bridge['underpass_traversable_fovea']}")
     print(f"   --> Naive 2D Underpass Traversable:  {res_bridge['underpass_traversable_naive']}")
 
     res_pothole = benchmark.benchmark_pothole_field()
     print("\n2. Scenario: Pothole & Negative Hazard Field")
+    print(f"   - Ideal Dense 3D Ground Truth Cost: {res_pothole['cost_dense_3d_ideal']}")
     print(f"   - FoveaGrid 2.5D Path Cost:          {res_pothole['cost_foveagrid_25d']}")
     print(f"   - Planner Regret vs 3D Ground Truth: {res_pothole['foveagrid_regret_pct']}% (Target: < 1.5%)")
+    print(f"   - Discrete Fréchet Distance:        {res_pothole['frechet_distance_m']} m")
     print(f"   - Waypoints in Smooth Trajectory:   {res_pothole['waypoints_count']}")
 
     res_uncert = benchmark.benchmark_uncertainty_diversion()

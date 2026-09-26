@@ -37,6 +37,8 @@ yarn-error.log*
 dist/
 dist-ssr/
 *.local
+*.tsbuildinfo
+.system_generated/
 
 # Datasets & Large Weights (local only)
 data/*

@@ -87,8 +87,9 @@ def test_free_space_ghost_eraser():
     erased = eraser.erase_ghost_trails(grid, f4_pts[corridor_mask], max_ray_range_m=30.0)
     print(f"Ghost Eraser: {erased} ghost cells erased by passing rays.")
 
-    # The ghost cell at (ix, iy) should now be cleared
-    assert grid.cells[slot]["occupied"] == 0, "Ghost cell was not erased by passing rays"
+    # The ghost cell at (ix, iy) should now be cleared / demoted back to nominal ground level
+    assert grid.cells[slot]["max_z"] <= -1.70, "Ghost cell was not erased / demoted by passing rays"
+    assert grid.cells[slot]["sem_id"] == 40, "Ghost cell semantic class not reset to Road"
     print("[PASS] Free-Space Ghost Eraser: Ghost trail successfully carved away.")
 
 

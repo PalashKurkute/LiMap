@@ -15,7 +15,7 @@
 | **Seam Gap Invariants** | Unverified / empirical tears | &check; 1:2:10 lattice | &cross; Unverified | &cross; Seam mismatches | **&check; Provably 0 Gaps (4M Points)** |
 | **Dynamic Anti-Ghosting** | Ray clearing (partial) | Heuristic decay | &cross; None | Heuristic decay | **&check; MOS + LoS Ghost Eraser (200ms)** |
 | **Speed/Heading Foveation** | &cross; Static concentric rings | &cross; Static concentric rings | &cross; Static | &Delta; Partial speed shift | **&check; Velocity+Heading Dynamic Warp** |
-| **Planner Regret Audit** | &cross; Not evaluated | &cross; Not evaluated | &cross; Not evaluated | &cross; Not evaluated | **&check; Verified 0.0% Regret (&lt; 1.5%)** |
+| **Planner Regret Audit** | &cross; Not evaluated | &cross; Not evaluated | &cross; Not evaluated | &cross; Not evaluated | **&check; Evaluated on synthetic tests (10.1% / 4.65% measured)** |
 | **Adversarial Stress Modes** | &cross; Untested | &cross; Untested | &cross; Untested | &cross; Untested | **&check; 5/5 Sensor Stress Modes Passed** |
 | **Binary Stream Dashboard** | Standard React UI | CLI / Matplotlib | Basic Open3D | Flask WebGL | **&check; 60 FPS Binary ArrayBuffer + Three.js** |
 
@@ -33,10 +33,10 @@
 
 ### 2.3 Verified Planner Regret & Trajectory Divergence
 - **Rival Shortcoming:** None of the competitor teams benchmark downstream path planner regret. They report raw memory compression without verifying whether path planners make costly detours or fail completely.
-- **FoveaGrid Invariant:** Closed-loop Hybrid-A* Ackermann trajectory comparison against Dense 3D Voxel ground truth:
-  - Bridge Underpass Regret: **0.0%** (Naive 2D: **FAILED / BLOCKED**)
-  - Pothole Field Regret: **0.0%** (Strictly $< 1.5\%$ DRDO bound)
-  - Maximum Lateral Trajectory Divergence: **$0.37\text{ m}$**
+- **FoveaGrid Invariant:** Closed-loop Hybrid-A* Ackermann trajectory comparison against Dense 3D Voxel ground truth (both planned with identical Ackermann steering constraints; see `benchmark/regret_benchmark.py`):
+  - Bridge Underpass Regret: **15.11%** | Discrete Fréchet Distance: **0.97 m** (Naive 2D: **FAILED / BLOCKED**)
+  - Pothole Field Regret: **3.94%** | Discrete Fréchet Distance: **0.61 m** (unclamped vs planned 3D crater reference)
+  - Maximum Lateral Trajectory Divergence: **0.85 m**
 
 ### 2.4 Dynamic Obstacle Anti-Ghosting in 200 ms
 - **Rival Shortcoming:** Moving vehicles leave long phantom obstacle trails ("ghost walls") that block path planners for seconds after the vehicle has driven away.

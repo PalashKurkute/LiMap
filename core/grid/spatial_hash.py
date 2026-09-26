@@ -196,10 +196,15 @@ class SpatialHashGrid:
                     cell["min_z"] = new_min
                     cell["max_z"] = new_max
 
-                    # Update dual-elevation overhang if vertical gap detected
-                    if (new_max - new_min) > 1.5 and new_max > 0.3:
-                        cell["overhang_z"] = min(cell["overhang_z"], new_max)
-                        cell["clearance"] = cell["overhang_z"] - new_min
+                    # Update dual-elevation overhang and clearance via DualElevationExtractor
+                    new_overhang, new_clearance = self.dual_extractor.update_cell_clearance(
+                        current_min_z=new_min,
+                        current_max_z=new_max,
+                        new_z=z_val,
+                        current_overhang=float(cell["overhang_z"]),
+                    )
+                    cell["overhang_z"] = new_overhang
+                    cell["clearance"] = new_clearance
 
                     break
 

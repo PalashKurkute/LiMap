@@ -22,9 +22,10 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 import numpy as np
 
-from core.ingestion.loader import load_kitti_bin, load_kitti_label
+from core.ingestion.loader import load_kitti_bin, load_kitti_label, sanitize_point_cloud
 from core.grid.spatial_hash import SpatialHashGrid
 from core.grid.baselines import calculate_baselines
+from core.perception.segmentation_infer import SemanticSegmentationEngine
 from core.tracking.mos_filter import MovingObjectSegmentationFilter
 from core.tracking.kalman_tracker import DynamicObstacleTracker
 from core.planning.costmap_generator import CostmapGenerator
@@ -45,6 +46,7 @@ app.add_middleware(
 
 # Global persistent system state
 GLOBAL_GRID = SpatialHashGrid()
+SEMANTIC_ENGINE = SemanticSegmentationEngine()
 MOS_FILTER = MovingObjectSegmentationFilter()
 TRACKER = DynamicObstacleTracker(dt=0.1)
 COSTMAP_GEN = CostmapGenerator(grid_width_m=70.0, grid_height_m=70.0)
@@ -180,14 +182,28 @@ def list_scenes() -> Dict[str, object]:
     return {}
 
 
+@app.get("/api/benchmark_results")
+def get_benchmark_results() -> Dict[str, object]:
+    """Exposes real-world SemanticKITTI benchmark results to dashboard."""
+    results_path = Path("data/real/seq08_run_results.json")
+    if results_path.is_file():
+        with open(results_path, "r") as f:
+            return json.load(f)
+    return {"status": "NO_RUN_RESULTS", "message": "Run scripts/run_seq08.py first"}
+
+
 @app.post("/api/load_scene/{scene_id}")
 def load_scene(scene_id: str) -> Dict[str, str]:
-    """Loads one of the 4 canonical adversarial stress scenes into the live perception engine."""
+    """Loads synthetic stress scenes or real SemanticKITTI frames into the live engine."""
     scene_map = {
         "scene_a_bridge": ("data/synthetic/scene_a_bridge_underpass.bin", "data/synthetic/scene_a_bridge_underpass.label"),
         "scene_b_potholes": ("data/synthetic/scene_b_pothole_cluster.bin", "data/synthetic/scene_b_pothole_cluster.label"),
         "scene_c_moving": ("data/synthetic/scene_c_moving_veh_frame_02.bin", "data/synthetic/scene_c_moving_veh_frame_02.label"),
         "scene_d_poles": ("data/synthetic/scene_d_thin_pole_array.bin", "data/synthetic/scene_d_thin_pole_array.label"),
+        "real_seq08_f00": ("data/real/sequences/08/velodyne/000000.bin", None),
+        "real_seq08_f25": ("data/real/sequences/08/velodyne/000025.bin", None),
+        "real_seq08_f50": ("data/real/sequences/08/velodyne/000050.bin", None),
+        "real_seq08_f100": ("data/real/sequences/08/velodyne/000100.bin", None),
     }
     if scene_id not in scene_map:
         return {"error": f"Unknown scene: {scene_id}"}
@@ -196,8 +212,13 @@ def load_scene(scene_id: str) -> Dict[str, str]:
     if not Path(bin_file).is_file():
         return {"error": f"Scene binary not generated: {bin_file}"}
 
-    pts = load_kitti_bin(bin_file)
-    sem = load_kitti_label(lbl_file)[0] if Path(lbl_file).is_file() else None
+    raw_pts = load_kitti_bin(bin_file)
+    pts, _ = sanitize_point_cloud(raw_pts, min_range=0.5, max_range=120.0)
+
+    if lbl_file and Path(lbl_file).is_file():
+        sem = load_kitti_label(lbl_file)[0]
+    else:
+        sem = SEMANTIC_ENGINE.infer(pts)
 
     GLOBAL_GRID.reset()
     GLOBAL_GRID.insert_points(pts, semantic_labels=sem)

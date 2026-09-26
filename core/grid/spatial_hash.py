@@ -120,17 +120,17 @@ class SpatialHashGrid:
 
         return self.active_count
 
-    def _hash_coords(self, ix: np.ndarray, iy: np.ndarray, ring_id: int) -> np.ndarray:
+    def _hash_coords(self, ix: int, iy: int, ring_id: int) -> int:
         """Computes deterministic hash slot using 32-bit integer spatial mixing."""
         # Murmur/Wang-style integer hash
-        ux = (int(ix) & 0xFFFF) * 0x1F1F1F1F
-        uy = (int(iy) & 0xFFFF) * 0x5F5F5F5F
-        ur = (int(ring_id) & 0xFF) * 0x9E3779B9
+        ux = (ix & 0xFFFF) * 0x1F1F1F1F
+        uy = (iy & 0xFFFF) * 0x5F5F5F5F
+        ur = (ring_id & 0xFF) * 0x9E3779B9
         h = (ux ^ uy ^ ur) & 0xFFFFFFFF
         h ^= (h >> 16)
         h = (h * 0x85EBCA6B) & 0xFFFFFFFF
         h ^= (h >> 13)
-        return h % self.capacity
+        return int(h % self.capacity)
 
     def _insert_batch(
         self,
@@ -223,7 +223,7 @@ class SpatialHashGrid:
             "load_factor": round(self.active_count / self.capacity, 4),
             "allocated_cell_mb": round(self.cells.nbytes / (1024 * 1024), 2),
             "total_heap_mb": round(self.total_memory_mb, 2),
-            "under_drdo_bound": bool(self.total_memory_mb < 3.5),
+            "under_drdo_bound": self.total_memory_mb < 3.5,
         }
 
     def coarsen_cells(self, factor: int = 2) -> np.ndarray:
@@ -284,7 +284,7 @@ class SpatialHashGrid:
             coarse_cells[u_idx]["ring_id"] = sub[0]["ring_id"]
             coarse_cells[u_idx]["occupied"] = 1
             coarse_cells[u_idx]["sem_id"] = sub[0]["sem_id"]
-            coarse_cells[u_idx]["count"] = int(min(curr_cnt[0], 255))
+            coarse_cells[u_idx]["count"] = min(int(curr_cnt[0]), 255)
             coarse_cells[u_idx]["mean_z"] = curr_mean[0]
             coarse_cells[u_idx]["m2_z"] = curr_m2[0]
             coarse_cells[u_idx]["min_z"] = curr_min[0]

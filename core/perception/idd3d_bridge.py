@@ -156,5 +156,17 @@ class IDD3DPseudoLabeler:
         points = np.column_stack([all_x, all_y, all_z])
 
         labels = self.label_points_from_boxes(points, boxes)
-
         return points, labels, boxes
+
+
+if __name__ == "__main__":
+    bridge = IDD3DPseudoLabeler()
+    pts, lbls, bxs = bridge.generate_synthetic_idd3d_scene()
+    print("=" * 60)
+    print(" INDIAN MIXED-TRAFFIC TAXONOMY & IDD-3D BRIDGE (STANDARDS 5.4 & 5.5)")
+    print("=" * 60)
+    print(f"Total Points: {len(pts)}")
+    for cid, name in [(11, "autorickshaw"), (12, "cattle_animal"), (1, "road_drivable")]:
+        cnt = int(np.sum(lbls == cid))
+        print(f"  * Class {cid} ({name}): {cnt} points labeled")
+    print("=" * 60)

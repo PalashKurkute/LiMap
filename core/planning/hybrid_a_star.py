@@ -7,6 +7,12 @@ and evaluates path costs through underpasses, potholes, and dynamic obstacles.
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# Safe repo root bootstrapping
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 import heapq
 from typing import List, Optional, Tuple
 import numpy as np

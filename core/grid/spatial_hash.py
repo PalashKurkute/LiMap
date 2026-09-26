@@ -8,6 +8,12 @@ Zero dynamic allocations inside the real-time execution loop.
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# Safe repo root bootstrapping
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 from typing import Dict, Optional, Tuple
 import numpy as np
 

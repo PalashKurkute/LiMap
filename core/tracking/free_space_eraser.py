@@ -8,6 +8,12 @@ beams have ghost obstacle remnants erased within 2-3 scans (200-300 ms).
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# Safe repo root bootstrapping
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 from typing import List, Tuple
 import numpy as np
 
@@ -119,9 +125,14 @@ class FreeSpaceGhostEraser:
                         # If ray passes through an elevation previously deemed an obstacle
                         # (above ground and within recorded obstacle height envelope)
                         if (obs_max > -1.2) and (sz >= obs_min - 0.1) and (sz <= obs_max + 0.1):
-                            cell["occupied"] = 0
-                            cell["count"] = 0
-                            grid.active_count = max(0, grid.active_count - 1)
+                            # Demote vacated ghost obstacle cell back to nominal ground level
+                            # Preserves hash table linear probing chain integrity
+                            cell["max_z"] = min(obs_min, -1.70)
+                            cell["mean_z"] = min(obs_min, -1.70)
+                            cell["sem_id"] = 40  # Road
+                            cell["overhang_z"] = 999.0
+                            cell["clearance"] = 999.0
+                            cell["m2_z"] = 0.0
                             erased_count += 1
                         break
 

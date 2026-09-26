@@ -172,3 +172,16 @@ class LocalGroundPlaneEstimator:
             "false_positive_rate": round(float(fp_rate), 6),
             "slope_immunity_verified": bool(fp_rate < 0.001),  # strictly < 0.1% false positive
         }
+
+
+if __name__ == "__main__":
+    estimator = LocalGroundPlaneEstimator()
+    print("=" * 60)
+    print(" LOCAL TANGENT PLANE PCA EVALUATION (STANDARDS 4.2 & 4.4)")
+    print("=" * 60)
+    for grade in [8.0, 15.0]:
+        res = estimator.verify_slope_immunity(slope_pct=grade)
+        print(f"  * Grade {grade}% ({res['slope_angle_deg']}°): {res['total_points_evaluated']} pts evaluated, "
+              f"FP Obstacles={res['false_positive_obstacles']}, FP Trenches={res['false_positive_trenches']} "
+              f"(Immunity Verified={res['slope_immunity_verified']})")
+    print("=" * 60)

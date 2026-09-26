@@ -10,18 +10,29 @@ Uses Numba JIT (LLVM native machine code compilation) with fastmath and SIMD vec
 
 from __future__ import annotations
 
+import sys
 import time
-from typing import Dict, Tuple
-import numba
+from pathlib import Path
+from typing import Dict
+
+# Safe repo root bootstrapping
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 from numba import njit, prange
 import numpy as np
 
 
 @njit(fastmath=True)
 def hash_coords_jit(ix: int, iy: int, ring_id: int, capacity: int) -> int:
-    """Bitwise murmur-inspired integer hash for O(1) slot mapping."""
-    h = np.uint32(ix * 73856093 ^ iy * 19349663 ^ ring_id * 83492791)
-    return int(h % np.uint32(capacity))
+    """Bitwise murmur-inspired integer hash for O(1) slot mapping matching SpatialHashGrid."""
+    ux = np.int64((ix & 0xFFFF) * 0x1F1F1F1F)
+    uy = np.int64((iy & 0xFFFF) * 0x5F5F5F5F)
+    ur = np.int64((ring_id & 0xFF) * 0x9E3779B9)
+    h = (ux ^ uy ^ ur) & 0xFFFFFFFF
+    h ^= (h >> 16)
+    h = (h * 0x85EBCA6B) & 0xFFFFFFFF
+    h ^= (h >> 13)
+    return int(h % capacity)
 
 
 @njit(fastmath=True)
@@ -75,8 +86,7 @@ def insert_points_jit(
                 cell_sem[slot] = sem_val
                 active_count += 1
                 break
-
-            if (
+            elif (
                 cell_ix[slot] == ix and
                 cell_iy[slot] == iy and
                 cell_ring[slot] == r_id
@@ -132,13 +142,20 @@ def fast_costmap_rasterize_jit(
         var_z = active_m2_z[i] / max(cnt - 1, 1)
         sem = active_sem[i]
 
-        # Cost calculation
+        # Cost calculation combining semantics and physical elevation (potholes & positive obstacles)
         rough_cost = int(min(var_z * roughness_weight, 100.0))
         base_cost = 0
         if sem == 80 or sem == 10 or sem == 50:
             base_cost = 254
         elif sem == 72:
             base_cost = 180
+
+        # Physical 2.5D elevation checks
+        z_mean = active_mean_z[i]
+        if z_mean < -1.95:
+            base_cost = max(base_cost, 200)  # Pothole depression hazard
+        elif z_mean > -1.20 and sem != 40:
+            base_cost = max(base_cost, 254)  # High vertical obstacle
 
         total_cost = min(254, base_cost + rough_cost)
 

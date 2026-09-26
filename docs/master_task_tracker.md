@@ -46,12 +46,12 @@
 
 ## Phase 2 — Wire Existing Standalone Modules Into Live Pipeline
 
-- [x] **2.1** Replace `max-min > 1.5` threshold in `_insert_batch()` with `DualElevationExtractor` call — `core/grid/spatial_hash.py`
-- [x] **2.2** Wire Chan's parallel-variance merge (`welford_fusion.py`) into ring-boundary coarsening path
-- [x] **2.3** Call `local_plane.py` PCA ground-fit during real cell insertion (currently standalone only)
-- [x] **2.4** Integration test: high-confidence path vs low-confidence-but-shorter → assert planner picks high-confidence (`benchmark/test_phase2_integration.py`)
+- [x] **2.1** Replace `max-min > 1.5` threshold in `_insert_batch()` with `DualElevationExtractor` call — `core/grid/spatial_hash.py` (L200)
+- [ ] **2.2** Wire Chan's parallel-variance merge (`welford_fusion.py`) directly into `SpatialHashGrid` coarsening/query path (currently verified in `test_phase2_integration.py` but not called in grid engine)
+- [ ] **2.3** Call `local_plane.py` PCA ground-fit during real cell insertion in `spatial_hash.py` (currently verified in `test_phase2_integration.py` but not in live hash insertion)
+- [x] **2.4** Integration test: high-confidence path vs low-confidence-but-shorter → assert planner picks high-confidence (`benchmark/test_phase2_integration.py` / `regret_benchmark.py`)
 
-**DoD:** Every "correct but never called" module from audit has a live call site + integration test (`benchmark/test_phase2_integration.py` passing 4/4 tests).
+**DoD:** Every "correct but never called" module from audit has a live call site in `core/grid/` + integration test.
 
 ---
 
@@ -59,27 +59,28 @@
 
 - [ ] **3.1** Integrate pretrained RandLA-Net weights from Open3D-ML (SemanticKITTI pretrained)
 - [ ] **3.2** Export/convert to ONNX to feed existing dead ONNX path in `segmentation_infer.py`
-- [ ] **3.3** Run on Phase 1 real sequence; report real mIoU by distance band (blocked on `.label` ground truth)
+- [ ] **3.3** Run on Phase 1 real sequence; report real mIoU by distance band
 - [x] **3.4** Delete geometric-heuristic mIoU headline claim / relabel as "fallback mode (no model available)" in `KNOWN_LIMITATIONS.md` and `banded_metrics.py`
 
-**DoD:** Judge asking "mIoU on SemanticKITTI val by distance band?" gets a real number with provenance stated (labeled external published baseline; geometric fallback active).
+**DoD:** Judge asking "mIoU on SemanticKITTI val by distance band?" gets a real number with provenance stated (currently disclosed as limitation in `KNOWN_LIMITATIONS.md`).
 
 ---
 
 ## Phase 4 — Real Dynamic-Object Evaluation
 
-- [x] **4.1** Run `mos_filter.py` on real Phase 1 sequence; report ghost-trail count and false-positive rate (`benchmark/test_phase4_real_dynamic.py` — 13,412 ghost cells carved)
-- [x] **4.2** Ego-turn viewpoint robustness check: parked car during turn → confirm not flagged as moving (SE(3) inverse transform ego-compensation verified)
+- [x] **4.1** Fix `scripts/run_seq08.py` MOS integration: pass odometry `delta_pose_from_last` into `separate_dynamic_points()` (1,009,962 dynamic points separated, 41.8% dynamic ratio)
+- [x] **4.2** Report real sequence ghost-trail count and dynamic tracking in `BENCHMARK_REPORT.md` (1,899 ghost cells carved, 9,335 track events recorded)
+- [ ] **4.3** Ego-turn viewpoint robustness check on real turning sequence (confirm parked cars not misflagged during turn)
 
-**DoD:** Standards 3.1–3.3 move from "No" to "Partially" backed by one real sequence (25 frames, 1.8M static points, 13,210 track events).
+**DoD:** Standards 3.1–3.3 backed by real sequence dynamic metrics in the main pipeline.
 
 ---
 
 ## Phase 5 — Fix Planner Regret Metric
 
-- [x] **5.1** Replace `cost_ideal_3d = float(dist_direct)` straight-line with Dijkstra/A* reference path — `benchmark/regret_benchmark.py`
-- [x] **5.2** Re-run regret on synthetic + Phase 1 real-data scene (15.11% bridge / 3.94% pothole)
-- [x] **5.3** Add Fréchet distance alongside cost-based regret (0.97m bridge / 0.61m pothole)
+- [x] **5.1** Replace `cost_ideal_3d = float(dist_direct)` straight-line with kinematically planned 3D path — `benchmark/regret_benchmark.py`
+- [ ] **5.2** Re-run regret on real-data SemanticKITTI scene (currently evaluated only on synthetic underpass/pothole scenes)
+- [x] **5.3** Add Fréchet distance alongside cost-based regret (`benchmark/regret_benchmark.py`)
 
 **DoD:** "Ideal" baseline is a planned path, not a ruler. Number is unclamped (`benchmark/regret_benchmark.py`).
 

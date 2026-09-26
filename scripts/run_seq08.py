@@ -20,10 +20,13 @@ import numpy as np
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.ingestion.loader import load_kitti_bin, sanitize_point_cloud
+from core.ingestion.loader import load_kitti_bin, sanitize_point_cloud, compute_azimuth_timestamps
+from core.ingestion.odometry import LidarOdometryDeskewer
 from core.grid.spatial_hash import SpatialHashGrid
 from core.perception.segmentation_infer import SemanticSegmentationEngine
 from core.tracking.mos_filter import MovingObjectSegmentationFilter
+from core.tracking.kalman_tracker import DynamicObstacleTracker
+from core.tracking.free_space_eraser import FreeSpaceGhostEraser
 
 
 def run_sequence_08_benchmark(
@@ -51,7 +54,10 @@ def run_sequence_08_benchmark(
 
     grid = SpatialHashGrid()
     engine = SemanticSegmentationEngine()
-    mos = MovingObjectSegmentationFilter()
+    mos = MovingObjectSegmentationFilter(range_disparity_thresh_m=0.35)
+    deskewer = LidarOdometryDeskewer(voxel_size=0.8, max_range=60.0, deskew=True)
+    tracker = DynamicObstacleTracker(dt=0.1, min_hits_to_confirm=2)
+    eraser = FreeSpaceGhostEraser(stride=16, clearance_tolerance_m=0.4)
 
     initial_telemetry = grid.export_telemetry()
     allocated_mb = initial_telemetry["total_heap_mb"]
@@ -62,6 +68,11 @@ def run_sequence_08_benchmark(
     points_per_frame: List[int] = []
     active_cells_per_frame: List[int] = []
 
+    total_dynamic_points = 0
+    total_static_points = 0
+    total_ghost_cells_erased = 0
+    total_tracks_formed = 0
+
     start_total_time = time.perf_counter()
 
     for idx, file_path in enumerate(target_files):
@@ -69,22 +80,38 @@ def run_sequence_08_benchmark(
         raw_points = load_kitti_bin(file_path, use_mmap=False)
 
         # 2. Sanitize points (drop NaNs, infs, ego vehicle self-hits < 0.5m)
-        sanitized_pts, _ = sanitize_point_cloud(raw_points, min_range=0.5, max_range=120.0)
+        sanitized_pts, _ = sanitize_point_cloud(raw_points, min_range=1.0, max_range=60.0)
+        timestamps = compute_azimuth_timestamps(sanitized_pts, scan_frequency_hz=10.0)
 
-        # 3. Semantic Segmentation Inference
+        # 3. Odometry & Motion Deskewing (provides delta_pose for disparity check)
+        deskewed_pts, delta_pose, current_pose = deskewer.process_frame(sanitized_pts, timestamps, dt=0.1)
+
+        # 4. Semantic Segmentation Inference
         t_inf0 = time.perf_counter()
-        semantic_labels = engine.infer(sanitized_pts)
+        semantic_labels = engine.infer(deskewed_pts)
         t_inf1 = time.perf_counter()
         infer_ms = (t_inf1 - t_inf0) * 1000.0
         infer_latencies_ms.append(infer_ms)
 
-        # 4. Moving Object Segmentation (isolate dynamic returns)
+        # 5. Moving Object Segmentation with true inter-frame SE(3) disparity
         static_pts, dyn_pts, is_dyn = mos.separate_dynamic_points(
-            sanitized_pts, semantic_labels=semantic_labels
+            deskewed_pts,
+            semantic_labels=semantic_labels,
+            delta_pose_from_last=delta_pose if idx > 0 else None,
         )
 
-        # 5. Timed insertion into bounded spatial hash
-        grid.reset()
+        total_dynamic_points += len(dyn_pts)
+        total_static_points += len(static_pts)
+
+        # 6. Dynamic Obstacle Tracking & Ghost Trail Carving
+        active_tracks = tracker.update(dyn_pts)
+        total_tracks_formed += len(active_tracks)
+
+        # Rolling local map window (10 frames = 1.0s window)
+        if idx % 10 == 0:
+            grid.reset()
+
+        # Timed insertion into bounded spatial hash
         t0 = time.perf_counter()
         active_count = grid.insert_points(static_pts, semantic_labels=semantic_labels[~is_dyn])
         t1 = time.perf_counter()
@@ -94,12 +121,19 @@ def run_sequence_08_benchmark(
         points_per_frame.append(len(sanitized_pts))
         active_cells_per_frame.append(active_count)
 
-        if (idx + 1) % 25 == 0 or (idx + 1) == total_frames:
+        erased = 0
+        if len(dyn_pts) > 0 and len(active_tracks) > 0:
+            erased = eraser.erase_ghost_trails(grid, dyn_pts[::64], max_ray_range_m=35.0)
+            total_ghost_cells_erased += erased
+
+        if (idx + 1) % 10 == 0 or (idx + 1) == total_frames:
+            dyn_pct = (len(dyn_pts) / max(len(sanitized_pts), 1)) * 100.0
             print(
                 f"  Frame [{idx + 1:4d}/{total_frames}] | "
                 f"Points: {len(sanitized_pts):6d} | "
-                f"Infer: {infer_ms:5.1f} ms | "
-                f"Active Cells: {active_count:5d} | "
+                f"Dyn: {len(dyn_pts):5d} ({dyn_pct:4.1f}%) | "
+                f"Tracks: {len(active_tracks):2d} | "
+                f"Ghost Erased: {erased:3d} | "
                 f"Grid Latency: {frame_ms:5.2f} ms"
             )
 
@@ -135,6 +169,14 @@ def run_sequence_08_benchmark(
         "points": {
             "mean_points_per_frame": round(mean_points, 1),
             "total_points_processed": int(np.sum(points_arr)),
+            "total_static_points": total_static_points,
+            "total_dynamic_points": total_dynamic_points,
+            "dynamic_ratio_pct": round((total_dynamic_points / max(total_dynamic_points + total_static_points, 1)) * 100.0, 2),
+        },
+        "dynamic_anti_ghosting": {
+            "ghost_cells_carved": total_ghost_cells_erased,
+            "kalman_tracks_formed": total_tracks_formed,
+            "range_disparity_thresh_m": 0.35,
         },
         "grid_latency_ms": {
             "mean": round(mean_latency, 2),
@@ -159,11 +201,16 @@ def run_sequence_08_benchmark(
     with open(out_file, "w") as f:
         json.dump(results, f, indent=2)
 
+    avg_dyn_pct = (total_dynamic_points / max(total_dynamic_points + total_static_points, 1)) * 100.0
+
     print("\n" + "=" * 60)
     print("  RESULTS SUMMARY (Real SemanticKITTI Sequence 08)")
     print("=" * 60)
     print(f"  Frames Evaluated:        {total_frames}")
     print(f"  Avg Points/Frame:        {mean_points:,.0f}")
+    print(f"  Dynamic Points:          {total_dynamic_points:,} ({avg_dyn_pct:.1f}%)")
+    print(f"  Ghost Cells Carved:      {total_ghost_cells_erased:,}")
+    print(f"  Kalman Track Events:     {total_tracks_formed:,}")
     print(f"  Mean Active Cells:       {mean_active_cells:,.0f} (Peak: {max_active_cells})")
     print(f"  Heap Memory:             {allocated_mb:.2f} MB (DRDO Bound: < 3.5 MB: {under_drdo})")
     print(f"  Mean Insertion Latency:  {mean_latency:.2f} ms ({insertion_fps:.1f} FPS)")

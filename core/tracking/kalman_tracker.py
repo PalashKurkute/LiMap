@@ -172,8 +172,10 @@ class DynamicObstacleTracker:
             queue = [i]
             visited[i] = True
 
-            while queue:
-                curr = queue.pop(0)
+            head = 0
+            while head < len(queue):
+                curr = queue[head]
+                head += 1
                 component.append(curr)
                 neighbors = tree.query_ball_point(sub_pts[curr], r=1.5)
                 for n in neighbors:

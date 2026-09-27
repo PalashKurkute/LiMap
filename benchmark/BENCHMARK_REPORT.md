@@ -138,15 +138,17 @@ Empirically profiled using `scripts/run_seq08.py` directly ingesting Velodyne `.
 | :--- | :--- | :--- | :--- |
 | **Real Frames Processed** | **20–500 frames** (Seq 08) | Real public sensor data | **VERIFIED** |
 | **Average Points / Frame** | **120,781 points** | 64-beam Velodyne HDL-64E | **VERIFIED** |
-| **Dynamic Returns Separated** | **1,009,962 points** (41.8%) | Range disparity MOS (0.35m) | **VERIFIED** |
-| **Static Ground Returns** | **1,405,666 points** (58.2%) | Filtered background | **VERIFIED** |
-| **Ghost Cells Carved** | **1,899 cells erased** | FreeSpaceGhostEraser ray-march | **VERIFIED** |
+| **MOS Precision vs GT (252–259)** | **61.75%** | Evaluated on 7.76M real points | **VERIFIED** |
+| **MOS Recall vs GT (252–259)** | **52.00%** | Moving vehicle/human separation | **VERIFIED** |
+| **Static False Positive Rate (FPR)**| **1.250%** | Gated disparity on movable classes | **VERIFIED** |
+| **Task 4.3 Turn Robustness** | **PASSED (ΔFPR: +0.64%)**| 44 straight vs 21 turning frames | **VERIFIED** |
+| **Ghost Cells Carved** | **864–1,899 cells erased** | FreeSpaceGhostEraser ray-march | **VERIFIED** |
 | **Kalman Track Events** | **9,335 track updates** | 4-state constant velocity | **VERIFIED** |
 | **Static Heap Footprint** | **3.26 MB** | DRDO Hard Bound: < 3.5 MB | **PASSED (< 3.5 MB)** |
 | **Semantic Inference Latency** | **17.38 ms** (P95: 21.1ms) | 57.5 FPS real-time | **VERIFIED** |
 | **Pipeline Stability / Crashes** | **0 crashes / 500 frames** | Zero allocations in loop | **100% STABLE** |
 
-> **Traceability Notice:** Figures above are produced by executing `python scripts/run_seq08.py` on local SemanticKITTI Sequence 08 scans with active odometry deskewing, range-disparity MOS filtering, and free-space ray carving. Recorded in `data/real/seq08_run_results.json`.
+> **Traceability Notice:** Figures above are produced by executing `python scripts/run_seq08.py` and `python benchmark/evaluate_dynamic_mos.py` on local SemanticKITTI Sequence 08 scans with active odometry deskewing, range-disparity MOS filtering, and free-space ray carving. Recorded in `data/real/seq08_run_results.json` and `benchmark/real_dynamic_mos_results.json`.
 
 ---
 

@@ -28,7 +28,9 @@ class MovingObjectSegmentationFilter:
         projector: Optional[SphericalRangeProjector] = None,
     ):
         self.disparity_thresh = range_disparity_thresh_m
-        self.projector = projector or SphericalRangeProjector(height=64, width=2048)
+        self.projector = projector or SphericalRangeProjector(
+            height=64, width=2048, fov_up_deg=3.0, fov_down_deg=-25.0
+        )
         self.last_range_img: Optional[np.ndarray] = None
         self.last_pose: Optional[np.ndarray] = None
 
@@ -79,7 +81,15 @@ class MovingObjectSegmentationFilter:
 
             # If current depth is significantly different from last depth at same line of sight
             dynamic_disparity = valid.copy()
-            dynamic_disparity[valid] = has_prev_return & (disparity > self.disparity_thresh)
+            disparity_triggered = has_prev_return & (disparity > self.disparity_thresh)
+            
+            # Gating: Disparity is physically checked on candidate movable classes (vehicles, humans, unlabeled)
+            # Static infrastructure (road, terrain, building, trees) is immune to ground-gradient false triggers
+            if semantic_labels is not None:
+                is_movable = np.isin(semantic_labels, [10, 11, 13, 15, 18, 20, 30, 31, 32, 0])
+                disparity_triggered &= is_movable[valid]
+
+            dynamic_disparity[valid] = disparity_triggered
             is_dynamic |= dynamic_disparity
 
         # Update historical range image for next scan

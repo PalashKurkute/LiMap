@@ -70,9 +70,9 @@
 
 - [x] **4.1** Fix `scripts/run_seq08.py` MOS integration: pass odometry `delta_pose_from_last` into `separate_dynamic_points()` (1,009,962 dynamic points separated, 41.8% dynamic ratio)
 - [x] **4.2** Report real sequence ghost-trail count and dynamic tracking in `BENCHMARK_REPORT.md` (1,899 ghost cells carved, 9,335 track events recorded)
-- [ ] **4.3** Ego-turn viewpoint robustness check on real turning sequence (confirm parked cars not misflagged during turn)
+- [x] **4.3** Ego-turn viewpoint robustness check on real turning sequence (`benchmark/evaluate_dynamic_mos.py` evaluated across 65 frames / 7.76M points: 44 straight vs 21 turning frames, Turn ΔFPR: +0.64%, PASSED)
 
-**DoD:** Standards 3.1–3.3 backed by real sequence dynamic metrics in the main pipeline.
+**DoD:** Standards 3.1–3.3 backed by real sequence dynamic metrics in the main pipeline. All Phase 4 tasks complete and verified.
 
 ---
 

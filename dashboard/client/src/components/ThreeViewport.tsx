@@ -1,11 +1,41 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import type { SceneId, TelemetryData, CameraViewMode, ColorMapMode, DEMDisplayMode } from '../types/telemetry';
-import { Gauge, Compass, Zap } from 'lucide-react';
+import type {
+  SceneId,
+  TelemetryData,
+  CameraViewMode,
+  ColorMapMode,
+  DEMDisplayMode,
+  LayerVisibility,
+  StressModeId,
+} from '../types/telemetry';
 
 interface ThreeViewportProps {
   sceneId: SceneId;
   telemetry: TelemetryData | null;
+  layerVisibility?: LayerVisibility;
+  stressMode?: StressModeId;
+  onLayerVisibilityChange?: (layers: LayerVisibility) => void;
+  onStressModeChange?: (mode: StressModeId) => void;
+  cameraMode?: CameraViewMode;
+  onCameraModeChange?: (mode: CameraViewMode) => void;
+  displayMode?: DEMDisplayMode;
+  onDisplayModeChange?: (mode: DEMDisplayMode) => void;
+  colorMode?: ColorMapMode;
+  onColorModeChange?: (mode: ColorMapMode) => void;
+  isWireframe?: boolean;
+  onWireframeChange?: (val: boolean) => void;
+  controlMode?: 'wasd' | 'playback';
+  onControlModeChange?: (mode: 'wasd' | 'playback') => void;
+  isPlaying?: boolean;
+  onIsPlayingChange?: (playing: boolean) => void;
+  currentFrame?: number;
+  onFrameSeek?: (frame: number) => void;
+  playbackSpeed?: number;
+  onPlaybackSpeedChange?: (speed: number) => void;
+  onTelemetryUpdate?: (telem: { speed: number; heading: number; x: number; y: number; z: number }) => void;
+  resetSignal?: number;
+  showScaleBar?: boolean;
 }
 
 interface HoverInspection {
@@ -60,26 +90,78 @@ function getTraversabilityColor(slopeDeg: number): { r: number; g: number; b: nu
   }
 }
 
-export const ThreeViewport: React.FC<ThreeViewportProps> = ({ sceneId, telemetry }) => {
+export const ThreeViewport: React.FC<ThreeViewportProps> = ({
+  sceneId,
+  telemetry: _telemetry,
+  layerVisibility,
+  stressMode = 'nominal',
+  onLayerVisibilityChange: _onLayerVisibilityChange,
+  cameraMode: propCameraMode,
+  displayMode: propDisplayMode,
+  onDisplayModeChange: _onDisplayModeChange,
+  colorMode: propColorMode,
+  isWireframe: propIsWireframe,
+  controlMode: propControlMode,
+  isPlaying: propIsPlaying,
+  currentFrame: propCurrentFrame,
+  playbackSpeed: propPlaybackSpeed,
+  onTelemetryUpdate,
+  resetSignal,
+  showScaleBar = false,
+}) => {
   const mountRef = useRef<HTMLDivElement>(null);
 
+  const activeLayers: LayerVisibility = layerVisibility ?? {
+    demSurface: true,
+    demVoxels: false,
+    rawPoints: false,
+    bridgeDeck: true,
+    trajectory: true,
+    trackers: true,
+    foveaRings: true,
+    sweepWave: true,
+    headlights: true,
+  };
+
   // FastDEM Viewport & Generation Controls
-  const [cameraMode, setCameraMode] = useState<CameraViewMode>('orbit');
-  const [displayMode, setDisplayMode] = useState<DEMDisplayMode>('surface');
-  const [colorMode, setColorMode] = useState<ColorMapMode>('elevation');
-  const [isWireframe, setIsWireframe] = useState<boolean>(false);
-  const [showSweepWave, setShowSweepWave] = useState<boolean>(true);
-  const [showCloudOverlay, setShowCloudOverlay] = useState<boolean>(false);
-  const [showColorbar, setShowColorbar] = useState<boolean>(true);
+  const [cameraMode, setCameraMode] = useState<CameraViewMode>(propCameraMode ?? 'chase');
+  const [displayMode, setDisplayMode] = useState<DEMDisplayMode>(propDisplayMode ?? 'surface');
+  const [colorMode, setColorMode] = useState<ColorMapMode>(propColorMode ?? 'elevation');
+  const [isWireframe, setIsWireframe] = useState<boolean>(propIsWireframe ?? false);
+  const [showSweepWave] = useState<boolean>(true);
+  const [showCloudOverlay] = useState<boolean>(false);
+
+  // Foxglove / Rerun-inspired Replay & Timeline State
+  const [controlMode, setControlMode] = useState<'wasd' | 'playback'>(propControlMode ?? 'wasd');
+  const [isPlaying, setIsPlaying] = useState<boolean>(propIsPlaying ?? true);
+  const [, setCurrentFrame] = useState<number>(propCurrentFrame ?? 0);
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(propPlaybackSpeed ?? 1);
+
+  const controlModeRef = useRef<'wasd' | 'playback'>(controlMode);
+  controlModeRef.current = controlMode;
+  const isPlayingRef = useRef<boolean>(isPlaying);
+  isPlayingRef.current = isPlaying;
+  const playbackSpeedRef = useRef<number>(playbackSpeed);
+  playbackSpeedRef.current = playbackSpeed;
+  const playbackProgressRef = useRef<number>(0);
+  const trajCurveRef = useRef<THREE.CatmullRomCurve3 | null>(null);
+
+
 
   // Interactive Real-Time Height Inspector State
   const [hoverData, setHoverData] = useState<HoverInspection | null>(null);
 
   // Scene References for Dynamic Updates
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const targetCameraPos = useRef<THREE.Vector3>(new THREE.Vector3(-14, -14, 11));
-  const targetLookAt = useRef<THREE.Vector3>(new THREE.Vector3(16, 0, -1.0));
-  const currentLookAt = useRef<THREE.Vector3>(new THREE.Vector3(16, 0, -1.0));
+  const cameraModeRef = useRef<CameraViewMode>(cameraMode);
+  cameraModeRef.current = cameraMode;
+
+  const targetCameraPos = useRef<THREE.Vector3>(new THREE.Vector3(-9, 0, 4.2));
+  const targetLookAt = useRef<THREE.Vector3>(new THREE.Vector3(3.5, 0, -1.0));
+  const currentLookAt = useRef<THREE.Vector3>(new THREE.Vector3(3.5, 0, -1.0));
+  const chaseZoomRef = useRef<number>(1.0);
+  const bevHeightRef = useRef<number>(32.0);
+  const cockpitFovRef = useRef<number>(45.0);
 
   const ringsGroupRef = useRef<THREE.Group | null>(null);
   const trajectoryGroupRef = useRef<THREE.Group | null>(null);
@@ -90,6 +172,26 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({ sceneId, telemetry
   const bridgeDeckMeshRef = useRef<THREE.Mesh | null>(null);
   const sweepRingMeshRef = useRef<THREE.Mesh | null>(null);
   const hoverCrosshairRef = useRef<THREE.Mesh | null>(null);
+  const headlightsRef = useRef<THREE.SpotLight | null>(null);
+
+  // UGV Vehicle Object References & Kinematic State
+  const carGroupRef = useRef<THREE.Group | null>(null);
+  const frontLeftWheelRef = useRef<THREE.Group | null>(null);
+  const frontRightWheelRef = useRef<THREE.Group | null>(null);
+  const wheelsMeshListRef = useRef<THREE.Mesh[]>([]);
+  const lidarTurretRef = useRef<THREE.Mesh | null>(null);
+  const keysRef = useRef<{ [key: string]: boolean }>({});
+  const carPhysicsRef = useRef({
+    x: 0,
+    y: 0,
+    z: -1.41,
+    heading: 0, // yaw in radians (0 = pointing +X)
+    speed: 0, // forward velocity in m/s
+    steerAngle: 0, // front wheel steering in radians
+    pitch: 0,
+    roll: 0,
+    wheelRot: 0,
+  });
 
   // Cached geometry and elevation matrices for in-place color updates
   const demGeometryRef = useRef<THREE.PlaneGeometry | null>(null);
@@ -102,45 +204,88 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({ sceneId, telemetry
   // Handle Camera Mode Transitions
   const handleCameraChange = (mode: CameraViewMode) => {
     setCameraMode(mode);
+    cameraModeRef.current = mode;
     if (!cameraRef.current) return;
 
-    if (mode === 'orbit') {
+    if (mode !== 'cockpit' && cameraRef.current.fov !== 45) {
+      cameraRef.current.fov = 45;
+      cameraRef.current.updateProjectionMatrix();
+    }
+
+    const car = carPhysicsRef.current;
+    if (mode === 'chase') {
       cameraRef.current.up.set(0, 0, 1);
-      targetCameraPos.current.set(-14, -14, 11);
-      targetLookAt.current.set(16, 0, -1.0);
+      const backDist = 9.0 * chaseZoomRef.current;
+      const upDist = 4.2 * chaseZoomRef.current;
+      targetCameraPos.current.set(
+        car.x - Math.cos(car.heading) * backDist,
+        car.y - Math.sin(car.heading) * backDist,
+        car.z + upDist
+      );
+      targetLookAt.current.set(
+        car.x + Math.cos(car.heading) * 3.5,
+        car.y + Math.sin(car.heading) * 3.5,
+        car.z + 0.5
+      );
+    } else if (mode === 'orbit') {
+      cameraRef.current.up.set(0, 0, 1);
+      targetCameraPos.current.set(car.x - 14, car.y - 14, car.z + 11);
+      targetLookAt.current.set(car.x + 8, car.y, car.z);
     } else if (mode === 'bev') {
       cameraRef.current.up.set(1, 0, 0);
-      targetCameraPos.current.set(20, 0, 44);
-      targetLookAt.current.set(20, 0, 0);
+      targetCameraPos.current.set(car.x, car.y, car.z + bevHeightRef.current);
+      targetLookAt.current.set(car.x, car.y, car.z);
     } else if (mode === 'cockpit') {
       cameraRef.current.up.set(0, 0, 1);
-      targetCameraPos.current.set(-0.2, 0.0, -0.6);
-      targetLookAt.current.set(32.0, 0.0, -1.2);
-    } else if (mode === 'cross_cut') {
-      cameraRef.current.up.set(0, 0, 1);
-      targetCameraPos.current.set(18.0, -28.0, 0.0);
-      targetLookAt.current.set(18.0, 0.0, 0.0);
+      targetCameraPos.current.set(car.x + 0.2, car.y, car.z + 0.6);
+      targetLookAt.current.set(car.x + 25.0, car.y, car.z);
     }
   };
 
-  // Lightweight Display Mode & Toggles Effect (No WebGL context recreation)
+  // Lightweight Display Mode & ROS 2 Layer Toggles Effect
   useEffect(() => {
     if (demSurfaceMeshRef.current) {
-      demSurfaceMeshRef.current.visible = displayMode === 'surface';
+      demSurfaceMeshRef.current.visible = activeLayers.demSurface && displayMode === 'surface';
       if (demSurfaceMeshRef.current.material instanceof THREE.MeshStandardMaterial) {
         demSurfaceMeshRef.current.material.wireframe = isWireframe;
       }
     }
     if (demVoxelsMeshRef.current) {
-      demVoxelsMeshRef.current.visible = displayMode === 'voxels';
+      demVoxelsMeshRef.current.visible = activeLayers.demVoxels || displayMode === 'voxels';
     }
     if (cloudPointsRef.current) {
-      cloudPointsRef.current.visible = displayMode === 'points' || showCloudOverlay;
+      cloudPointsRef.current.visible = activeLayers.rawPoints || displayMode === 'points' || showCloudOverlay;
+    }
+    if (bridgeDeckMeshRef.current) {
+      bridgeDeckMeshRef.current.visible = activeLayers.bridgeDeck;
+    }
+    if (trajectoryGroupRef.current) {
+      trajectoryGroupRef.current.visible = activeLayers.trajectory;
+    }
+    if (trackersGroupRef.current) {
+      trackersGroupRef.current.visible = activeLayers.trackers;
     }
     if (sweepRingMeshRef.current) {
-      sweepRingMeshRef.current.visible = showSweepWave;
+      sweepRingMeshRef.current.visible = activeLayers.sweepWave && showSweepWave;
     }
-  }, [displayMode, isWireframe, showCloudOverlay, showSweepWave]);
+    if (ringsGroupRef.current) {
+      ringsGroupRef.current.visible = activeLayers.foveaRings;
+    }
+    if (headlightsRef.current) {
+      headlightsRef.current.visible = activeLayers.headlights;
+    }
+  }, [displayMode, isWireframe, showCloudOverlay, showSweepWave, activeLayers]);
+
+  // Adversarial Sensor Stress Mode Reaction (SIH26053 §9.2)
+  useEffect(() => {
+    if (!cloudPointsRef.current) return;
+    const geom = cloudPointsRef.current.geometry;
+    if (stressMode === 'dropout_50') {
+      geom.setDrawRange(0, 2400); // 50% beam occlusion
+    } else {
+      geom.setDrawRange(0, 4800);
+    }
+  }, [stressMode]);
 
   // Seamless In-Place Vertex Colormap Updating (Preserves Camera & Mesh)
   useEffect(() => {
@@ -257,30 +402,137 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({ sceneId, telemetry
       ringsGroup.add(ringMesh);
     });
 
-    // 2. Ego Vehicle Body (3D Wireframe Chassis + ROS REP-103 Axis Triad)
-    const egoGroup = new THREE.Group();
-    const egoBoxGeo = new THREE.BoxGeometry(2.4, 1.4, 0.8);
-    const egoBoxMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, wireframe: true });
-    const egoMesh = new THREE.Mesh(egoBoxGeo, egoBoxMat);
-    egoMesh.position.set(0, 0, -1.33);
-    egoGroup.add(egoMesh);
+    // 2. Autonomous UGV Vehicle Model (Tactical Cyber-Chassis + Spinning LiDAR + Active Steering)
+    const carGroup = new THREE.Group();
+    carGroupRef.current = carGroup;
+    scene.add(carGroup);
+
+    // Chassis Lower Hull (Gunmetal tactical titanium)
+    const chassisGeo = new THREE.BoxGeometry(2.3, 1.25, 0.42);
+    const chassisMat = new THREE.MeshStandardMaterial({
+      color: 0x1a2333,
+      metalness: 0.85,
+      roughness: 0.25,
+    });
+    const chassisMesh = new THREE.Mesh(chassisGeo, chassisMat);
+    chassisMesh.position.z = 0.0;
+    carGroup.add(chassisMesh);
+
+    // Cabin / Sensor Enclosure (Tinted armored glass with cyan accent trim)
+    const cabinGeo = new THREE.BoxGeometry(1.2, 0.95, 0.36);
+    const cabinMat = new THREE.MeshStandardMaterial({
+      color: 0x090d16,
+      metalness: 0.9,
+      roughness: 0.1,
+      transparent: true,
+      opacity: 0.9,
+    });
+    const cabinMesh = new THREE.Mesh(cabinGeo, cabinMat);
+    cabinMesh.position.set(-0.2, 0, 0.35);
+    carGroup.add(cabinMesh);
+
+    // Cabin Glow Accent Trim
+    const trimGeo = new THREE.BoxGeometry(1.22, 0.97, 0.04);
+    const trimMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+    const trimMesh = new THREE.Mesh(trimGeo, trimMat);
+    trimMesh.position.set(-0.2, 0, 0.52);
+    carGroup.add(trimMesh);
+
+    // Four Wheels with Rubber Treads & Cyan Rims
+    const wheelTireGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.22, 16);
+    const wheelRimGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.24, 16);
+    const tireMat = new THREE.MeshStandardMaterial({ color: 0x111317, roughness: 0.8 });
+    const rimMat = new THREE.MeshStandardMaterial({ color: 0x00f0ff, metalness: 0.8, roughness: 0.2 });
+
+    const makeWheel = () => {
+      const wGroup = new THREE.Group();
+      const tire = new THREE.Mesh(wheelTireGeo, tireMat);
+      tire.rotation.x = Math.PI / 2;
+      const rim = new THREE.Mesh(wheelRimGeo, rimMat);
+      rim.rotation.x = Math.PI / 2;
+      wGroup.add(tire);
+      wGroup.add(rim);
+      return { group: wGroup, tire, rim };
+    };
+
+    // Front Left & Right (pivot with steerAngle)
+    const fl = makeWheel();
+    fl.group.position.set(0.75, 0.72, -0.12);
+    carGroup.add(fl.group);
+    frontLeftWheelRef.current = fl.group;
+
+    const fr = makeWheel();
+    fr.group.position.set(0.75, -0.72, -0.12);
+    carGroup.add(fr.group);
+    frontRightWheelRef.current = fr.group;
+
+    // Rear Left & Right (fixed steer, roll only)
+    const rl = makeWheel();
+    rl.group.position.set(-0.75, 0.72, -0.12);
+    carGroup.add(rl.group);
+
+    const rr = makeWheel();
+    rr.group.position.set(-0.75, -0.72, -0.12);
+    carGroup.add(rr.group);
+
+    wheelsMeshListRef.current = [fl.tire, fl.rim, fr.tire, fr.rim, rl.tire, rl.rim, rr.tire, rr.rim];
+
+    // Front Twin Headlights (LED Cyan) + Spotlight Cones
+    const hlGeo = new THREE.BoxGeometry(0.08, 0.18, 0.1);
+    const hlMat = new THREE.MeshBasicMaterial({ color: 0xe0f7fa });
+    const hlLeft = new THREE.Mesh(hlGeo, hlMat);
+    hlLeft.position.set(1.15, 0.42, 0.05);
+    carGroup.add(hlLeft);
+
+    const hlRight = new THREE.Mesh(hlGeo, hlMat);
+    hlRight.position.set(1.15, -0.42, 0.05);
+    carGroup.add(hlRight);
+
+    const spotLight1 = new THREE.SpotLight(0x00f0ff, 3.5, 30, Math.PI / 5, 0.4, 1.2);
+    spotLight1.position.set(1.2, 0.42, 0.1);
+    const spotTarget = new THREE.Object3D();
+    spotTarget.position.set(12, 0.42, -1.0);
+    carGroup.add(spotTarget);
+    spotLight1.target = spotTarget;
+    spotLight1.visible = activeLayers.headlights;
+    headlightsRef.current = spotLight1;
+    carGroup.add(spotLight1);
+
+    // Rear Taillights (Crimson Red)
+    const tlGeo = new THREE.BoxGeometry(0.08, 0.18, 0.08);
+    const tlMat = new THREE.MeshBasicMaterial({ color: 0xff1744 });
+    const tlLeft = new THREE.Mesh(tlGeo, tlMat);
+    tlLeft.position.set(-1.15, 0.42, 0.05);
+    carGroup.add(tlLeft);
+
+    const tlRight = new THREE.Mesh(tlGeo, tlMat);
+    tlRight.position.set(-1.15, -0.42, 0.05);
+    carGroup.add(tlRight);
+
+    // Roof Spinning LiDAR Sensor Turret Puck
+    const lidarBaseGeo = new THREE.CylinderGeometry(0.14, 0.16, 0.18, 16);
+    const lidarBaseMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.9, roughness: 0.3 });
+    const lidarBase = new THREE.Mesh(lidarBaseGeo, lidarBaseMat);
+    lidarBase.position.set(-0.2, 0, 0.62);
+    carGroup.add(lidarBase);
+
+    const lidarPuckGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.14, 16);
+    const lidarPuckMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.8, roughness: 0.2 });
+    const lidarPuck = new THREE.Mesh(lidarPuckGeo, lidarPuckMat);
+    lidarPuck.position.set(-0.2, 0, 0.76);
+    carGroup.add(lidarPuck);
+    lidarTurretRef.current = lidarPuck;
+
+    const laserStripGeo = new THREE.BoxGeometry(0.04, 0.25, 0.04);
+    const laserStripMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+    const laserStrip = new THREE.Mesh(laserStripGeo, laserStripMat);
+    laserStrip.position.set(0.08, 0, 0);
+    lidarPuck.add(laserStrip);
 
     // ROS REP-103 Axes: Red = +X Forward, Green = +Y Left, Blue = +Z Up
-    const axesHelper = new THREE.AxesHelper(2.5);
-    axesHelper.position.set(0, 0, -1.33);
-    egoGroup.add(axesHelper);
-
-    // Forward Direction Arrow on Ego
-    const egoArrow = new THREE.ArrowHelper(
-      new THREE.Vector3(1, 0, 0),
-      new THREE.Vector3(0, 0, -1.33),
-      2.8,
-      0x00f0ff,
-      0.6,
-      0.3
-    );
-    egoGroup.add(egoArrow);
-    scene.add(egoGroup);
+    const axesHelper = new THREE.AxesHelper(1.8);
+    axesHelper.position.set(0, 0, 0.2);
+    carGroup.add(axesHelper);
 
     // ==========================================
     // 3. FastDEM Continuous Elevation Heightfield Mesh
@@ -574,6 +826,7 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({ sceneId, telemetry
       new THREE.Vector3(34, 0.5, -1.68),
       new THREE.Vector3(45, 0.0, -1.68),
     ]);
+    trajCurveRef.current = trajCurve;
 
     const trajGeo = new THREE.TubeGeometry(trajCurve, 48, 0.12, 8, false);
     const trajMat = new THREE.MeshBasicMaterial({
@@ -706,7 +959,7 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({ sceneId, telemetry
       prevMouse = { x: e.clientX, y: e.clientY };
 
       if (isDragging) {
-        const offset = camera.position.clone().sub(targetLookAt.current);
+        const offset = targetCameraPos.current.clone().sub(targetLookAt.current);
         const radius = offset.length();
         let theta = Math.atan2(offset.y, offset.x);
         let phi = Math.acos(Math.min(Math.max(offset.z / radius, -1), 1));
@@ -733,29 +986,201 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({ sceneId, telemetry
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const zoomFactor = e.deltaY > 0 ? 1.1 : 0.9;
-      const offset = targetCameraPos.current.clone().sub(targetLookAt.current);
-      if (offset.length() * zoomFactor > 3 && offset.length() * zoomFactor < 200) {
-        offset.multiplyScalar(zoomFactor);
+      e.stopPropagation();
+
+      const zoomDelta = Math.sign(e.deltaY) * Math.min(Math.abs(e.deltaY) * 0.0015, 0.25);
+      const zoomFactor = 1.0 + zoomDelta;
+
+      if (cameraModeRef.current === 'chase') {
+        chaseZoomRef.current = THREE.MathUtils.clamp(chaseZoomRef.current * zoomFactor, 0.25, 4.5);
+      } else if (cameraModeRef.current === 'bev') {
+        bevHeightRef.current = THREE.MathUtils.clamp(bevHeightRef.current * zoomFactor, 6.0, 160.0);
+      } else if (cameraModeRef.current === 'cockpit') {
+        cockpitFovRef.current = THREE.MathUtils.clamp(cockpitFovRef.current * (zoomFactor > 1 ? 1.06 : 0.94), 18.0, 80.0);
+        if (cameraRef.current) {
+          cameraRef.current.fov = cockpitFovRef.current;
+          cameraRef.current.updateProjectionMatrix();
+        }
+      } else {
+        const offset = targetCameraPos.current.clone().sub(targetLookAt.current);
+        const dist = offset.length();
+        const newDist = THREE.MathUtils.clamp(dist * zoomFactor, 3.0, 220.0);
+        offset.setLength(newDist);
         targetCameraPos.current.copy(targetLookAt.current).add(offset);
       }
     };
 
     const domElement = renderer.domElement;
     domElement.addEventListener('mousedown', handleMouseDown);
-    domElement.addEventListener('wheel', handleWheel, { passive: false });
+    container.addEventListener('wheel', handleWheel, { passive: false });
     domElement.addEventListener('contextmenu', (e) => e.preventDefault());
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
+
+    // ==========================================
+    // WASD & Arrow Key Drive Event Handlers
+    // ==========================================
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      const code = e.code;
+      keysRef.current[code] = true;
+
+      if (code === 'KeyR') {
+        const car = carPhysicsRef.current;
+        car.x = 0;
+        car.y = 0;
+        car.heading = 0;
+        car.speed = 0;
+        car.steerAngle = 0;
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      const code = e.code;
+      keysRef.current[code] = false;
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
 
     // ==========================================
     // FastDEM Smooth Animation Loop (60 FPS WebGL)
     // ==========================================
     let animationId: number;
     let sweepRadius = 0.5;
+    let frameCount = 0;
 
     const animate = () => {
       animationId = requestAnimationFrame(animate);
+
+      const car = carPhysicsRef.current;
+      const keys = keysRef.current;
+      const dt = 0.016;
+
+      if (controlModeRef.current === 'playback' && trajCurveRef.current) {
+        if (isPlayingRef.current) {
+          playbackProgressRef.current = (playbackProgressRef.current + (dt * 0.075 * playbackSpeedRef.current)) % 1.0;
+        }
+        const pt = trajCurveRef.current.getPointAt(playbackProgressRef.current);
+        const tangent = trajCurveRef.current.getTangentAt(playbackProgressRef.current);
+        car.x = pt.x;
+        car.y = pt.y;
+        const targetHeading = Math.atan2(tangent.y, tangent.x);
+        car.heading += (targetHeading - car.heading) * Math.min(10.0 * dt, 1.0);
+        car.speed = 8.5 * playbackSpeedRef.current;
+        car.steerAngle = Math.max(-0.52, Math.min(0.52, targetHeading - car.heading));
+        if (frontLeftWheelRef.current) frontLeftWheelRef.current.rotation.z = car.steerAngle;
+        if (frontRightWheelRef.current) frontRightWheelRef.current.rotation.z = car.steerAngle;
+      } else {
+        // 1. Steering Kinematics (A / D / Arrows)
+        const maxSteer = 0.52;
+        let targetSteer = 0;
+        if (keys['KeyA'] || keys['ArrowLeft']) targetSteer += maxSteer;
+        if (keys['KeyD'] || keys['ArrowRight']) targetSteer -= maxSteer;
+        car.steerAngle += (targetSteer - car.steerAngle) * Math.min(8.0 * dt, 1.0);
+
+        if (frontLeftWheelRef.current) frontLeftWheelRef.current.rotation.z = car.steerAngle;
+        if (frontRightWheelRef.current) frontRightWheelRef.current.rotation.z = car.steerAngle;
+
+        // 2. Throttle & Braking (W / S / Space)
+        const maxSpeed = 16.0; // ~58 km/h
+        const accel = 18.0;
+        const brakeDecel = 26.0;
+        const drag = 4.5;
+
+        if (keys['KeyW'] || keys['ArrowUp']) {
+          car.speed = Math.min(car.speed + accel * dt, maxSpeed);
+        } else if (keys['KeyS'] || keys['ArrowDown']) {
+          car.speed = Math.max(car.speed - brakeDecel * dt, -maxSpeed * 0.45);
+        } else if (keys['Space']) {
+          car.speed *= Math.max(0, 1.0 - 16.0 * dt);
+        } else {
+          if (Math.abs(car.speed) > 0.08) {
+            car.speed -= Math.sign(car.speed) * drag * dt;
+          } else {
+            car.speed = 0;
+          }
+        }
+
+        // 3. Heading & Position (Bicycle Kinematics)
+        if (Math.abs(car.speed) > 0.02) {
+          const wheelbase = 1.5;
+          const yawRate = (car.speed / wheelbase) * Math.sin(car.steerAngle);
+          car.heading += yawRate * dt;
+        }
+
+        car.x += Math.cos(car.heading) * car.speed * dt;
+        car.y += Math.sin(car.heading) * car.speed * dt;
+
+        // DEM Map Boundary Constraints (-4m to 44m X, -13m to 13m Y)
+        car.x = Math.max(Math.min(car.x, 44.0), -4.0);
+        car.y = Math.max(Math.min(car.y, 13.0), -13.0);
+      }
+
+      // Wheel spinning rotation
+      car.wheelRot += (car.speed * dt) / 0.32;
+      for (const w of wheelsMeshListRef.current) {
+        w.rotation.y = car.wheelRot;
+      }
+
+      // Roof LiDAR Turret spinning (600 RPM)
+      if (lidarTurretRef.current) {
+        lidarTurretRef.current.rotation.z += 0.22;
+      }
+
+      // 4. Conformance to Terrain Elevation & Slope Tilt
+      const zCenter = evalElevation(car.x, car.y).z;
+      const zFront = evalElevation(car.x + Math.cos(car.heading) * 0.9, car.y + Math.sin(car.heading) * 0.9).z;
+      const zRear = evalElevation(car.x - Math.cos(car.heading) * 0.9, car.y - Math.sin(car.heading) * 0.9).z;
+      const zLeft = evalElevation(car.x - Math.sin(car.heading) * 0.6, car.y + Math.cos(car.heading) * 0.6).z;
+      const zRight = evalElevation(car.x + Math.sin(car.heading) * 0.6, car.y - Math.cos(car.heading) * 0.6).z;
+
+      car.pitch = Math.atan2(zFront - zRear, 1.8);
+      car.roll = Math.atan2(zLeft - zRight, 1.2);
+      car.z = zCenter + 0.32;
+
+      if (carGroupRef.current) {
+        carGroupRef.current.position.set(car.x, car.y, car.z);
+        carGroupRef.current.rotation.set(car.pitch, car.roll, car.heading, 'ZYX');
+      }
+
+      // 5. Dynamic Concentric Ring Lattice & Scan Sweep follows Ego UGV
+      if (ringsGroupRef.current) {
+        ringsGroupRef.current.position.set(car.x, car.y, -1.72);
+      }
+      if (sweepRingMeshRef.current) {
+        sweepRingMeshRef.current.position.set(car.x, car.y, -1.70);
+      }
+
+      // 6. Camera Follow Controller
+      if (cameraModeRef.current === 'chase') {
+        const backDist = 9.0 * chaseZoomRef.current;
+        const upDist = 4.2 * chaseZoomRef.current;
+        targetLookAt.current.set(
+          car.x + Math.cos(car.heading) * 3.5,
+          car.y + Math.sin(car.heading) * 3.5,
+          car.z + 0.5
+        );
+        targetCameraPos.current.set(
+          car.x - Math.cos(car.heading) * backDist,
+          car.y - Math.sin(car.heading) * backDist,
+          car.z + upDist
+        );
+      } else if (cameraModeRef.current === 'bev') {
+        targetLookAt.current.set(car.x, car.y, car.z);
+        targetCameraPos.current.set(car.x, car.y, car.z + bevHeightRef.current);
+      } else if (cameraModeRef.current === 'cockpit') {
+        targetCameraPos.current.set(
+          car.x + Math.cos(car.heading) * 0.2,
+          car.y + Math.sin(car.heading) * 0.2,
+          car.z + 0.6
+        );
+        targetLookAt.current.set(
+          car.x + Math.cos(car.heading) * 25.0,
+          car.y + Math.sin(car.heading) * 25.0,
+          car.z + 0.2
+        );
+      }
 
       // Camera smooth interpolation
       camera.position.lerp(targetCameraPos.current, 0.08);
@@ -770,6 +1195,22 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({ sceneId, telemetry
         sweepRingMeshRef.current.scale.set(sweepRadius, sweepRadius, 1.0);
         const sweepMat = sweepRingMeshRef.current.material as THREE.MeshBasicMaterial;
         sweepMat.opacity = Math.max(0.75 * (1.0 - sweepRadius / 45.0), 0.05);
+      }
+
+      // Throttled UI Telemetry Sync (~10 Hz)
+      frameCount++;
+      if (frameCount % 6 === 0) {
+        if (controlModeRef.current === 'playback') {
+          setCurrentFrame(Math.floor(playbackProgressRef.current * 120));
+        }
+        const telem = {
+          speed: Math.abs(car.speed * 3.6),
+          heading: ((car.heading * (180 / Math.PI)) % 360 + 360) % 360,
+          x: car.x,
+          y: car.y,
+          z: car.z,
+        };
+        onTelemetryUpdate?.(telem);
       }
 
       renderer.render(scene, camera);
@@ -787,9 +1228,11 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({ sceneId, telemetry
     return () => {
       cancelAnimationFrame(animationId);
       domElement.removeEventListener('mousedown', handleMouseDown);
-      domElement.removeEventListener('wheel', handleWheel);
+      container.removeEventListener('wheel', handleWheel);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('resize', handleResize);
       renderer.dispose();
       if (domElement.parentElement) {
@@ -798,372 +1241,148 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({ sceneId, telemetry
     };
   }, [sceneId]);
 
+
+
+  const handleResetCar = () => {
+    const car = carPhysicsRef.current;
+    car.x = 0;
+    car.y = 0;
+    car.heading = 0;
+    car.speed = 0;
+    car.steerAngle = 0;
+  };
+
+  const handleFrameSeek = (frame: number) => {
+    setCurrentFrame(frame);
+    const progress = Math.max(0, Math.min(1.0, frame / 120));
+    playbackProgressRef.current = progress;
+    if (trajCurveRef.current) {
+      const pt = trajCurveRef.current.getPointAt(progress);
+      const tangent = trajCurveRef.current.getTangentAt(progress);
+      const car = carPhysicsRef.current;
+      car.x = pt.x;
+      car.y = pt.y;
+      car.heading = Math.atan2(tangent.y, tangent.x);
+      car.speed = 0;
+    }
+  };
+
+  // Prop Synchronization Effects
+  useEffect(() => {
+    if (propCameraMode) {
+      setCameraMode(propCameraMode);
+      handleCameraChange(propCameraMode);
+    }
+  }, [propCameraMode]);
+
+  useEffect(() => {
+    if (propDisplayMode) setDisplayMode(propDisplayMode);
+  }, [propDisplayMode]);
+
+  useEffect(() => {
+    if (propColorMode) setColorMode(propColorMode);
+  }, [propColorMode]);
+
+  useEffect(() => {
+    if (propIsWireframe !== undefined) setIsWireframe(propIsWireframe);
+  }, [propIsWireframe]);
+
+  useEffect(() => {
+    if (propControlMode) setControlMode(propControlMode);
+  }, [propControlMode]);
+
+  useEffect(() => {
+    if (propIsPlaying !== undefined) setIsPlaying(propIsPlaying);
+  }, [propIsPlaying]);
+
+  useEffect(() => {
+    if (propPlaybackSpeed) setPlaybackSpeed(propPlaybackSpeed);
+  }, [propPlaybackSpeed]);
+
+  useEffect(() => {
+    if (propCurrentFrame !== undefined) handleFrameSeek(propCurrentFrame);
+  }, [propCurrentFrame]);
+
+  useEffect(() => {
+    if (resetSignal) {
+      handleResetCar();
+    }
+  }, [resetSignal]);
+
   return (
     <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }} ref={mountRef}>
-      {/* Top-Left Streamlined Engine Badge & Metrics Pill */}
-      <div
-        className="glass-panel"
-        style={{
-          position: 'absolute',
-          top: '12px',
-          left: '12px',
-          padding: '5px 12px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          fontFamily: 'var(--font-mono)',
-          fontSize: '11px',
-          borderColor: 'rgba(0, 240, 255, 0.25)',
-          zIndex: 10,
-          pointerEvents: 'none',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Zap size={13} style={{ color: 'var(--accent-cyan)' }} />
-          <span style={{ color: 'var(--accent-cyan)', fontWeight: 700 }}>FASTDEM 2.5D</span>
-          <span style={{ color: 'var(--accent-emerald)', fontSize: '10px', fontWeight: 600 }}>100+ Hz</span>
-        </div>
-        <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.15)' }} />
-        <div style={{ display: 'flex', gap: '5px' }}>
-          <span style={{ color: 'var(--text-muted)' }}>HEAP:</span>
-          <span style={{ color: 'var(--accent-emerald)', fontWeight: 700 }}>
-            {telemetry ? `${telemetry.total_heap_mb.toFixed(2)} MB` : '3.26 MB'}
+      {/* Real-Time Cursor Height Inspector (Subtle bottom-left Tooltip) */}
+      {hoverData && (
+        <div
+          className="glass-panel"
+          style={{
+            position: 'absolute',
+            bottom: '24px',
+            left: '24px',
+            padding: '7px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            fontFamily: 'var(--font-mono)',
+            border: '1px solid rgba(0, 240, 255, 0.3)',
+            background: 'rgba(9, 13, 21, 0.92)',
+            zIndex: 10,
+            pointerEvents: 'none',
+          }}
+        >
+          <span style={{ fontSize: '11px', color: 'var(--accent-cyan)', fontWeight: 600 }}>
+            ({hoverData.x.toFixed(1)}m, {hoverData.y.toFixed(1)}m)
           </span>
-        </div>
-        <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.15)' }} />
-        <div style={{ display: 'flex', gap: '5px' }}>
-          <span style={{ color: 'var(--text-muted)' }}>CELLS:</span>
-          <span style={{ color: 'var(--accent-cyan)', fontWeight: 700 }}>
-            {telemetry ? `${telemetry.active_cells.toLocaleString()}` : '47,307'}
+          <div style={{ width: '1px', height: '14px', background: 'rgba(255,255,255,0.15)' }} />
+          <span style={{ fontSize: '11px', color: 'var(--text-primary)', fontWeight: 600 }}>
+            Z: {hoverData.z.toFixed(2)}m
           </span>
-        </div>
-      </div>
-
-      {/* Top-Right Consolidated Glass Command Bar */}
-      <div
-        className="glass-panel"
-        style={{
-          position: 'absolute',
-          top: '12px',
-          right: '12px',
-          padding: '4px 8px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          zIndex: 10,
-        }}
-      >
-        {/* Display Mode (Surface / Voxels / Points) */}
-        <div style={{ display: 'flex', gap: '2px' }}>
-          {(['surface', 'voxels', 'points'] as DEMDisplayMode[]).map((mode) => (
-            <button
-              key={mode}
-              onClick={() => setDisplayMode(mode)}
-              style={{
-                background: displayMode === mode ? 'rgba(0, 240, 255, 0.22)' : 'transparent',
-                border: `1px solid ${displayMode === mode ? 'var(--accent-cyan)' : 'transparent'}`,
-                color: displayMode === mode ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                borderRadius: '4px',
-                padding: '3px 8px',
-                fontSize: '10px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {mode === 'surface' ? 'DEM Surface' : mode === 'voxels' ? '2.5D Voxels' : 'Points'}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ width: 1, height: 16, background: 'rgba(255, 255, 255, 0.12)' }} />
-
-        {/* Color Mode (Turbo / Slope / Variance) */}
-        <div style={{ display: 'flex', gap: '2px' }}>
-          {(['elevation', 'traversability', 'uncertainty'] as ColorMapMode[]).map((col) => (
-            <button
-              key={col}
-              onClick={() => setColorMode(col)}
-              style={{
-                background: colorMode === col ? 'rgba(0, 230, 118, 0.22)' : 'transparent',
-                border: `1px solid ${colorMode === col ? 'var(--accent-emerald)' : 'transparent'}`,
-                color: colorMode === col ? 'var(--accent-emerald)' : 'var(--text-muted)',
-                borderRadius: '4px',
-                padding: '3px 8px',
-                fontSize: '10px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {col === 'elevation' ? 'Turbo Z' : col === 'traversability' ? 'Slope Risk' : 'σ² Var'}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ width: 1, height: 16, background: 'rgba(255, 255, 255, 0.12)' }} />
-
-        {/* Camera Preset */}
-        <div style={{ display: 'flex', gap: '2px' }}>
-          {(['orbit', 'bev', 'cockpit'] as CameraViewMode[]).map((mode) => (
-            <button
-              key={mode}
-              onClick={() => handleCameraChange(mode)}
-              style={{
-                background: cameraMode === mode ? 'rgba(255, 171, 0, 0.22)' : 'transparent',
-                border: `1px solid ${cameraMode === mode ? 'var(--accent-amber)' : 'transparent'}`,
-                color: cameraMode === mode ? 'var(--accent-amber)' : 'var(--text-muted)',
-                borderRadius: '4px',
-                padding: '3px 7px',
-                fontSize: '10px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              {mode === 'bev' ? 'BEV' : mode === 'cockpit' ? 'POV' : 'Orbit'}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ width: 1, height: 16, background: 'rgba(255, 255, 255, 0.12)' }} />
-
-        {/* Feature Toggles */}
-        <button
-          onClick={() => setIsWireframe(!isWireframe)}
-          title="Toggle Grid Wireframe"
-          style={{
-            background: isWireframe ? 'rgba(255, 171, 0, 0.22)' : 'transparent',
-            border: `1px solid ${isWireframe ? 'var(--accent-amber)' : 'transparent'}`,
-            color: isWireframe ? 'var(--accent-amber)' : 'var(--text-muted)',
-            borderRadius: '4px',
-            padding: '3px 6px',
-            fontSize: '10px',
-            fontFamily: 'var(--font-mono)',
-            cursor: 'pointer',
-          }}
-        >
-          Wire
-        </button>
-
-        <button
-          onClick={() => setShowSweepWave(!showSweepWave)}
-          title="Toggle Laser Scan Wave"
-          style={{
-            background: showSweepWave ? 'rgba(0, 240, 255, 0.22)' : 'transparent',
-            border: `1px solid ${showSweepWave ? 'var(--accent-cyan)' : 'transparent'}`,
-            color: showSweepWave ? 'var(--accent-cyan)' : 'var(--text-muted)',
-            borderRadius: '4px',
-            padding: '3px 6px',
-            fontSize: '10px',
-            fontFamily: 'var(--font-mono)',
-            cursor: 'pointer',
-          }}
-        >
-          Wave
-        </button>
-
-        <button
-          onClick={() => setShowCloudOverlay(!showCloudOverlay)}
-          title="Toggle Point Cloud Overlay"
-          style={{
-            background: showCloudOverlay ? 'rgba(179, 136, 255, 0.22)' : 'transparent',
-            border: `1px solid ${showCloudOverlay ? 'var(--accent-purple)' : 'transparent'}`,
-            color: showCloudOverlay ? 'var(--accent-purple)' : 'var(--text-muted)',
-            borderRadius: '4px',
-            padding: '3px 6px',
-            fontSize: '10px',
-            fontFamily: 'var(--font-mono)',
-            cursor: 'pointer',
-          }}
-        >
-          Cloud
-        </button>
-
-        <button
-          onClick={() => setShowColorbar(!showColorbar)}
-          title="Toggle Elevation Colorbar"
-          style={{
-            background: showColorbar ? 'rgba(0, 240, 255, 0.22)' : 'transparent',
-            border: `1px solid ${showColorbar ? 'var(--accent-cyan)' : 'transparent'}`,
-            color: showColorbar ? 'var(--accent-cyan)' : 'var(--text-muted)',
-            borderRadius: '4px',
-            padding: '3px 6px',
-            fontSize: '10px',
-            fontFamily: 'var(--font-mono)',
-            cursor: 'pointer',
-          }}
-        >
-          Scale
-        </button>
-      </div>
-
-      {/* FastDEM RViz-Grade Vertical Elevation Colorbar */}
-      {showColorbar && (
-        <div className="fastdem-colorbar-container" style={{ top: '56px', right: '12px' }}>
-          <div className="fastdem-colorbar-gradient">
-            {hoverData && (
-              <div
-                className="fastdem-colorbar-pointer"
-                style={{ top: `${(1.0 - hoverData.normZ) * 100}%` }}
-              />
-            )}
-          </div>
-          <div className="fastdem-colorbar-ticks">
-            <span>+2.0m Obstacle</span>
-            <span>+0.8m Incline</span>
-            <span>-0.5m Slope</span>
-            <span>-1.2m Ground</span>
-            <span>-1.73m Surface</span>
-            <span>-2.25m Pothole</span>
-          </div>
+          <div style={{ width: '1px', height: '14px', background: 'rgba(255,255,255,0.15)' }} />
+          <span style={{ fontSize: '11px', color: hoverData.slopeDeg < 5 ? 'var(--accent-emerald)' : 'var(--accent-amber)' }}>
+            {hoverData.slopeDeg.toFixed(1)}°
+          </span>
+          {hoverData.clearance !== null && (
+            <>
+              <div style={{ width: '1px', height: '14px', background: 'rgba(255,255,255,0.15)' }} />
+              <span style={{ fontSize: '11px', color: 'var(--accent-cyan)' }}>
+                Clr: {hoverData.clearance.toFixed(2)}m
+              </span>
+            </>
+          )}
         </div>
       )}
 
-      {/* Bottom Floating Telemetry & Real-Time Cursor Inspector */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '14px',
-          left: '14px',
-          right: '14px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          pointerEvents: 'none',
-          zIndex: 10,
-        }}
-      >
-        {/* Left: UGV Dynamics & Speedometer */}
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <div
-            className="glass-panel"
-            style={{
-              padding: '8px 12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              fontFamily: 'var(--font-mono)',
-            }}
-          >
-            <Gauge size={16} style={{ color: 'var(--accent-cyan)' }} />
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>UGV VELOCITY</span>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent-cyan)' }}>
-                15.0 m/s <small style={{ fontSize: '10px', fontWeight: 400, color: 'var(--text-muted)' }}>(54 km/h)</small>
-              </span>
-            </div>
+      {/* Optional Elevation Scale Bar */}
+      {showScaleBar && (
+        <div
+          className="glass-panel"
+          style={{
+            position: 'absolute',
+            bottom: '24px',
+            left: '24px',
+            padding: '8px 12px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '5px',
+            pointerEvents: 'none',
+            zIndex: 10,
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '130px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+            <span>-2.0m</span>
+            <span>0.0m</span>
+            <span>+3.0m</span>
           </div>
-
           <div
-            className="glass-panel"
             style={{
-              padding: '8px 12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              fontFamily: 'var(--font-mono)',
+              width: '130px',
+              height: '6px',
+              borderRadius: '3px',
+              background: 'linear-gradient(to right, #3b82f6, #00e676, #ffab00, #ff1744)',
             }}
-          >
-            <Compass size={16} style={{ color: 'var(--accent-emerald)' }} />
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>DYNAMIC FOVEA REACH</span>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent-emerald)' }}>
-                14.80 m <small style={{ fontSize: '10px', fontWeight: 400, color: 'var(--accent-emerald)' }}>(+48% Lookahead)</small>
-              </span>
-            </div>
-          </div>
+          />
         </div>
-
-        {/* Right: Live Interactive FastDEM Topography Inspector */}
-        {hoverData ? (
-          <div
-            className="glass-panel"
-            style={{
-              padding: '8px 14px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '14px',
-              fontFamily: 'var(--font-mono)',
-              border: '1px solid rgba(0, 240, 255, 0.4)',
-              background: 'rgba(9, 13, 21, 0.95)',
-            }}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>COORDINATES</span>
-              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--accent-cyan)' }}>
-                X: {hoverData.x.toFixed(1)}m · Y: {hoverData.y.toFixed(1)}m
-              </span>
-            </div>
-
-            <div style={{ width: '1px', height: '22px', background: 'rgba(255,255,255,0.1)' }} />
-
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>ELEVATION Z</span>
-              <span
-                style={{
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  color: hoverData.z < -1.9 ? 'var(--accent-cyan)' : hoverData.z > 0.0 ? 'var(--accent-crimson)' : 'var(--accent-emerald)',
-                }}
-              >
-                {hoverData.z.toFixed(2)} m
-              </span>
-            </div>
-
-            <div style={{ width: '1px', height: '22px', background: 'rgba(255,255,255,0.1)' }} />
-
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>SLOPE GRADE</span>
-              <span
-                style={{
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  color: hoverData.slopeDeg < 5 ? 'var(--accent-emerald)' : hoverData.slopeDeg < 12 ? 'var(--accent-amber)' : 'var(--accent-crimson)',
-                }}
-              >
-                {hoverData.slopeDeg.toFixed(1)}°
-              </span>
-            </div>
-
-            {hoverData.clearance !== null && (
-              <>
-                <div style={{ width: '1px', height: '22px', background: 'rgba(255,255,255,0.1)' }} />
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>CLEARANCE</span>
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--accent-cyan)' }}>
-                    {hoverData.clearance.toFixed(2)} m
-                  </span>
-                </div>
-              </>
-            )}
-
-            <div style={{ width: '1px', height: '22px', background: 'rgba(255,255,255,0.1)' }} />
-
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>LATTICE RING</span>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>
-                Ring {hoverData.ringId} ({hoverData.ringId === 0 ? '5cm' : hoverData.ringId === 1 ? '10cm' : hoverData.ringId === 2 ? '25cm' : '50cm'})
-              </span>
-            </div>
-          </div>
-        ) : (
-          <div
-            className="glass-panel"
-            style={{
-              padding: '6px 12px',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '10px',
-              color: 'var(--text-muted)',
-              border: '1px solid rgba(255, 255, 255, 0.05)',
-            }}
-          >
-            Hover cursor over 3D terrain to inspect real-time elevation &amp; slope
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 };

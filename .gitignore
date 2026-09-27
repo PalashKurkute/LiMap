@@ -46,6 +46,8 @@ data/*
 !data/*.sh
 !data/README.md
 datasets/
+models/
+*.data
 *.bin
 *.pcd
 *.las

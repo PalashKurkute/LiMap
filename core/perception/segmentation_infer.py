@@ -30,6 +30,35 @@ CLASS_POLE = 80
 CLASS_MOVING_CAR = 252
 
 
+# SemanticKITTI learning class index to raw canonical class ID
+LEARNING_MAP_INV = np.array([
+    0,   # 0: unlabeled
+    10,  # 1: car
+    11,  # 2: bicycle
+    15,  # 3: motorcycle
+    18,  # 4: truck
+    20,  # 5: other-vehicle
+    30,  # 6: person
+    31,  # 7: bicyclist
+    32,  # 8: motorcyclist
+    40,  # 9: road
+    44,  # 10: parking
+    48,  # 11: sidewalk
+    49,  # 12: other-ground
+    50,  # 13: building
+    51,  # 14: fence
+    70,  # 15: vegetation
+    71,  # 16: trunk
+    72,  # 17: terrain
+    80,  # 18: pole
+    81,  # 19: traffic-sign
+], dtype=np.uint32)
+
+# SalsaNext HDL-64E normalization constants [range, x, y, z, signal]
+SALSANEXT_MEANS = np.array([12.12, 10.88, 0.23, -1.04, 0.21], dtype=np.float32)
+SALSANEXT_STDS = np.array([12.32, 11.47, 6.91, 0.86, 0.16], dtype=np.float32)
+
+
 class SemanticSegmentationEngine:
     """Runs semantic segmentation on spherical range images and unprojects labels to 3D."""
 
@@ -39,7 +68,21 @@ class SemanticSegmentationEngine:
         use_gpu: bool = False,
         projector: Optional[SphericalRangeProjector] = None,
     ):
-        self.projector = projector or SphericalRangeProjector(height=64, width=2048)
+        self.projector = projector or SphericalRangeProjector(
+            height=64, width=2048, fov_up_deg=3.0, fov_down_deg=-25.0
+        )
+        
+        # Discover ONNX model if not explicitly passed
+        if onnx_model_path is None:
+            candidates = [
+                Path("models/salsanext-onnx-float/salsanext.onnx"),
+                Path("models/salsanext.onnx"),
+            ]
+            for c in candidates:
+                if c.is_file():
+                    onnx_model_path = c
+                    break
+
         self.onnx_path = Path(onnx_model_path) if onnx_model_path else None
         self.session = None
 
@@ -74,17 +117,20 @@ class SemanticSegmentationEngine:
 
     def _run_onnx(self, range_img: np.ndarray) -> np.ndarray:
         """Executes ONNX neural network backbone on (64, 2048, 5) range image."""
-        # SalsaNext input format: (1, 5, H, W) normalized
-        # Channels: [depth, x, y, z, remission]
-        img_trans = np.transpose(range_img, (2, 0, 1))[None, ...].astype(np.float32)
-        
-        # Standard normalization: range / 50.0, coords / 50.0
-        img_trans[:, :4] /= 50.0
+        # SalsaNext normalization on valid lidar returns
+        valid = range_img[:, :, 0] > 0.0
+        norm_img = np.zeros_like(range_img, dtype=np.float32)
+        for c in range(5):
+            norm_img[:, :, c] = np.where(
+                valid, (range_img[:, :, c] - SALSANEXT_MEANS[c]) / SALSANEXT_STDS[c], 0.0
+            )
 
+        img_trans = np.transpose(norm_img, (2, 0, 1))[None, ...].astype(np.float32)
         outputs = self.session.run([self.output_name], {self.input_name: img_trans})
-        logits = outputs[0][0]  # (C, H, W)
-        pred_classes = np.argmax(logits, axis=0).astype(np.uint32)
-        return pred_classes
+        logits = outputs[0][0]  # (20, H, W)
+        pred_learning_idx = np.argmax(logits, axis=0).astype(np.uint32)
+        pred_canonical_classes = LEARNING_MAP_INV[pred_learning_idx]
+        return pred_canonical_classes
 
     def _geometric_heuristic_infer(
         self, range_img: np.ndarray, proj_idx: np.ndarray

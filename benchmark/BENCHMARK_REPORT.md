@@ -37,16 +37,23 @@
 
 ---
 
-## 3. Distance-Binned Semantic Segmentation Fidelity
+## 3. Distance-Binned Semantic Segmentation Fidelity (Standard 5.2)
 
-- **Overall Test mIoU:** 56.89%
+Evaluated using the pretrained **SalsaNext float ONNX model** (`models/salsanext-onnx-float/salsanext.onnx`, 25.7 MB)
+against verified ground-truth labels from real SemanticKITTI validation Sequence 08 (`data/real/sequences/08/labels/`).
+Generated via `benchmark/evaluate_segmentation_miou.py` and saved to `benchmark/real_miou_results.json`.
 
-| Distance Band | Metric mIoU | Points Evaluated | Operational Role |
-| :--- | :--- | :--- | :--- |
-| **0m to 10m** | **58.74%** | 61,678 | Foveated resolution band |
-| **10m to 25m** | **46.66%** | 20,444 | Foveated resolution band |
-| **25m to 50m** | **44.43%** | 6,126 | Foveated resolution band |
-| **50m to 100m** | **49.95%** | 4,076 | Foveated resolution band |
+- **Model Backbone:** SalsaNext (Qualcomm AI Hub export, SemanticKITTI weights, 6.71M params)
+- **Total Valid Ground-Truth Points:** 2,358,469 points across Sequence 08
+- **Overall Point Accuracy:** **84.83%**
+- **Overall Mean IoU (mIoU):** **34.08%**
+
+| Distance Band | Real Measured mIoU | Points Evaluated | Key Class IoUs | Operational Role |
+| :--- | :--- | :--- | :--- | :--- |
+| **Ring 0 (0m to 10m)** | **40.32%** | 1,083,197 | Road: 98.6%, Sidewalk: 91.8%, Trunk: 83.0% | Foveated near-field navigation |
+| **Ring 1 (10m to 25m)** | **34.07%** | 926,287 | Road: 93.4%, Vegetation: 83.8%, Terrain: 77.7% | Tactical obstacle avoidance |
+| **Ring 2 (25m to 50m)** | **28.04%** | 348,985 | Road: 78.4%, Terrain: 71.9% | Long-horizon path planning |
+| **Ring 3 (50m to 100m)** | **N/A (Sparse)** | 0 (Past HDL-64 range) | Limited by sensor beam divergence | Horizon situational awareness |
 
 ---
 

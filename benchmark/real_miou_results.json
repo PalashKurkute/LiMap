@@ -1,0 +1,107 @@
+{
+  "model": "SalsaNext (Qualcomm AI Hub export, ONNX float)",
+  "dataset": "SemanticKITTI",
+  "sequence": "08",
+  "frames_evaluated": 2,
+  "total_valid_points": 238016,
+  "overall_accuracy_pct": 85.43,
+  "overall_miou_pct": 37.11,
+  "mean_inference_latency_ms": 457.88,
+  "total_evaluation_time_s": 0.94,
+  "distance_bands": [
+    {
+      "band_name": "Ring 0 (Fovea: 0-10m)",
+      "r_min_m": 0.0,
+      "r_max_m": 10.0,
+      "total_points": 110254,
+      "active_classes": 11,
+      "mean_iou_pct": 46.74,
+      "class_ious": {
+        "car": 0.0,
+        "bicyclist": 0.0,
+        "road": 97.51,
+        "sidewalk": 86.54,
+        "other-ground": 0.0,
+        "fence": 0.0,
+        "vegetation": 67.23,
+        "trunk": 78.88,
+        "terrain": 79.65,
+        "pole": 26.67,
+        "traffic-sign": 77.69
+      }
+    },
+    {
+      "band_name": "Ring 1 (Tactical: 10-25m)",
+      "r_min_m": 10.0,
+      "r_max_m": 25.0,
+      "total_points": 92574,
+      "active_classes": 13,
+      "mean_iou_pct": 34.4,
+      "class_ious": {
+        "car": 27.31,
+        "person": 0.0,
+        "road": 90.55,
+        "parking": 0.0,
+        "sidewalk": 76.85,
+        "other-ground": 0.0,
+        "building": 0.0,
+        "fence": 16.38,
+        "vegetation": 85.3,
+        "trunk": 54.89,
+        "terrain": 74.66,
+        "pole": 21.3,
+        "traffic-sign": 0.0
+      }
+    },
+    {
+      "band_name": "Ring 2 (Planning: 25-50m)",
+      "r_min_m": 25.0,
+      "r_max_m": 50.0,
+      "total_points": 35188,
+      "active_classes": 14,
+      "mean_iou_pct": 26.96,
+      "class_ious": {
+        "car": 29.7,
+        "bicycle": 0.0,
+        "person": 0.0,
+        "road": 62.36,
+        "parking": 0.0,
+        "sidewalk": 40.78,
+        "other-ground": 0.0,
+        "building": 51.33,
+        "fence": 12.51,
+        "vegetation": 69.46,
+        "trunk": 20.86,
+        "terrain": 65.71,
+        "pole": 15.08,
+        "traffic-sign": 9.68
+      }
+    },
+    {
+      "band_name": "Ring 3 (Horizon: 50-100m)",
+      "r_min_m": 50.0,
+      "r_max_m": 100.0,
+      "total_points": 0,
+      "active_classes": 0,
+      "mean_iou_pct": 0.0,
+      "class_ious": {}
+    }
+  ],
+  "class_ious_overall": {
+    "car": 27.69,
+    "bicycle": 0.0,
+    "person": 0.0,
+    "bicyclist": 0.0,
+    "road": 93.14,
+    "parking": 0.0,
+    "sidewalk": 81.62,
+    "other-ground": 0.0,
+    "building": 51.27,
+    "fence": 12.63,
+    "vegetation": 80.49,
+    "trunk": 55.52,
+    "terrain": 75.78,
+    "pole": 23.53,
+    "traffic-sign": 55.03
+  }
+}

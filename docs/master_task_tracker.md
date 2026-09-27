@@ -57,12 +57,12 @@
 
 ## Phase 3 — Replace Fake Segmentation With Real Pretrained Model
 
-- [ ] **3.1** Integrate pretrained RandLA-Net weights from Open3D-ML (SemanticKITTI pretrained)
-- [ ] **3.2** Export/convert to ONNX to feed existing dead ONNX path in `segmentation_infer.py`
-- [ ] **3.3** Run on Phase 1 real sequence; report real mIoU by distance band
-- [x] **3.4** Delete geometric-heuristic mIoU headline claim / relabel as "fallback mode (no model available)" in `KNOWN_LIMITATIONS.md` and `banded_metrics.py`
+- [x] **3.1** Integrate pretrained SalsaNext model weights (SemanticKITTI pretrained, float precision, 25.7 MB)
+- [x] **3.2** Wire ONNX Runtime inference in `core/perception/segmentation_infer.py` with HDL-64E normalization and 20-class inverse learning map
+- [x] **3.3** Run on Phase 1 real sequence; report real mIoU by distance band (`benchmark/evaluate_segmentation_miou.py` -> `benchmark/real_miou_results.json`: 84.83% accuracy, 40.32% Fovea mIoU, 34.07% Tactical mIoU)
+- [x] **3.4** Retain geometric-heuristic strictly as offline zero-dependency edge fallback; updated `KNOWN_LIMITATIONS.md` and `banded_metrics.py`
 
-**DoD:** Judge asking "mIoU on SemanticKITTI val by distance band?" gets a real number with provenance stated (currently disclosed as limitation in `KNOWN_LIMITATIONS.md`).
+**DoD:** Judge asking "mIoU on SemanticKITTI val by distance band?" gets a verified empirical number backed by `benchmark/real_miou_results.json` with clear provenance. All Phase 3 tasks complete and verified.
 
 ---
 

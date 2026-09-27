@@ -134,9 +134,13 @@ def evaluate_real_kitti_regret(
         "max_foveagrid_regret_pct": round(float(np.max(regrets)), 2),
         "mean_frechet_distance_m": round(float(np.mean(frechets)), 3),
         "max_frechet_distance_m": round(float(np.max(frechets)), 3),
-        "memory_dense_3d_mb": 3051.8,
-        "memory_foveagrid_25d_mb": 3.26,
-        "memory_compression_ratio": round(float(3051.8 / 3.26), 1),
+        # Theoretical arithmetic memory constants (not live heap sampled in this script)
+        # Dense 3D formula: 100m x 100m x 10m @ 5cm resolution = 2000 x 2000 x 200 = 800M voxels * 4 bytes = 3051.76 MB
+        # FoveaGrid 2.5D formula: 106,875 preallocated cells * 32 bytes = 3,420,000 bytes = 3.2616 MB
+        "memory_dense_3d_mb_calculated": 3051.8,  # CALCULATED — not runtime-measured (see formula in comments)
+        "memory_foveagrid_25d_mb_calculated": 3.2616,  # CALCULATED — not runtime-measured (preallocated flat pool)
+        "memory_compression_ratio_calculated": round(float(3051.8 / 3.2616), 1),  # CALCULATED ratio
+        "memory_accounting_note": "CALCULATED theoretical baseline: dense 3D (3051.8 MB) vs FoveaGrid pool (3.2616 MB). Not runtime-sampled in this script.",
         "frame_records": frame_results,
     }
 
@@ -147,7 +151,7 @@ def evaluate_real_kitti_regret(
     print("\nPlanner Regret Benchmark Summary:")
     print(f"  Mean FoveaGrid Regret: {summary['mean_foveagrid_regret_pct']}%")
     print(f"  Mean Fréchet Distance: {summary['mean_frechet_distance_m']} m")
-    print(f"  Memory Savings:        {summary['memory_compression_ratio']}x (3051.8 MB -> 3.26 MB)")
+    print(f"  Memory Savings:        {summary['memory_compression_ratio_calculated']}x (3051.8 MB -> 3.2616 MB) [CALCULATED]")
     print(f"  Results saved to:      {out_p}")
 
     return summary

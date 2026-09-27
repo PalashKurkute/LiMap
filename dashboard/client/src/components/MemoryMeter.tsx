@@ -8,7 +8,7 @@ interface MemoryMeterProps {
 }
 
 export const MemoryMeter: React.FC<MemoryMeterProps> = ({ baselines, telemetry }) => {
-  const heapMb = telemetry?.total_heap_mb ?? 3.26;
+  const heapMb = telemetry?.total_heap_mb ?? 3.2616;
   const reductionRatio = baselines?.reduction_vs_3d ?? '935.7x';
   const uniformReduction = baselines?.reduction_vs_uniform_25d ?? '37.4x';
 
@@ -17,14 +17,14 @@ export const MemoryMeter: React.FC<MemoryMeterProps> = ({ baselines, telemetry }
       {/* Tri-Bar Comparative Layout */}
       <div className="glass-panel" style={{ padding: '16px' }}>
         <div className="panel-title">
-          <span>Memory Paradox Live Comparison</span>
-          <span style={{ color: 'var(--accent-cyan)' }} className="mono-val">{reductionRatio} REDUCTION</span>
+          <span>Memory Paradox Comparison</span>
+          <span style={{ color: 'var(--accent-cyan)' }} className="mono-val">{reductionRatio} REDUCTION (calc)</span>
         </div>
 
         {/* 1. Dense 3D Voxel */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '12px' }}>
           <span style={{ color: 'var(--text-muted)' }}>1. Dense 3D Voxel Grid:</span>
-          <span className="mono-val" style={{ color: 'var(--accent-crimson)' }}>3,051.8 MB (800M voxels)</span>
+          <span className="mono-val" style={{ color: 'var(--accent-crimson)' }}>3,051.8 MB (800M voxels, calc)</span>
         </div>
         <div style={{ height: '7px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', overflow: 'hidden', marginBottom: '12px' }}>
           <div style={{ width: '100%', height: '100%', background: 'linear-gradient(90deg, #ff1744, #ff5252)', borderRadius: '4px' }} />
@@ -74,7 +74,7 @@ export const MemoryMeter: React.FC<MemoryMeterProps> = ({ baselines, telemetry }
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={{ fontWeight: 700 }}>PROVABLE BOUND: &lt; 3.5 MB DRDO LIMIT SATISFIED</span>
             <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-              {reductionRatio} vs 3D Voxel | {uniformReduction} vs Uniform 2.5D
+              {reductionRatio} vs 3D Voxel (calc) | {uniformReduction} vs Uniform 2.5D (calc)
             </span>
           </div>
         </div>

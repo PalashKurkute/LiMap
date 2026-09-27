@@ -107,6 +107,10 @@ def verify_milestone_3() -> bool:
     valid = (sem != 0) & (pred_classes != 0)
     acc = float(np.mean(pred_classes[valid] == sem[valid]) * 100.0)
 
+    # Verify SHA256 cryptographic provenance of ONNX weights
+    from scripts.verify_model_provenance import verify_model_provenance
+    assert verify_model_provenance(), "Cryptographic checksum verification failed for SalsaNext ONNX model"
+
     print(f"      - Model engine:     {'ONNX Runtime' if _HAS_ORT else 'Fallback'}")
     print(f"      - Inference latency: {latency_ms:.1f} ms")
     print(f"      - Point accuracy:   {acc:.2f}% (Frame 0)")

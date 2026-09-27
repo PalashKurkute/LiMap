@@ -48,7 +48,7 @@
 
 When DRDO evaluators interrogate the system:
 1. **"Why 2.5D instead of full 3D?"**  
-   *Answer:* Full 3D voxels require 3,200 MB ($3.2\text{ GB}$). FoveaGrid requires 3.26 MB ($935.7\times$ reduction) while delivering $< 1.5\%$ planner regret and preserving underpass clearance.
+   *Answer:* Full 3D voxels require ~3,051.8 MB ($3.05\text{ GB}$, calculated arithmetic baseline for 800M voxels). FoveaGrid requires 3.2616 MB ($935.7\times$ calculated arithmetic reduction, guaranteed preallocated flat pool $< 3.5\text{ MB}$) while delivering $< 3.5\%$ real-sequence planner regret and preserving underpass clearance.
 2. **"Does variable resolution cause boundary seam tearing?"**  
    *Answer:* No. Integer scale factors $k \in \{1, 2, 5, 10\}$ enforce root lattice alignment. Verified across 4,000,000 boundary positions with zero coordinate gaps.
 3. **"What happens when 50% of beams fail?"**  

@@ -94,6 +94,16 @@ def run_phase4_real_dynamic_evaluation(max_frames: int = 30):
     assert total_static_points > 100_000, "Expected > 100k static points across frames"
     print("\n[PASS] Phase 4 Real Dynamic Object & MOS Evaluation completed successfully.")
 
+    # Task 4.3 Dedicated Viewpoint Robustness Assertion Check
+    print("\nExecuting Dedicated Viewpoint Robustness Assertion Tests...")
+    from benchmark.test_viewpoint_robustness import (
+        test_static_parked_car_through_ego_turns,
+        test_moving_object_correctly_detected_under_ego_turn,
+    )
+    test_static_parked_car_through_ego_turns()
+    test_moving_object_correctly_detected_under_ego_turn()
+    print("[PASS] Viewpoint Robustness Hard-Assertions Verified.")
+
 
 if __name__ == "__main__":
     run_phase4_real_dynamic_evaluation(max_frames=25)

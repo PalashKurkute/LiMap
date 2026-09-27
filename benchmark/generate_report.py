@@ -84,7 +84,7 @@ def generate_full_report(output_file: str = "benchmark/BENCHMARK_REPORT.md") -> 
         "",
         "| Evaluation Vector | Dense 3D Voxel Grid | Uniform 2.5D Elevation | Top Rival (VRgrid / sih_053) | **FoveaGrid 2.5D (Ours)** | Defense Advantage |",
         "| :--- | :--- | :--- | :--- | :--- | :--- |",
-        f"| **Memory Footprint** | {baselines.dense_3d_voxel_mb:.1f} MB | {baselines.uniform_25d_mb:.1f} MB | 8.94 MB (VRgrid) | **{baselines.foveagrid_25d_mb:.2f} MB** | **935.7x vs 3D, 2.7x vs VRgrid** |",
+        f"| **Memory Footprint** | {baselines.dense_3d_voxel_mb:.1f} MB | {baselines.uniform_25d_mb:.1f} MB | 8.94 MB (VRgrid) | **{baselines.foveagrid_25d_mb:.4f} MB** | **{baselines.reduction_vs_3d}x vs 3D, 2.7x vs VRgrid** |",
         "| **Seam Gaps at Boundaries** | N/A (Uniform) | N/A (Uniform) | Integer Scale (sih_053) | **Provably 0 Gaps (4M test)** | Match & mathematically verified |",
         "| **Overhang Underpasses** | Yes (3D memory cost) | Collapses / Blocked (INF) | 2D Collapsed (Blocked) | **Dual-Elevation Clearance** | Navigates 2.5m underpasses |",
         f"| **Planner Regret** | 0.0% (Ground Truth) | Blocked (INF on Bridge) | Not benchmarked | **{regret_bridge['foveagrid_regret_pct']}% (Underpass) / {regret_pothole['foveagrid_regret_pct']}%** | Near-zero navigation regret |",
@@ -97,7 +97,7 @@ def generate_full_report(output_file: str = "benchmark/BENCHMARK_REPORT.md") -> 
         "",
         f"- **Dense 3D Voxel Grid (100m x 100m x 10m @ 5cm):** {baselines.dense_3d_voxel_mb:.1f} MB ({baselines.dense_3d_voxel_count:,} voxels)",
         f"- **Uniform 2.5D Elevation Grid (100m x 100m @ 5cm):** {baselines.uniform_25d_mb:.1f} MB ({baselines.uniform_25d_cell_count:,} cells)",
-        f"- **FoveaGrid 2.5D Preallocated Hash Pool:** **{baselines.foveagrid_25d_mb:.2f} MB** ({baselines.foveagrid_active_cells:,} cells @ 32 bytes/cell)",
+        f"- **FoveaGrid 2.5D Preallocated Hash Pool:** **{baselines.foveagrid_25d_mb:.4f} MB** ({baselines.foveagrid_active_cells:,} cells @ 32 bytes/cell)",
         f"- **Memory Reduction vs 3D Voxel:** **{baselines.reduction_vs_3d}x**",
         f"- **Memory Reduction vs Uniform 2.5D:** **{baselines.reduction_vs_uniform_25d}x**",
         "",
@@ -123,7 +123,9 @@ def generate_full_report(output_file: str = "benchmark/BENCHMARK_REPORT.md") -> 
         "| :--- | :--- | :--- | :--- |",
     ])
 
-    for band, data in seg_results["binned_metrics"].items():
+    import typing
+    binned_metrics = typing.cast(typing.Dict[str, typing.Any], seg_results["binned_metrics"])
+    for band, data in binned_metrics.items():
         band_clean = band.replace("range_", "").replace("_to_", " to ").replace("m", "m")
         report_lines.append(
             f"| **{band_clean}** | **{data['mIoU']}%** | {data['point_count']:,} | Foveated resolution band |"

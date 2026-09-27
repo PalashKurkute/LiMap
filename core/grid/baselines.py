@@ -88,20 +88,20 @@ def calculate_baselines(
     ring_breakdown = []
     # Ring capacities distributed across spatial hash pool
     ring_allocations = [
-        {"ring": 0, "name": "Fovea (0-10m)", "res": 0.05, "max_cells": 40_000, "budget_kb": 40000 * 32 / 1024},
-        {"ring": 1, "name": "Tactical (10-25m)", "res": 0.10, "max_cells": 34_875, "budget_kb": 34875 * 32 / 1024},
-        {"ring": 2, "name": "Planning (25-50m)", "res": 0.25, "max_cells": 18_000, "budget_kb": 18000 * 32 / 1024},
-        {"ring": 3, "name": "Horizon (50-100m)", "res": 0.50, "max_cells": 14_000, "budget_kb": 14000 * 32 / 1024},
+        (0, "Fovea (0-10m)", 0.05, 40_000, 40000 * 32 / 1024),
+        (1, "Tactical (10-25m)", 0.10, 34_875, 34875 * 32 / 1024),
+        (2, "Planning (25-50m)", 0.25, 18_000, 18000 * 32 / 1024),
+        (3, "Horizon (50-100m)", 0.50, 14_000, 14000 * 32 / 1024),
     ]
 
-    for item in ring_allocations:
+    for ring_id, name, res, max_cells, budget_kb in ring_allocations:
         ring_breakdown.append({
-            "ring_id": item["ring"],
-            "name": item["name"],
-            "resolution_m": item["res"],
-            "allocated_cells": item["max_cells"],
-            "allocated_kb": round(item["budget_kb"], 2),
-            "allocated_mb": round(item["budget_kb"] / 1024.0, 3),
+            "ring_id": ring_id,
+            "name": name,
+            "resolution_m": res,
+            "allocated_cells": max_cells,
+            "allocated_kb": round(budget_kb, 2),
+            "allocated_mb": round(budget_kb / 1024.0, 3),
         })
 
     return BaselineComparison(
@@ -109,7 +109,7 @@ def calculate_baselines(
         dense_3d_voxel_count=total_3d_voxels,
         uniform_25d_mb=round(uniform_25d_mb, 2),
         uniform_25d_cell_count=uniform_cells,
-        foveagrid_25d_mb=round(foveagrid_mb, 2),
+        foveagrid_25d_mb=round(foveagrid_mb, 4),
         foveagrid_active_cells=max_active_hash_cells,
         reduction_vs_3d=round(dense_3d_mb / foveagrid_mb, 1),
         reduction_vs_uniform_25d=round(uniform_25d_mb / foveagrid_mb, 1),

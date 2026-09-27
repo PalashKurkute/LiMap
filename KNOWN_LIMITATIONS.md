@@ -35,7 +35,7 @@ and `.label` files.
 **Progress:** SemanticKITTI validation Sequence 08 has been run end-to-end through the
 full ingestion, geometric perception, MOS isolation, and 2.5D spatial hash pipeline 
 (`scripts/run_seq08.py`). 500 frames (61,968,377 points) have been evaluated with zero crashes 
-and a verified static heap footprint of 3.26 MB (< 3.5 MB DRDO bound). Results are documented
+and a verified static heap footprint of 3.2616 MB (< 3.5 MB DRDO bound). Results are documented
 in Section 10 of `benchmark/BENCHMARK_REPORT.md` and `data/real/seq08_run_results.json`.
 
 Full sequence cache contains 976 downloaded scans locally, and background download is continuing.
@@ -85,7 +85,7 @@ The Euclidean straight-line distance ruler has been completely removed and repla
 - `benchmark/evaluate_real_regret.py`: Evaluated across real SemanticKITTI Sequence 08 frames (00, 05, 10, 20, 30), yielding:
   - **Mean Planner Regret:** **3.45%** (unclamped).
   - **Mean Discrete Fréchet Distance:** **0.584 m** (tight path alignment).
-  - **Memory Compression:** **936.1x** (3,051.8 MB $\to$ 3.26 MB).
+  - **Memory Compression:** **935.7x** (3,051.8 MB $\to$ 3.2616 MB).
   - **Results file:** `benchmark/real_regret_results.json`.
 
 ---

@@ -172,3 +172,108 @@ body {
   80% { opacity: 0.4; }
   100% { transform: scale(1.6); opacity: 0; }
 }
+
+/* Slide-out Sidebar Drawer (Opens from Left under Hamburger Menu) */
+.telemetry-drawer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 440px;
+  max-width: 92vw;
+  background: rgba(10, 14, 22, 0.94);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-right: 1px solid var(--card-border);
+  box-shadow: 8px 0 36px rgba(0, 0, 0, 0.75);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.telemetry-drawer.closed {
+  transform: translateX(-100%);
+  pointer-events: none;
+}
+
+.telemetry-drawer.open {
+  transform: translateX(0%);
+  pointer-events: auto;
+}
+
+/* Floating Corner 'Open' Tab (deck.gl Inspiration) */
+.floating-open-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  border-radius: 8px;
+  color: var(--text-primary);
+  padding: 8px 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  transition: all 0.2s ease;
+  z-index: 20;
+}
+
+.floating-open-btn:hover {
+  background: rgba(0, 240, 255, 0.15);
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.35);
+  transform: translateY(-1px);
+}
+
+/* Floating Controls Card (deck.gl style in bottom right) */
+.floating-controls-card {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(13, 18, 28, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  z-index: 20;
+  user-select: none;
+}
+
+/* WASD Virtual Drive Keys */
+.wasd-key {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-muted);
+  transition: all 0.1s ease;
+  cursor: pointer;
+}
+
+.wasd-key.active {
+  background: rgba(0, 240, 255, 0.25);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+  transform: scale(0.96);
+}
+

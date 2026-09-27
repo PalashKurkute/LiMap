@@ -52,6 +52,20 @@ export interface CrossSectionResponse {
 
 export type SceneId = 'scene_a_bridge' | 'scene_b_potholes' | 'scene_c_moving' | 'scene_d_poles';
 
-export type CameraViewMode = 'orbit' | 'bev' | 'cockpit' | 'cross_cut';
+export type CameraViewMode = 'chase' | 'orbit' | 'bev' | 'cockpit' | 'cross_cut';
 export type ColorMapMode = 'elevation' | 'traversability' | 'uncertainty' | 'semantics';
 export type DEMDisplayMode = 'surface' | 'voxels' | 'points';
+
+export type StressModeId = 'nominal' | 'dropout_50' | 'monsoon_noise' | 'ghost_stress';
+
+export interface LayerVisibility {
+  demSurface: boolean;
+  demVoxels: boolean;
+  rawPoints: boolean;
+  bridgeDeck: boolean;
+  trajectory: boolean;
+  trackers: boolean;
+  foveaRings: boolean;
+  sweepWave: boolean;
+  headlights: boolean;
+}

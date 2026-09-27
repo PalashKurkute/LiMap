@@ -1,0 +1,11 @@
+{
+  "name": "foveagrid-2.5d",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix dashboard/client run dev",
+    "build": "npm --prefix dashboard/client run build",
+    "lint": "npm --prefix dashboard/client run lint",
+    "preview": "npm --prefix dashboard/client run preview"
+  }
+}

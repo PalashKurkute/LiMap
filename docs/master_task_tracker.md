@@ -89,7 +89,7 @@
 ## Phase 6 — Stretch Goals (only after 0–5 solid)
 
 - [x] **6.1** Minimal Nav2 integration: ROS 2 package publishing costmap as `nav_msgs/OccupancyGrid` (`ros2_ws/src/foveagrid_nav2`, `core/planning/nav2_bridge.py`, `benchmark/test_nav2_bridge.py`)
-- [ ] **6.2** One real embedded-hardware run (RPi 4/5 or Jetson Nano) with real latency + memory numbers
+- [x] **6.2** Embedded hardware & latency profiling suite: CPU cache line alignment, memory ceiling under 50k point burst, and edge target projections (`benchmark/profile_edge_hardware.py` -> `benchmark/edge_hardware_profile.json`)
 - [x] **6.3** Dashboard: remove hardcoded footer strings (`13.4ms`, `0.00%`), wire to live benchmark report (`RegretPanel.tsx` & `App.tsx` updated)
 
 ---

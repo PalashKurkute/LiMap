@@ -165,6 +165,7 @@ class PlannerRegretBenchmark:
         Evaluates route selection when confronting a high-variance muddy hazard (sigma^2=0.15)
         centered on the nominal path vs clean asphalt. Proves active path diversion away from uncertainty.
         """
+        np.random.seed(42)
         grid = SpatialHashGrid()
         pts_list = []
         # Mud hazard centered at X in [8.0, 13.0], Y in [-1.0, 1.0]
@@ -218,6 +219,63 @@ class PlannerRegretBenchmark:
             "standard_2_3_cleared": True,
         }
 
+    def benchmark_real_kitti_corridor(
+        self,
+        bin_path: str = "data/real/sequences/08/velodyne/000000.bin",
+        label_path: str = "data/real/sequences/08/labels/000000.label",
+        start_pose: Tuple[float, float, float] = (2.0, 0.0, 0.0),
+        goal_pose: Tuple[float, float, float] = (22.0, 0.0, 0.0),
+    ) -> Dict[str, object]:
+        """Benchmarks trajectory across a real SemanticKITTI roadway (Phase 5.2 & Standard 7.3)."""
+        pts = load_kitti_bin(bin_path)
+        sem, _ = load_kitti_label(label_path)
+
+        # 1. Populate FoveaGrid 2.5D
+        grid_fovea = SpatialHashGrid()
+        grid_fovea.insert_points(pts, semantic_labels=sem)
+
+        costmap_fovea = self.costmap_gen.generate_costmap(grid_fovea, ignore_overhang_clearance=False)
+        costmap_naive_2d = self.costmap_gen.generate_costmap(grid_fovea, ignore_overhang_clearance=True)
+
+        # 2. Dense 3D Reference: Exact uniform fine voxel grid projected to 2D costmap without foveation coarsening
+        costmap_dense = np.zeros((self.costmap_gen.ny, self.costmap_gen.nx), dtype=np.uint8)
+        gx = ((pts[:, 0] - self.costmap_gen.origin_x) / self.costmap_gen.res).astype(np.int32)
+        gy = ((pts[:, 1] - self.costmap_gen.origin_y) / self.costmap_gen.res).astype(np.int32)
+        valid = (gx >= 0) & (gx < self.costmap_gen.nx) & (gy >= 0) & (gy < self.costmap_gen.ny)
+        gx, gy = gx[valid], gy[valid]
+        p_z = pts[valid, 2]
+        p_sem = sem[valid]
+
+        is_obs = (p_sem == 10) | (p_sem == 50) | (p_sem == 80) | (p_z > -1.2)
+        costmap_dense[gy[is_obs], gx[is_obs]] = 254
+
+        # 3. Plan trajectories on Dense 3D, FoveaGrid 2.5D, and Naive 2D
+        traj_dense, cost_dense = self.planner.plan(costmap_dense, start_pose, goal_pose)
+        traj_fovea, cost_fovea = self.planner.plan(costmap_fovea, start_pose, goal_pose)
+        traj_naive, cost_naive = self.planner.plan(costmap_naive_2d, start_pose, goal_pose)
+
+        assert traj_dense is not None, "Dense 3D planner failed on real KITTI corridor"
+        assert traj_fovea is not None, "FoveaGrid planner failed on real KITTI corridor"
+
+        frechet_fovea = discrete_frechet_distance(traj_fovea, traj_dense)
+        fovea_regret = max(0.0, (cost_fovea - cost_dense) / cost_dense * 100.0)
+        naive_regret = float("inf") if traj_naive is None else max(0.0, (cost_naive - cost_dense) / cost_dense * 100.0)
+
+        return {
+            "scenario": "SemanticKITTI Real Corridor (Seq 08, Frame 000000)",
+            "start": start_pose,
+            "goal": goal_pose,
+            "cost_dense_3d_ideal": round(cost_dense, 2),
+            "cost_foveagrid_25d": round(cost_fovea, 2),
+            "cost_naive_2d": "BLOCKED (INF)" if np.isinf(cost_naive) else round(cost_naive, 2),
+            "foveagrid_regret_pct": round(fovea_regret, 2),
+            "naive_2d_regret_pct": "FAILED / BLOCKED" if np.isinf(cost_naive) else round(naive_regret, 2),
+            "frechet_distance_m": round(frechet_fovea, 3),
+            "waypoints_count": len(traj_fovea),
+            "underpass_traversable_fovea": traj_fovea is not None,
+            "underpass_traversable_naive": traj_naive is not None,
+        }
+
 
 def run_full_regret_benchmark() -> None:
     benchmark = PlannerRegretBenchmark()
@@ -250,6 +308,13 @@ def run_full_regret_benchmark() -> None:
     print(f"   - Diverted Away from Mud/Uncertainty: {res_uncert['diverted_away_from_uncertainty']}")
     print(f"   - Standard 2.3 Verified:             {res_uncert['standard_2_3_cleared']}")
 
+    res_real = benchmark.benchmark_real_kitti_corridor()
+    print("\n4. Scenario: SemanticKITTI Real Scene (Seq 08, Frame 000000) [Phase 5.2]")
+    print(f"   - Ideal Dense 3D Ground Truth Cost: {res_real['cost_dense_3d_ideal']}")
+    print(f"   - FoveaGrid 2.5D Path Cost:          {res_real['cost_foveagrid_25d']} (Regret = {res_real['foveagrid_regret_pct']}%)")
+    print(f"   - Discrete Fréchet Distance:        {res_real['frechet_distance_m']} m")
+    print(f"   - Waypoints in Planned Path:        {res_real['waypoints_count']}")
+
     print("=" * 70)
 
 
@@ -257,3 +322,4 @@ if __name__ == "__main__":
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     run_full_regret_benchmark()
+

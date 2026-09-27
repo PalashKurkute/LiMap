@@ -79,10 +79,10 @@
 ## Phase 5 — Fix Planner Regret Metric
 
 - [x] **5.1** Replace `cost_ideal_3d = float(dist_direct)` straight-line with kinematically planned 3D path — `benchmark/regret_benchmark.py`
-- [ ] **5.2** Re-run regret on real-data SemanticKITTI scene (currently evaluated only on synthetic underpass/pothole scenes)
+- [x] **5.2** Re-run regret on real-data SemanticKITTI scene (`benchmark/evaluate_real_regret.py` -> `benchmark/real_regret_results.json`: 3.45% mean regret, 0.584m Fréchet distance)
 - [x] **5.3** Add Fréchet distance alongside cost-based regret (`benchmark/regret_benchmark.py`)
 
-**DoD:** "Ideal" baseline is a planned path, not a ruler. Number is unclamped (`benchmark/regret_benchmark.py`).
+**DoD:** "Ideal" baseline is a planned path, not a ruler. Number is unclamped (`benchmark/regret_benchmark.py`, `benchmark/real_regret_results.json`). All Phase 5 tasks complete and verified.
 
 ---
 

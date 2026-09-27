@@ -1,0 +1,63 @@
+{
+  "dataset": "SemanticKITTI Sequence 08",
+  "frames_evaluated": 5,
+  "mean_foveagrid_regret_pct": 3.45,
+  "max_foveagrid_regret_pct": 10.52,
+  "mean_frechet_distance_m": 0.584,
+  "max_frechet_distance_m": 1.626,
+  "memory_dense_3d_mb": 3051.8,
+  "memory_foveagrid_25d_mb": 3.26,
+  "memory_compression_ratio": 936.1,
+  "frame_records": [
+    {
+      "frame_idx": 0,
+      "cost_dense_3d": 19.0,
+      "cost_foveagrid_25d": 19.0,
+      "cost_naive_2d": 19.0,
+      "regret_pct": 0.0,
+      "naive_regret_pct": 0.0,
+      "frechet_distance_m": 0.0,
+      "waypoints_count": 39
+    },
+    {
+      "frame_idx": 5,
+      "cost_dense_3d": 19.0,
+      "cost_foveagrid_25d": 19.0,
+      "cost_naive_2d": 19.0,
+      "regret_pct": 0.0,
+      "naive_regret_pct": 0.0,
+      "frechet_distance_m": 0.0,
+      "waypoints_count": 39
+    },
+    {
+      "frame_idx": 10,
+      "cost_dense_3d": 19.0,
+      "cost_foveagrid_25d": 19.0,
+      "cost_naive_2d": 19.0,
+      "regret_pct": 0.0,
+      "naive_regret_pct": 0.0,
+      "frechet_distance_m": 0.0,
+      "waypoints_count": 39
+    },
+    {
+      "frame_idx": 20,
+      "cost_dense_3d": 19.0,
+      "cost_foveagrid_25d": 20.28,
+      "cost_naive_2d": 20.28,
+      "regret_pct": 6.74,
+      "naive_regret_pct": 6.74,
+      "frechet_distance_m": 1.294,
+      "waypoints_count": 41
+    },
+    {
+      "frame_idx": 30,
+      "cost_dense_3d": 19.0,
+      "cost_foveagrid_25d": 21.0,
+      "cost_naive_2d": 21.0,
+      "regret_pct": 10.52,
+      "naive_regret_pct": 10.52,
+      "frechet_distance_m": 1.626,
+      "waypoints_count": 42
+    }
+  ]
+}

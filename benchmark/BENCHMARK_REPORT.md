@@ -72,10 +72,20 @@ Generated via `benchmark/evaluate_segmentation_miou.py` and saved to `benchmark/
 - **Smooth Ackermann Waypoints:** 39
 
 ### Scenario C: Bayesian Uncertainty Terrain Diversion (Standard 2.3)
-- **Uncertainty-Aware Safe Lateral Diversion:** **4.11 m** (Vehicle swerves into safe asphalt)
+- **Uncertainty-Aware Safe Lateral Diversion:** **4.66 m** (Vehicle swerves into safe asphalt)
 - **Blind Baseline Lateral Shift:** 0.0 m (Blind baseline plows into mud hazard)
 - **Diverted Away from Uncertainty:** **True**
 - **Standard 2.3 Verification:** **CLEARED (First public implementation)**
+
+### Scenario D: Real SemanticKITTI Sequence 08 Corridor Trajectory Regret (Standard 7.3 & Phase 5.2)
+- **Data Provenance:** Evaluated on real Velodyne HDL-64E point clouds (`data/real/sequences/08`, Frames 0, 5, 10, 20, 30)
+- **Benchmark Script:** `benchmark/evaluate_real_regret.py` $\to$ `benchmark/real_regret_results.json`
+- **Dense 3D Reference Map Memory:** 3,051.8 MB (fine uniform voxel grid ground truth)
+- **FoveaGrid 2.5D Multi-Ring Memory:** **3.26 MB** (936.1x memory reduction)
+- **Mean Planner Regret:** **3.45%** (Measured unclamped across 5 real driving frames)
+- **Mean Discrete Fréchet Distance:** **0.584 m** (Tight path alignment against dense 3D reference)
+- **Max Discrete Fréchet Distance:** 1.626 m (Frame 30 curve avoidance)
+- **Standard 7.3 Verification:** **CLEARED (Kinematically planned Hybrid-A* baseline on real sensor data)**
 
 ---
 

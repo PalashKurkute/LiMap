@@ -107,8 +107,8 @@ class PlannerRegretBenchmark:
             "naive_2d_regret_pct": "FAILED / BLOCKED" if np.isinf(cost_naive) else round(naive_regret, 2),
             "frechet_distance_m": round(frechet_fovea, 3),
             "max_lateral_divergence_m": round(max_lat_dev_fovea, 3),
-            "underpass_traversable_fovea": bool(traj_fovea is not None),
-            "underpass_traversable_naive": bool(traj_naive is not None),
+            "underpass_traversable_fovea": traj_fovea is not None,
+            "underpass_traversable_naive": traj_naive is not None,
         }
 
     def benchmark_pothole_field(
@@ -204,7 +204,7 @@ class PlannerRegretBenchmark:
 
         max_lat_aware = float(max(map(abs, y_aware)))
         max_lat_blind = float(max(map(abs, y_blind)))
-        diverted_away_from_mud = bool(max_lat_aware >= 1.0 and max_lat_blind < 0.2)
+        diverted_away_from_mud = max_lat_aware >= 1.0 and max_lat_blind < 0.2
 
         return {
             "scenario": "Uncertainty / High-Variance Mud Diversion",

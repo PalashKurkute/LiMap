@@ -123,9 +123,7 @@ class CostmapGenerator:
         costmap = np.zeros((self.ny, self.nx), dtype=np.uint8)
         active_cells = grid.get_active_cells()
 
-        if len(active_cells) > 0:
-            lattice = grid.lattice
-
+        lattice = grid.lattice
         patch_planes = self.fit_terrain_planes(grid) if enable_slope_compensation else {}
 
         for c in active_cells:
@@ -189,7 +187,7 @@ class CostmapGenerator:
                     total_cost = min(COST_LETHAL, base_cost + terrain_risk)
 
             # Fill cell's spatial footprint on costmap based on ring resolution (min 1 pixel radius to prevent pinholes)
-            half_w = max(1, int(round(c_res / (2.0 * self.res))))
+            half_w = max(1, round(c_res / (2.0 * self.res)))
             y0 = max(0, gy - half_w)
             y1 = min(self.ny, gy + half_w + 1)
             x0 = max(0, gx - half_w)

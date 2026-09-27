@@ -18,12 +18,13 @@ from pathlib import Path
 # Add project root to sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from typing import Dict, List
+from typing import Any, Dict, List
 import numpy as np
 
 from core.ingestion.loader import load_kitti_bin, load_kitti_label
 from core.ingestion.transforms import deskew_points_constant_velocity
 from core.grid.spatial_hash import SpatialHashGrid
+from core.grid.baselines import calculate_baselines
 
 
 class SensorStressHarness:
@@ -32,7 +33,7 @@ class SensorStressHarness:
     def __init__(self, base_scene_bin: str = "data/synthetic/scene_a_bridge_underpass.bin"):
         self.raw_points = load_kitti_bin(base_scene_bin)
 
-    def run_all_stress_tests(self) -> Dict[str, Dict[str, object]]:
+    def run_all_stress_tests(self) -> Dict[str, Dict[str, Any]]:
         results = {
             "mode_1_beam_dropout": self.test_mode_1_beam_dropout(),
             "mode_2_extreme_noise": self.test_mode_2_extreme_noise(),
@@ -42,7 +43,7 @@ class SensorStressHarness:
         }
         return results
 
-    def test_mode_1_beam_dropout(self, dropout_ratio: float = 0.50) -> Dict[str, object]:
+    def test_mode_1_beam_dropout(self, dropout_ratio: float = 0.50) -> Dict[str, Any]:
         """Mode 1: 50% of beams randomly dropped."""
         rng = np.random.default_rng(1001)
         keep_mask = rng.uniform(0.0, 1.0, size=len(self.raw_points)) > dropout_ratio
@@ -55,13 +56,13 @@ class SensorStressHarness:
         assert telem["under_drdo_bound"], f"Memory breach under 50% dropout: {telem['total_heap_mb']} MB"
         return {
             "status": "PASSED",
-            "input_points": int(len(degraded_pts)),
-            "active_cells": int(active),
-            "heap_mb": float(telem["total_heap_mb"]),
+            "input_points": len(degraded_pts),
+            "active_cells": active,
+            "heap_mb": float(str(telem["total_heap_mb"])),
             "under_drdo_bound": True,
         }
 
-    def test_mode_2_extreme_noise(self, noise_std_m: float = 0.10) -> Dict[str, object]:
+    def test_mode_2_extreme_noise(self, noise_std_m: float = 0.10) -> Dict[str, Any]:
         """Mode 2: 10cm Gaussian distance noise (5x standard LiDAR noise)."""
         rng = np.random.default_rng(1002)
         noisy_pts = self.raw_points.copy()
@@ -75,12 +76,12 @@ class SensorStressHarness:
         return {
             "status": "PASSED",
             "noise_std_m": noise_std_m,
-            "active_cells": int(active),
-            "heap_mb": float(telem["total_heap_mb"]),
+            "active_cells": active,
+            "heap_mb": float(str(telem["total_heap_mb"])),
             "under_drdo_bound": True,
         }
 
-    def test_mode_3_ground_absorption(self, drop_ground_pct: float = 0.60) -> Dict[str, object]:
+    def test_mode_3_ground_absorption(self, drop_ground_pct: float = 0.60) -> Dict[str, Any]:
         """Mode 3: 60% of ground returns lost due to water/dark mud absorption."""
         rng = np.random.default_rng(1003)
         pts = self.raw_points.copy()
@@ -96,14 +97,14 @@ class SensorStressHarness:
         return {
             "status": "PASSED",
             "ground_lost_pct": round(drop_ground_pct * 100.0, 1),
-            "active_cells": int(active),
-            "heap_mb": float(telem["total_heap_mb"]),
+            "active_cells": active,
+            "heap_mb": float(str(telem["total_heap_mb"])),
             "under_drdo_bound": True,
         }
 
     def test_mode_4_high_speed_motion(
         self, linear_vel_mps: float = 15.0, angular_vel_radps: float = 0.5
-    ) -> Dict[str, object]:
+    ) -> Dict[str, Any]:
         """Mode 4: Vehicle traveling at 15 m/s with 0.5 rad/s yaw rate."""
         vel_xy = np.array([linear_vel_mps, 0.0], dtype=np.float32)
         grid = SpatialHashGrid()
@@ -117,12 +118,12 @@ class SensorStressHarness:
             "status": "PASSED",
             "speed_mps": linear_vel_mps,
             "forward_fovea_reach_m": round(grid.fovea.base_fovea_radius_m * 1.48, 2),
-            "active_cells": int(active),
-            "heap_mb": float(telem["total_heap_mb"]),
+            "active_cells": active,
+            "heap_mb": float(str(telem["total_heap_mb"])),
             "under_drdo_bound": True,
         }
 
-    def test_mode_5_reverse_driving(self, reverse_speed_mps: float = -6.0) -> Dict[str, object]:
+    def test_mode_5_reverse_driving(self, reverse_speed_mps: float = -6.0) -> Dict[str, Any]:
         """Mode 5: Vehicle driving in reverse at 6 m/s."""
         vel_xy = np.array([reverse_speed_mps, 0.0], dtype=np.float32)
         grid = SpatialHashGrid()
@@ -133,8 +134,8 @@ class SensorStressHarness:
         return {
             "status": "PASSED",
             "reverse_speed_mps": reverse_speed_mps,
-            "active_cells": int(active),
-            "heap_mb": float(telem["total_heap_mb"]),
+            "active_cells": active,
+            "heap_mb": float(str(telem["total_heap_mb"])),
             "under_drdo_bound": True,
         }
 
@@ -151,8 +152,9 @@ def run_stress_suite() -> None:
         for k, v in data.items():
             if k != "status":
                 print(f"    * {k}: {v}")
+    baselines = calculate_baselines()
     print("=" * 70)
-    print("ALL 5 DEGRADED SENSOR STRESS MODES PASSED (HEAP <= 3.26 MB).")
+    print(f"ALL 5 DEGRADED SENSOR STRESS MODES PASSED (HEAP <= {baselines.foveagrid_25d_mb:.4f} MB).")
 
 
 if __name__ == "__main__":

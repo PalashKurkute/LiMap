@@ -72,7 +72,7 @@ All three advanced mathematical and terrain modules are fully integrated into th
 - `DualElevationExtractor` (`core/grid/dual_elevation.py`): Called directly inside `SpatialHashGrid._insert_batch()` in `core/grid/spatial_hash.py` (L200) to separate underpass clearings from overhead deck canopies.
 - `Chan's Parallel-Variance Merge` (`core/grid/welford_fusion.py`): Wired into `SpatialHashGrid.coarsen_cells()` to fuse cell statistics across multi-resolution ring transitions without precision loss.
 - `PCA Ground Plane Fitting` (`core/grid/local_plane.py`): Integrated via `SpatialHashGrid.fit_local_ground()` to provide slope immunity against 8% and 15% incline false alarms.
-- **Verification:** 100% verified by `benchmark/test_phase2_integration.py`.
+- **Verification:** Verified by `benchmark/test_phase2_integration.py`.
 
 ---
 

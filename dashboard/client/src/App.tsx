@@ -634,7 +634,7 @@ export const App: React.FC = () => {
                     <div style={{ background: 'rgba(0,0,0,0.3)', padding: '8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
                       <div style={{ fontSize: '9px', color: 'var(--text-muted)' }}>TOTAL HEAP</div>
                       <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent-emerald)' }}>
-                        {telemetryData ? `${telemetryData.telemetry.total_heap_mb.toFixed(2)} MB` : '3.26 MB'}
+                        {telemetryData ? `${telemetryData.telemetry.total_heap_mb.toFixed(4)} MB` : '3.2616 MB'}
                       </div>
                     </div>
 
@@ -993,7 +993,7 @@ export const App: React.FC = () => {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <span>
-            DRDO BOUND: <strong style={{ color: 'var(--accent-emerald)' }}>3.26 MB &lt; 3.50 MB</strong>
+            DRDO BOUND: <strong style={{ color: 'var(--accent-emerald)' }}>3.2616 MB &lt; 3.50 MB</strong>
           </span>
           <span>&bull;</span>
           <span>

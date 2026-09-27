@@ -31,7 +31,7 @@ export const StressHarnessPanel: React.FC<StressHarnessPanelProps> = ({
       statusText: 'ALL BEAMS OPERATIONAL',
       severity: 'nominal',
       defenseBehavior: 'Standard Welford running elevation and variance estimation across all 4 concentric rings.',
-      memoryImpact: '3.26 MB (Nominal pool)',
+      memoryImpact: '3.2616 MB (Nominal pool)',
     },
     {
       id: 'dropout_50',
@@ -41,7 +41,7 @@ export const StressHarnessPanel: React.FC<StressHarnessPanelProps> = ({
       statusText: '32 BEAMS OCCLUDED',
       severity: 'warning',
       defenseBehavior: 'Sparse lattice interpolation via Chan parallel variance merge; zero cell reallocation.',
-      memoryImpact: '3.26 MB (Zero reallocation)',
+      memoryImpact: '3.2616 MB (Zero reallocation)',
     },
     {
       id: 'monsoon_noise',
@@ -51,7 +51,7 @@ export const StressHarnessPanel: React.FC<StressHarnessPanelProps> = ({
       statusText: 'STOCHASTIC CLUTTER ACTIVE',
       severity: 'warning',
       defenseBehavior: 'Bayesian variance gating rejects false ground spikes with high σ² without corrupting costmap.',
-      memoryImpact: '3.26 MB (Noise rejected)',
+      memoryImpact: '3.2616 MB (Noise rejected)',
     },
     {
       id: 'ghost_stress',
@@ -61,7 +61,7 @@ export const StressHarnessPanel: React.FC<StressHarnessPanelProps> = ({
       statusText: 'MOVING VEHICLE PHANTOM',
       severity: 'critical',
       defenseBehavior: 'Moving-Object Segmentation (MOS) + Line-of-sight ray tracing carves ghost cells in <200ms.',
-      memoryImpact: '3.26 MB (Ghost erased in 2 scans)',
+      memoryImpact: '3.2616 MB (Ghost erased in 2 scans)',
     },
   ];
 

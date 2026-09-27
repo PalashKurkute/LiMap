@@ -3,7 +3,7 @@
 Rigorously benchmarks trajectory generation on:
   1. Dense 3D Voxel Grid (ideal 3D ground truth, 3200 MB)
   2. Naive 2.5D Elevation Grid (2D collapse failure mode, 128 MB)
-  3. FoveaGrid 2.5D Multi-Factor Grid (3.26 MB)
+  3. FoveaGrid 2.5D Multi-Factor Grid (3.2616 MB)
 
 Computes mathematical planner regret:
   Regret = (Cost(pi_fovea) - Cost(pi_dense)) / Cost(pi_dense) * 100%

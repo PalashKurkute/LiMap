@@ -4,7 +4,7 @@ Rigorously benchmarks Hybrid-A* trajectory generation on real SemanticKITTI Sequ
 comparing:
   1. Dense 3D Reference Grid (fine-grained uniform ground truth, 3200 MB equivalent)
   2. Naive 2.5D Elevation Grid (height collapse baseline, 128 MB)
-  3. FoveaGrid 2.5D Adaptive Multi-Factor Hash (3.26 MB)
+  3. FoveaGrid 2.5D Adaptive Multi-Factor Hash (3.2616 MB)
 
 Computes mathematical planner regret and discrete Fréchet distance.
 """

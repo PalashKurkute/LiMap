@@ -2,7 +2,7 @@
 
 **Project:** FoveaGrid 2.5D — Adaptive Variable-Resolution 2.5D LiDAR Mapping for Dynamic Perception  
 **Authority:** Defence Research and Development Organisation (DRDO)  
-**Evaluation Standard:** Zero Fabricated Metrics | Provable Bounds | Ground Truth Verification  
+**Evaluation Standard:** Empirical Ground Truth Verification | Provable Bounds | Verifiable Benchmarks  
 
 ---
 
@@ -10,7 +10,7 @@
 
 | Architectural Feature | Stxtics03/vrgrid (Team Chronicles.exe) | pushpam2404/sih_053 | akumar4be26-crypto/LiFovea | kaushik521645/lidar-2.5D-mapping | **FoveaGrid 2.5D (Ours)** |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Claimed Memory Bound** | 8.94 MB (4 rings) | Unbounded dynamic hash | Uniform grid (~128 MB) | Ring buffer (~12 MB) | **&le; 3.26 MB (Strict Flat Pool)** |
+| **Claimed Memory Bound** | 8.94 MB (4 rings) | Unbounded dynamic hash | Uniform grid (~128 MB) | Ring buffer (~12 MB) | **&le; 3.2616 MB (Strict Flat Pool)** |
 | **Dual-Elevation (Overhangs)** | &cross; 2D Collapse (Fails bridges) | &cross; 2D Collapse (Fails bridges) | &cross; None | &cross; None | **&check; Dual-Elevation Clearance (&Delta;h)** |
 | **Seam Gap Invariants** | Unverified / empirical tears | &check; 1:2:10 lattice | &cross; Unverified | &cross; Seam mismatches | **&check; Provably 0 Gaps (4M Points)** |
 | **Dynamic Anti-Ghosting** | Ray clearing (partial) | Heuristic decay | &cross; None | Heuristic decay | **&check; MOS + LoS Ghost Eraser (200ms)** |
@@ -23,9 +23,9 @@
 
 ## 2. Deep-Dive on Verified Differentiators
 
-### 2.1 Memory Footprint: 3.26 MB vs 8.94 MB (VRgrid)
+### 2.1 Memory Footprint: 3.2616 MB vs 8.94 MB (VRgrid)
 - **VRgrid Shortcoming:** Allocates 8.94 MB across 4 rings using separate hash lookup tables and pointer indirection, risking branch mispredictions and memory fragmentation.
-- **FoveaGrid Invariant:** Preallocated flat array pool of exactly 106,875 cells $\times$ 32 bytes $= 3,420,000\text{ bytes}$ ($3.26\text{ MiB} \le 3.42\text{ MB} < 3.5\text{ MB}$). Linear probing on contiguous memory guarantees zero cache line misses and zero dynamic allocations inside the $10\text{ Hz}$ execution loop.
+- **FoveaGrid Invariant:** Preallocated flat array pool of exactly 106,875 cells $\times$ 32 bytes $= 3,420,000\text{ bytes}$ ($3.2616\text{ MB} \le 3.42\text{ MB} < 3.5\text{ MB}$). Linear probing on contiguous memory guarantees zero cache line misses and zero dynamic allocations inside the $10\text{ Hz}$ execution loop.
 
 ### 2.2 Dual-Elevation Overhang Tracking vs 2D Collapse
 - **Rival Failure Mode:** Every public competitor (`vrgrid`, `sih_053`, `LiFovea`, `kaushik521645`) collapses elevation measurements into a single 2D height column. When driving under a bridge or tree canopy (Scene A), the column merges ground returns ($z = -1.73\text{m}$) and overhead deck returns ($z = +0.77\text{m}$), flagging the entire corridor as an impenetrable lethal wall.
@@ -52,4 +52,4 @@ When DRDO evaluators interrogate the system:
 2. **"Does variable resolution cause boundary seam tearing?"**  
    *Answer:* No. Integer scale factors $k \in \{1, 2, 5, 10\}$ enforce root lattice alignment. Verified across 4,000,000 boundary positions with zero coordinate gaps.
 3. **"What happens when 50% of beams fail?"**  
-   *Answer:* Verified in stress mode 1: system memory stays bounded at 3.26 MB, Welford estimator gracefully fuses available points, zero crashes or memory spikes.
+   *Answer:* Verified in stress mode 1: system memory stays bounded at 3.2616 MB, Welford estimator gracefully fuses available points, zero crashes or memory spikes.

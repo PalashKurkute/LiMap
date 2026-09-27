@@ -40,7 +40,7 @@
 - [x] **1.3** Run full ingestion → grid insertion → costmap on real sequence; fix crashes (`scripts/run_seq08.py`)
 - [x] **1.4** Regenerate `BENCHMARK_REPORT.md` — separate "Real-data (SemanticKITTI seq 08)" vs "Synthetic stress-test" sections (Section 10 updated)
 
-**DoD:** One metric traceable to real public dataset (500 frames evaluated, 61,968,377 points, 3.26 MB heap < 3.5 MB DRDO bound, 0 crashes recorded in `data/real/seq08_run_results.json`).
+**DoD:** One metric traceable to real public dataset (500 frames evaluated, 61,968,377 points, 3.2616 MB heap < 3.5 MB DRDO bound, 0 crashes recorded in `data/real/seq08_run_results.json`).
 
 ---
 

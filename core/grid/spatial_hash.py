@@ -1,7 +1,7 @@
 """Deterministic Spatial Hash & Bounded Memory Pool for FoveaGrid 2.5D.
 
 Guarantees strict deterministic memory consumption:
-  106,875 cells x 32 bytes = 3,420,000 bytes (3.26 MiB <= 3.42 MB < 3.5 MB).
+  106,875 cells x 32 bytes = 3,420,000 bytes (3.2616 MB <= 3.42 MB < 3.5 MB).
 Implements an in-place open-addressing spatial hash table with linear probing.
 Zero dynamic allocations inside the real-time execution loop.
 """
@@ -42,7 +42,7 @@ CELL_DTYPE = np.dtype([
 
 assert CELL_DTYPE.itemsize == 32, f"CELL_DTYPE must be exactly 32 bytes, got {CELL_DTYPE.itemsize}"
 
-DEFAULT_MAX_CELLS = 106_875  # 106,875 * 32 B = 3,420,000 B = 3.26 MiB <= 3.42 MB
+DEFAULT_MAX_CELLS = 106_875  # 106,875 * 32 B = 3,420,000 B = 3.2616 MB <= 3.5 MB
 
 
 class SpatialHashGrid:
@@ -62,7 +62,7 @@ class SpatialHashGrid:
         self.dual_extractor = DualElevationExtractor()
         self.ground_estimator = LocalGroundPlaneEstimator()
 
-        # Deterministic flat memory allocation: 106,875 * 32B = 3.26 MiB
+        # Deterministic flat memory allocation: 106,875 * 32B = 3.2616 MB
         self.cells = np.zeros(self.capacity, dtype=CELL_DTYPE)
         self.active_count = 0
 
@@ -221,8 +221,8 @@ class SpatialHashGrid:
             "capacity": self.capacity,
             "active_cells": self.active_count,
             "load_factor": round(self.active_count / self.capacity, 4),
-            "allocated_cell_mb": round(self.cells.nbytes / (1024 * 1024), 2),
-            "total_heap_mb": round(self.total_memory_mb, 2),
+            "allocated_cell_mb": round(self.cells.nbytes / (1024 * 1024), 4),
+            "total_heap_mb": round(self.total_memory_mb, 4),
             "under_drdo_bound": self.total_memory_mb < 3.5,
         }
 

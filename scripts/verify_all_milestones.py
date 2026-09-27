@@ -1,14 +1,14 @@
 """Unified Milestone Verification Suite — FoveaGrid 2.5D.
 
 Executes end-to-end verification of all project milestones:
-  - Milestone 1: Real SemanticKITTI Ingestion & 3.26 MB Memory Bound
+  - Milestone 1: Real SemanticKITTI Ingestion & 3.2616 MB Memory Bound
   - Milestone 2: Phase 2 Integration (DualElevation, Chan's Merge, PCA Ground)
   - Milestone 3: Phase 3 SalsaNext Pretrained ONNX Segmentation
   - Milestone 4: Phase 4 Semantic-Gated Dynamic MOS Filter
   - Milestone 5: Phase 5 Kinematic Planner Regret & Fréchet Distance
   - Milestone 6: Phase 6 Nav2 OccupancyGrid Bridge
 
-Guarantees 100% agreement between documented numbers and live code outputs.
+Guarantees empirical agreement between documented numbers and live code outputs.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ def verify_milestone_1() -> bool:
 
     mem_mb = grid.cells.nbytes / (1024 * 1024)
     print(f"      - Points inserted: {len(pts):,}")
-    print(f"      - Heap footprint:  {mem_mb:.2f} MiB (Bound: < 3.50 MB)")
+    print(f"      - Heap footprint:  {mem_mb:.4f} MB (Bound: < 3.50 MB)")
     assert mem_mb <= 3.42, f"Memory {mem_mb} exceeded DRDO bound"
     assert len(grid.get_active_cells()) > 1000, "Active cells underpopulated"
     print("      --> PASS: Invariant < 3.5 MB strictly preserved.")

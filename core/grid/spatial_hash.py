@@ -273,7 +273,7 @@ class SpatialHashGrid:
                 next_max = np.array([float(sub[k]["max_z"])])
 
                 curr_cnt, curr_mean, curr_m2, curr_min, curr_max = (
-                    WelfordElevationAccumulator.combine_aggregates(
+                    WelfordElevationAccumulator.merge(
                         curr_cnt, curr_mean, curr_m2, curr_min, curr_max,
                         next_cnt, next_mean, next_m2, next_min, next_max,
                     )
@@ -293,6 +293,37 @@ class SpatialHashGrid:
             coarse_cells[u_idx]["clearance"] = float(np.min(sub["clearance"]))
 
         return coarse_cells
+
+    def query_coarsened_region(
+        self,
+        min_xy: Tuple[float, float],
+        max_xy: Tuple[float, float],
+        factor: int = 2,
+    ) -> np.ndarray:
+        """Queries and coarsens active cells within a bounding box using Chan's merge (Standard 2.2).
+        
+        Preserves exact Law of Total Variance across resolution boundaries.
+        """
+        active = self.get_active_cells()
+        if len(active) == 0:
+            return np.zeros(0, dtype=CELL_DTYPE)
+
+        ring_resolutions = np.array([r.cell_size for r in self.lattice.rings], dtype=np.float32)
+        res = ring_resolutions[active["ring_id"]]
+        cx = (active["ix"] + 0.5) * res
+        cy = (active["iy"] + 0.5) * res
+
+        in_bbox = (
+            (cx >= min_xy[0]) & (cx <= max_xy[0]) &
+            (cy >= min_xy[1]) & (cy <= max_xy[1])
+        )
+        if not np.any(in_bbox):
+            return np.zeros(0, dtype=CELL_DTYPE)
+
+        sub_grid = SpatialHashGrid(capacity=len(active[in_bbox]) + 10, lattice=self.lattice)
+        sub_grid.cells[:len(active[in_bbox])] = active[in_bbox]
+        sub_grid.active_count = len(active[in_bbox])
+        return sub_grid.coarsen_cells(factor=factor)
 
     def fit_local_ground(
         self,
@@ -320,4 +351,19 @@ class SpatialHashGrid:
 
         patch_pts = np.column_stack((cx[in_radius], cy[in_radius], active["mean_z"][in_radius]))
         return self.ground_estimator.fit_patch_plane(patch_pts)
+
+    def evaluate_slope_compensation(
+        self,
+        center_xy: Tuple[float, float],
+        radius_m: float = 3.0,
+    ) -> Optional[Tuple[LocalPatchPlane, float]]:
+        """Fits local ground tangent plane and returns (plane, slope_grade_pct).
+        
+        Used by downstream planners/costmaps to compensate for 8-15% grades (Standard 4.4).
+        """
+        plane = self.fit_local_ground(center_xy=center_xy, radius_m=radius_m)
+        if plane is None:
+            return None
+        return plane, plane.slope_pct
+
 

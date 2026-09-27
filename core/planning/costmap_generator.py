@@ -21,6 +21,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from core.grid.spatial_hash import SpatialHashGrid
+from core.grid.local_plane import LocalPatchPlane
 from core.tracking.kalman_tracker import TrackedObstacle
 
 
@@ -67,11 +68,47 @@ class CostmapGenerator:
         self.origin_x = -grid_width_m * 0.5
         self.origin_y = -grid_height_m * 0.5
 
+    def fit_terrain_planes(
+        self,
+        grid: SpatialHashGrid,
+        patch_size_m: float = 6.0,
+    ) -> Dict[Tuple[int, int], LocalPatchPlane]:
+        """Fits local ground tangent planes across spatial patches (SIH Standard 4.4).
+        
+        Enables slope immunity: distinguishes 8-15% grades from lethal obstacle walls.
+        """
+        planes: Dict[Tuple[int, int], LocalPatchPlane] = {}
+        active = grid.get_active_cells()
+        if len(active) < 6:
+            return planes
+
+        ring_resolutions = np.array([r.cell_size for r in grid.lattice.rings], dtype=np.float32)
+        res = ring_resolutions[active["ring_id"]]
+        cx = (active["ix"] + 0.5) * res
+        cy = (active["iy"] + 0.5) * res
+
+        bx = np.floor(cx / patch_size_m).astype(int)
+        by = np.floor(cy / patch_size_m).astype(int)
+        unique_bins = set(zip(bx, by))
+
+        for bin_idx in unique_bins:
+            center_x = (bin_idx[0] + 0.5) * patch_size_m
+            center_y = (bin_idx[1] + 0.5) * patch_size_m
+            plane = grid.fit_local_ground(
+                center_xy=(center_x, center_y),
+                radius_m=patch_size_m * 0.75,
+            )
+            if plane is not None:
+                planes[bin_idx] = plane
+
+        return planes
+
     def generate_costmap(
         self,
         grid: SpatialHashGrid,
         dynamic_tracks: Optional[List[TrackedObstacle]] = None,
         ignore_overhang_clearance: bool = False,  # If True, simulates naive 2D collapse
+        enable_slope_compensation: bool = True,   # SIH Standard 4.4 slope immunity
     ) -> np.ndarray:
         """Renders 2D costmap array of shape (ny, nx) with values in [0, 254].
         
@@ -79,6 +116,7 @@ class CostmapGenerator:
             grid: Active SpatialHashGrid.
             dynamic_tracks: Optional list of Kalman tracked obstacles to inflate.
             ignore_overhang_clearance: Baseline toggle simulating flawed 2D collapse.
+            enable_slope_compensation: Distinguishes traversable grade from obstacles.
         Returns:
             np.ndarray of shape (ny, nx) with dtype uint8.
         """
@@ -87,6 +125,8 @@ class CostmapGenerator:
 
         if len(active_cells) > 0:
             lattice = grid.lattice
+
+        patch_planes = self.fit_terrain_planes(grid) if enable_slope_compensation else {}
 
         for c in active_cells:
             r_id = int(c["ring_id"])
@@ -117,10 +157,21 @@ class CostmapGenerator:
                 uncertainty_cost = int(min(var_z * self.uncertainty_weight, 240.0))
                 terrain_risk = max(rough_cost, uncertainty_cost)
 
+            # Local PCA slope evaluation (Standard 4.4)
+            bin_k = (int(np.floor(wx / 6.0)), int(np.floor(wy / 6.0)))
+            patch_plane = patch_planes.get(bin_k) if enable_slope_compensation else None
+
+            if patch_plane is not None and patch_plane.is_traversable_grade:
+                diff = np.array([wx - patch_plane.centroid[0], wy - patch_plane.centroid[1], mean_z - patch_plane.centroid[2]])
+                d_norm = float(np.dot(diff, patch_plane.normal))
+                is_solid_obstacle = (d_norm > 0.3)
+            else:
+                is_solid_obstacle = (mean_z > -1.2)
+
             # 3. Dual-elevation clearance check vs naive 2D collapse
             if ignore_overhang_clearance:
                 # Naive 2D collapse: treats any elevated structure as a lethal obstacle
-                if sem == 50 or overhang_z < 900.0 or mean_z > -1.2:
+                if sem == 50 or overhang_z < 900.0 or is_solid_obstacle:
                     total_cost = COST_LETHAL
                 else:
                     total_cost = min(COST_LETHAL, base_cost + terrain_risk)
@@ -132,7 +183,7 @@ class CostmapGenerator:
 
                 if (overhang_z < 900.0 or mean_z > 0.3) and eff_clearance >= self.vehicle_height_m + 0.2:
                     total_cost = terrain_risk  # Safe overhead underpass (nominal road cost)
-                elif sem == 50 or mean_z > -1.2:
+                elif sem == 50 or is_solid_obstacle:
                     total_cost = COST_LETHAL      # Solid pillar, wall, or low obstacle
                 else:
                     total_cost = min(COST_LETHAL, base_cost + terrain_risk)

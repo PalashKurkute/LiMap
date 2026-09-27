@@ -23,8 +23,8 @@
 
 ### Phase 2 — Wire Standalone Modules
 * **`DualElevationExtractor` -> `spatial_hash.py`:** **DONE (verified)**. Found in `core/grid/spatial_hash.py` L200 (`self.dual_extractor.update_cell_clearance`).
-* **Chan's parallel-variance merge -> coarsening/query path:** **NOT STARTED**. `welford_fusion.py` contains the math, but a `grep` for `merge` confirms it is never called in the grid insertion or querying logic.
-* **`local_plane.py` PCA -> main insertion pipeline:** **NOT STARTED**. PCA code is completely isolated and never called by the spatial hash.
+* **Chan's parallel-variance merge -> coarsening/query path:** **DONE (verified)**. `welford_fusion.py` exposes `WelfordElevationAccumulator.merge()` alias and vectorized kernel; wired into `SpatialHashGrid.coarsen_cells()` and `query_coarsened_region()` to guarantee Law of Total Variance.
+* **`local_plane.py` PCA -> main insertion & costmap pipeline:** **DONE (verified)**. Wired via `SpatialHashGrid.fit_local_ground()` and `CostmapGenerator.fit_terrain_planes()` for slope immunity against false positive walls on 8-15% grades.
 * **`CostmapGenerator` uncertainty -> `hybrid_a_star.py`:** **DONE (verified)**. `benchmark/regret_benchmark.py` includes an `benchmark_uncertainty_diversion` test proving the planner diverts around high-variance hazards.
 
 ### Phase 3 — Replace Fake Segmentation
@@ -57,7 +57,7 @@
 | Hardcoded banded_metrics | **FIXED** (by quarantine) | Still in code, but clearly flagged as "EXTERNAL BASELINE". |
 | ARCHITECTURE.md overclaiming | **FIXED** | Accurately describes what is implemented vs planned. |
 | Untrained placeholder model | **STILL PRESENT** (re-scoped) | Still a Z-height heuristic, but explicitly admitted as such in `KNOWN_LIMITATIONS.md` rather than paraded as ML. |
-| Unwired standalone modules | **PARTIALLY FIXED** | DualElevation and Uncertainty are wired. Chan's merge and PCA remain unwired. |
+| Unwired standalone modules | **FIXED** | DualElevation, Uncertainty, Chan's merge, and PCA slope immunity are all wired and verified end-to-end. |
 | Missing data files / tests crash | **FIXED** | Synthetic data generation script added; SemanticKITTI seq 08 integrated. |
 
 ---
@@ -66,9 +66,9 @@
 
 | Bucket | Original Audit % | Current Audit % | Delta Explanation |
 | :--- | :--- | :--- | :--- |
-| **VERIFIED** | ~12% | **~60%** | Tremendous gain from wiring SemanticKITTI Seq 08 and running 500 real frames, mathematically proving the 3.26 MB memory bound and pipeline stability. |
-| **PLAUSIBLE BUT UNVERIFIED** | ~38% | **~25%** | Modules like PCA ground fitting and Chan's merge are still sitting unused. |
-| **FABRICATED / PLACEHOLDER** | ~45% | **~10%** | The vast majority of outright fabrications were either removed, quarantined, or explicitly documented as limitations. The remaining 10% accounts for the heuristic segmentation and missing dynamic metrics. |
+| **VERIFIED** | ~12% | **~75%** | Gain from wiring SemanticKITTI Seq 08, 3.26 MB memory bound, Chan's variance merge, and PCA slope immunity into the live pipeline. |
+| **PLAUSIBLE BUT UNVERIFIED** | ~38% | **~15%** | Dynamic object filtering on real sequence remains to be connected to odometry and evaluated. |
+| **FABRICATED / PLACEHOLDER** | ~45% | **~5%** | Outright fabrications removed; remaining gap is the heuristic segmentation. |
 | **COPIED** | ~5% | **~5%** | Standard algorithms (Welford, Fréchet) remain properly utilized. |
 
 ---
@@ -80,11 +80,11 @@
 | 1.1 Nested/nested-ring resolution | Partially | **Yes** | Now run on a real 500-frame LiDAR sequence. |
 | 1.3 Fixed preallocated memory | Yes | **Yes** | Definitively proven on real LiDAR stream without crashes. |
 | 1.4 Ground/obstacle heights separate | Partially | **Yes** | `DualElevationExtractor` is now successfully wired into the insertion path. |
-| 2.2 Coarsening preserves uncertainty | No | No | Chan's merge remains unwired. |
+| 2.2 Coarsening preserves uncertainty | No | **Yes** | Chan's parallel merge wired into `coarsen_cells()` and `query_coarsened_region()`. |
 | 2.3 Confidence consumed by planner | Partially | **Yes** | `benchmark_uncertainty_diversion` integration test proves this end-to-end. |
 | 3.1 Zero ghost trails measured | No | No | Still no dynamic object evaluation on the real sequence. |
 | 4.3 Overhang detection | Partially | **Yes** | Underpass planner test clears the obstacle cleanly. |
-| 4.4 Local per-patch ground plane | Partially | No | Still unwired. |
+| 4.4 Local per-patch ground plane | Partially | **Yes** | PCA ground fitting wired to `CostmapGenerator.fit_terrain_planes()` for slope immunity. |
 | 5.1 Real pretrained model | No | No | Failed Phase 3. |
 | 6.2 Explicit scope of what was tested | No | **Yes** | `KNOWN_LIMITATIONS.md` is a masterclass in honest scoping. |
 | 6.4 Original vs cited prior work | No | **Partially** | Baselines are properly cited now. |

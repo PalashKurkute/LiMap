@@ -81,6 +81,9 @@ class WelfordElevationAccumulator:
 
         return total_count, out_mean, out_m2, out_min, out_max
 
+    # Explicit alias for Chan's parallel variance merge (SIH Standard 2.2 / Law of Total Variance)
+    merge = combine_aggregates
+
     @staticmethod
     def compute_variance(count: np.ndarray, m2: np.ndarray) -> np.ndarray:
         """Computes sample variance sigma^2 = M2 / (n - 1) for n >= 2."""

@@ -66,8 +66,8 @@ def test_2_2_chans_parallel_variance_merge():
             cnt_b, mean_b, m2_b, min_b, max_b, float(v)
         )
 
-    # Merge via Chan's parallel algorithm
-    tot_cnt, out_mean, out_m2, out_min, out_max = WelfordElevationAccumulator.combine_aggregates(
+    # Merge via Chan's parallel algorithm (testing explicit merge alias)
+    tot_cnt, out_mean, out_m2, out_min, out_max = WelfordElevationAccumulator.merge(
         np.array([cnt_a]), np.array([mean_a]), np.array([m2_a]), np.array([min_a]), np.array([max_a]),
         np.array([cnt_b]), np.array([mean_b]), np.array([m2_b]), np.array([min_b]), np.array([max_b]),
     )
@@ -92,11 +92,15 @@ def test_2_2_chans_parallel_variance_merge():
     coarsened = test_grid.coarsen_cells(factor=2)
     assert len(coarsened) > 0, "SpatialHashGrid.coarsen_cells produced 0 cells"
     assert coarsened[0]["count"] >= 2, "Coarsened cell count did not aggregate"
-    print(f"[PASS] Task 2.2: Chan's parallel-variance merge verified exact & wired to SpatialHashGrid.coarsen_cells.")
+
+    # Verify query_coarsened_region
+    q_coarsened = test_grid.query_coarsened_region(min_xy=(0.0, 0.0), max_xy=(2.0, 2.0), factor=2)
+    assert len(q_coarsened) > 0, "query_coarsened_region produced 0 cells"
+    print(f"[PASS] Task 2.2: Chan's parallel-variance merge verified exact & wired to SpatialHashGrid.coarsen_cells and query_coarsened_region.")
 
 
 def test_2_3_local_plane_pca_ground_fit():
-    """Verifies PCA tangent ground plane fitting and slope immunity."""
+    """Verifies PCA tangent ground plane fitting and slope immunity in CostmapGenerator."""
     estimator = LocalGroundPlaneEstimator()
     res = estimator.verify_slope_immunity(slope_pct=12.0, num_points=5000)
     assert res["slope_immunity_verified"], f"Slope immunity failed at 12% grade: {res}"
@@ -112,7 +116,15 @@ def test_2_3_local_plane_pca_ground_fit():
     assert patch_plane is not None, "fit_local_ground failed to fit plane"
     assert patch_plane.is_traversable_grade, "10% slope was marked non-traversable"
     assert np.isclose(patch_plane.slope_pct, 10.0, atol=1.5), f"Slope percentage mismatch: {patch_plane.slope_pct}%"
-    print(f"[PASS] Task 2.3: Local PCA ground-fit verified & wired to SpatialHashGrid.fit_local_ground (grade={patch_plane.slope_pct:.1f}%).")
+
+    # Verify CostmapGenerator slope immunity end-to-end on 12% grade
+    cost_gen = CostmapGenerator(grid_width_m=20.0, grid_height_m=20.0, resolution_m=0.2)
+    # Without compensation, cells where z > -1.2m would be flagged lethal (254)
+    # With slope compensation, the inclined road must remain traversable (< 254)
+    costmap_sloped = cost_gen.generate_costmap(test_grid, enable_slope_compensation=True)
+    lethal_count = np.sum(costmap_sloped == 254)
+    assert lethal_count == 0, f"Expected 0 lethal cells on smooth 10% slope, got {lethal_count}"
+    print(f"[PASS] Task 2.3: Local PCA ground-fit verified & wired to CostmapGenerator slope immunity (0 lethal false alarms on 10% slope).")
 
 
 def test_2_4_planner_high_confidence_vs_shortcut():

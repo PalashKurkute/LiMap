@@ -9,7 +9,6 @@ import type {
   LayerVisibility,
   StressModeId,
 } from '../types/telemetry';
-import { CellInspectorHUD, type CellHoverInfo } from './CellInspectorHUD';
 
 interface ThreeViewportProps {
   sceneId: SceneId;
@@ -144,8 +143,7 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
 
 
 
-  // Interactive Real-Time Height Inspector State
-  const [cellHoverInfo, setCellHoverInfo] = useState<CellHoverInfo | null>(null);
+
 
   // Scene References for Dynamic Updates
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -329,12 +327,64 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
       }
     }
     demGeo.attributes.color.needsUpdate = true;
+
+    // In-place colormap updating for Foveated LiDAR laser points
+    if (cloudPointsRef.current && cloudPointsRef.current.geometry) {
+      const ptGeo = cloudPointsRef.current.geometry;
+      const posAttr = ptGeo.attributes.position;
+      const colAttr = ptGeo.attributes.color;
+      if (posAttr && colAttr) {
+        const pos = posAttr.array as Float32Array;
+        const col = colAttr.array as Float32Array;
+        const count = posAttr.count;
+        const elevZMin = -2.35;
+        const elevZMax = 1.00;
+
+        for (let i = 0; i < count; i++) {
+          const py = pos[i * 3 + 1];
+          const pz = pos[i * 3 + 2];
+          const isOverhang = pz > 0.3;
+          const isCrater = pz < -1.85;
+
+          let cr = 0.2, cg = 0.7, cb = 0.9;
+          if (colorMode === 'traversability') {
+            const slope = isOverhang ? 0.95 : isCrater ? 0.90 : Math.min(Math.abs(pz - (-1.73)) * 6.0, 1.0);
+            cr = 0.05 * (1 - slope) + 0.95 * slope;
+            cg = 0.85 * (1 - slope) + 0.10 * slope;
+            cb = 0.30 * (1 - slope) + 0.10 * slope;
+          } else if (colorMode === 'uncertainty') {
+            const distFromCenter = Math.abs(py);
+            if (distFromCenter < 3.5) { cr = 0.10; cg = 0.95; cb = 0.55; }
+            else if (distFromCenter < 7.5) { cr = 0.15; cg = 0.70; cb = 0.95; }
+            else { cr = 0.55; cg = 0.35; cb = 0.90; }
+          } else {
+            const normZ = Math.min(Math.max((pz - elevZMin) / (elevZMax - elevZMin), 0.0), 1.0);
+            const tc = getTurboColor(normZ);
+            cr = tc.r; cg = tc.g; cb = tc.b;
+          }
+
+          col[i * 3] = cr;
+          col[i * 3 + 1] = cg;
+          col[i * 3 + 2] = cb;
+        }
+        colAttr.needsUpdate = true;
+      }
+    }
   }, [colorMode]);
 
   // Main Three.js Scene Setup & 60 FPS Render Loop
   useEffect(() => {
     const container = mountRef.current;
     if (!container) return;
+
+    playbackProgressRef.current = 0;
+    setCurrentFrame(0);
+    const carInit = carPhysicsRef.current;
+    carInit.x = -2.0;
+    carInit.y = 0.0;
+    carInit.heading = 0.0;
+    carInit.speed = 0.0;
+    carInit.steerAngle = 0.0;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf8fafc);
@@ -1246,36 +1296,11 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
         }
 
         if (hasHit) {
-          const { z: groundZ, variance, isBridgeDeck } = evalElevation(hx, hy);
-
-          const isOverhang = isBridgeDeck && hx >= 15 && hx <= 25 && Math.abs(hy) <= 7.5;
-          const zCeiling = isOverhang ? 0.80 : null;
-          const clearance = isOverhang ? Number((0.80 - groundZ).toFixed(2)) : null;
-          const isCrater = groundZ < -1.85;
-
-          let tier = 'Tier 3 (85cm)';
-          const distFromCenter = Math.abs(hy);
-          if (distFromCenter <= 3.5) tier = 'Tier 1 (15cm Core)';
-          else if (distFromCenter <= 7.5) tier = 'Tier 2 (35cm Lane)';
-
-          setCellHoverInfo({
-            x: Number(hx.toFixed(2)),
-            y: Number(hy.toFixed(2)),
-            zGround: Number(groundZ.toFixed(2)),
-            zCeiling,
-            clearance,
-            variance: Number(variance.toFixed(4)),
-            tier,
-            isOverhang,
-            isCrater,
-          });
-
           if (hoverCrosshairRef.current) {
             hoverCrosshairRef.current.position.set(hx, hy, hz + 0.04);
             hoverCrosshairRef.current.visible = true;
           }
         } else {
-          setCellHoverInfo(null);
           if (hoverCrosshairRef.current) hoverCrosshairRef.current.visible = false;
         }
       }
@@ -1579,8 +1604,7 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
 
   return (
     <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }} ref={mountRef}>
-      {/* Real-Time Interactive 2.5D Cell Inspector HUD */}
-      <CellInspectorHUD info={cellHoverInfo} />
+
 
       {/* Optional Elevation Scale Bar */}
       {showScaleBar && (

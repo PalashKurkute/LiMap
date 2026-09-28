@@ -61,7 +61,6 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
                     <rect x="46" y="10" width="38" height="7" fill="#64748b" rx="1.5" />
                     {/* False wall highlight */}
                     <rect x="46" y="10" width="38" height="32" fill="#fecdd3" fillOpacity="0.55" stroke="#f43f5e" strokeWidth="1.2" strokeDasharray="3,2" />
-                    <text x="65" y="28" fontSize="6" fill="#be123c" textAnchor="middle" fontWeight="700">False Wall</text>
                     {/* Rover */}
                     <rect x="14" y="32" width="18" height="9" fill="#334155" rx="1.5" />
                     <circle cx="19" cy="42" r="2.5" fill="#0f172a" />
@@ -95,8 +94,10 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
                       <rect x="30" y="32" width="12" height="12" />
                       <rect x="42" y="32" width="12" height="12" />
                     </g>
-                    <text x="76" y="24" fontSize="7.5" fill="#334155" fontWeight="bold">3+ GB</text>
-                    <text x="76" y="33" fontSize="5.5" fill="#64748b" fontWeight="600">RAM Crash</text>
+                    {/* Visual alert dot */}
+                    <circle cx="78" cy="25" r="7" fill="#fee2e2" stroke="#f43f5e" strokeWidth="1.5" />
+                    <line x1="78" y1="21" x2="78" y2="26" stroke="#b91c1c" strokeWidth="1.5" strokeLinecap="round" />
+                    <circle cx="78" cy="29" r="0.8" fill="#b91c1c" />
                   </svg>
                 </div>
                 <p className="text-xs text-slate-700 font-normal leading-relaxed">
@@ -119,7 +120,6 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
                     <rect x="44" y="10" width="40" height="7" fill="#475569" rx="1.5" />
                     {/* Animated Pulsing Clearance Beam */}
                     <line x1="64" y1="17" x2="64" y2="42" stroke="#0284c7" strokeWidth="2" style={{ animation: 'beamPulse 2s ease-in-out infinite' }} />
-                    <text x="78" y="30" fontSize="6.5" fill="#0284c7" fontWeight="bold">2.5m Pass</text>
                     <rect x="52" y="32" width="18" height="9" fill="#0f172a" rx="1.5" />
                     <circle cx="57" cy="42" r="2.5" fill="#475569" />
                     <circle cx="65" cy="42" r="2.5" fill="#475569" />
@@ -293,7 +293,6 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
                     <line x1="5" y1="28" x2="95" y2="28" stroke="#cbd5e1" strokeWidth="2" />
                     <rect x="42" y="5" width="45" height="5" fill="#475569" rx="1" />
                     <line x1="65" y1="10" x2="65" y2="28" stroke="#0284c7" strokeWidth="1.5" strokeDasharray="2,2" />
-                    <text x="76" y="20" fontSize="5" fill="#0284c7" fontWeight="bold">2.5m PASS</text>
                     <rect x="18" y="20" width="14" height="8" fill="#0f172a" rx="1" />
                   </svg>
                 </div>
@@ -323,7 +322,6 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
                     {/* Road with pothole crater */}
                     <path d="M 5 22 L 35 22 Q 45 22 47 30 Q 55 35 63 30 Q 65 22 75 22 L 95 22" fill="none" stroke="#64748b" strokeWidth="2" />
                     <line x1="55" y1="12" x2="55" y2="31" stroke="#d97706" strokeWidth="1.2" strokeDasharray="1.5,1.5" />
-                    <text x="68" y="16" fontSize="5" fill="#d97706" fontWeight="bold">-0.35m Dip</text>
                     <rect x="12" y="14" width="14" height="8" fill="#0f172a" rx="1" />
                   </svg>
                 </div>
@@ -355,8 +353,6 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
                     <rect x="58" y="14" width="22" height="12" fill="#334155" rx="1.5" />
                     <line x1="80" y1="20" x2="94" y2="20" stroke="#059669" strokeWidth="1.8" />
                     <polygon points="94,18 98,20 94,22" fill="#059669" />
-                    {/* Cleared trail */}
-                    <text x="32" y="21" fontSize="5" fill="#059669" fontWeight="bold">Ghost Cleared ✓</text>
                     <rect x="10" y="18" width="14" height="8" fill="#0f172a" rx="1" />
                   </svg>
                 </div>
@@ -390,8 +386,6 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
                     {/* Thin pole detected */}
                     <line x1="32" y1="8" x2="32" y2="28" stroke="#9333ea" strokeWidth="2.5" />
                     <circle cx="32" cy="8" r="1.5" fill="#9333ea" />
-                    <text x="52" y="16" fontSize="5" fill="#7e22ce" fontWeight="bold">5cm Fovea Ring</text>
-                    <text x="52" y="24" fontSize="4.5" fill="#64748b">Skinny Post Locked</text>
                   </svg>
                 </div>
                 <p className="text-xs text-slate-700 leading-normal mb-1.5">
@@ -576,16 +570,13 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
 
                     {/* Sensor Base Housing */}
                     <rect x="10" y="25" width="28" height="80" rx="4" fill="#1e293b" stroke="#334155" strokeWidth="1.5" />
-                    <text x="24" y="20" fontSize="5.5" fill="#94a3b8" textAnchor="middle" fontWeight="bold">LiDAR PUCK</text>
 
                     {/* Upper Optical Lens (Clear) */}
                     <rect x="34" y="32" width="6" height="32" rx="2" fill="#0284c7" />
                     <circle cx="37" cy="48" r="2.5" fill="#38bdf8" />
-                    <text x="56" y="30" fontSize="5.5" fill="#38bdf8" fontWeight="bold">TOP 50%: CLEAR (512 Rays)</text>
 
                     {/* Lower Optical Lens (Mud-Coated) */}
                     <rect x="34" y="66" width="6" height="32" rx="2" fill="#78350f" />
-                    <text x="56" y="105" fontSize="5.5" fill="#f87171" fontWeight="bold">BOTTOM 50%: OCCLUDED (Mud)</text>
 
                     {/* Active Laser Beams from Upper Aperture */}
                     <line x1="40" y1="36" x2="155" y2="28" stroke="url(#clearBeamGrad)" strokeWidth="1.6" />
@@ -606,20 +597,16 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
                     {/* 2.5D Target Obstacle & Elevation Cell Stack */}
                     <g transform="translate(155, 20)">
                       <rect x="0" y="0" width="35" height="52" rx="3" fill="#1e293b" stroke="#38bdf8" strokeWidth="1" />
-                      <text x="17.5" y="10" fontSize="5" fill="#38bdf8" textAnchor="middle" fontWeight="bold">2.5D CELL</text>
                       
                       {/* Cell statistics indicator */}
                       <rect x="4" y="16" width="27" height="12" rx="2" fill="#0f172a" />
-                      <text x="17.5" y="24" fontSize="4.5" fill="#10b981" textAnchor="middle" fontWeight="bold">σ² = 0.012 m²</text>
                       
                       <rect x="4" y="32" width="27" height="14" rx="2" fill="#0f172a" />
-                      <text x="17.5" y="41" fontSize="4.5" fill="#38bdf8" textAnchor="middle" fontWeight="bold">Locked: 3.26 MB</text>
                     </g>
 
                     {/* Return signal reflection indicator */}
                     <circle cx="155" cy="40" r="3" fill="#10b981" />
                     <path d="M 152 40 L 140 40" stroke="#10b981" strokeWidth="1.2" strokeDasharray="2,2" />
-                    <text x="145" y="36" fontSize="4.5" fill="#10b981" textAnchor="middle">Return ✓</text>
                   </svg>
 
                   {/* Bottom Legend Bar inside diagram */}

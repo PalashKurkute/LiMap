@@ -1,13 +1,12 @@
 import React, { useEffect } from 'react';
 import type { SceneId } from '../types/telemetry';
-import { Menu, HelpCircle, HardDrive, CheckCircle2 } from 'lucide-react';
+import { Menu, HelpCircle, HardDrive } from 'lucide-react';
 
 interface HeaderProps {
   onSelectScene: (scene: SceneId) => void;
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
   onOpenOnboarding: () => void;
-  onOpenScorecard: () => void;
   backendConnected?: boolean;
   backendPingMs?: number;
   memoryMb?: number;
@@ -18,7 +17,6 @@ export const Header: React.FC<HeaderProps> = ({
   isSidebarOpen,
   onToggleSidebar,
   onOpenOnboarding,
-  onOpenScorecard,
   backendConnected = false,
   backendPingMs = 0,
   memoryMb = 3.2616,
@@ -87,18 +85,6 @@ export const Header: React.FC<HeaderProps> = ({
           </span>
         </div>
 
-        {/* Executive DRDO Compliance Scorecard */}
-        <button
-          onClick={onOpenScorecard}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-semibold rounded-lg shadow-sm transition-all active:scale-95"
-          title="Open DRDO SIH26053 5-Point Verification Audit Scorecard"
-        >
-          <CheckCircle2 size={14} className="text-emerald-600" />
-          <span>DRDO Scorecard</span>
-          <span className="text-[10px] font-mono font-bold bg-emerald-600 text-white px-1.5 py-0.2 rounded-full">
-            5/5
-          </span>
-        </button>
 
         {/* Guided Walkthrough For Judge */}
         <button

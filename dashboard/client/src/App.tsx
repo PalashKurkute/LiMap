@@ -19,7 +19,6 @@ import { ReplayWidget } from './components/ReplayWidget';
 import { JudgeOnboardingModal } from './components/JudgeOnboardingModal';
 import { InteractiveCrossSection } from './components/InteractiveCrossSection';
 import { TacticalObjectiveCard } from './components/TacticalObjectiveCard';
-import { DRDOScorecardModal } from './components/DRDOScorecardModal';
 import {
   X,
   Gauge,
@@ -43,9 +42,8 @@ export const App: React.FC = () => {
   const [telemetryData, setTelemetryData] = useState<TelemetryResponse | null>(null);
   const [crossSectionData, setCrossSectionData] = useState<CrossSectionResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(true);
-  const [isScorecardOpen, setIsScorecardOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'displays' | 'telemetry' | 'proofs' | 'stress'>('displays');
   const [proofsSubTab, setProofsSubTab] = useState<'memory' | 'clearance' | 'regret'>('memory');
 
@@ -64,7 +62,7 @@ export const App: React.FC = () => {
   const [displayMode, setDisplayMode] = useState<DEMDisplayMode>('points');
   const [colorMode, setColorMode] = useState<ColorMapMode>('elevation');
   const [isWireframe, setIsWireframe] = useState<boolean>(false);
-  const [showScaleBar] = useState<boolean>(true);
+  const [showScaleBar] = useState<boolean>(false);
 
   // Playback & Replay timeline
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
@@ -132,9 +130,19 @@ export const App: React.FC = () => {
     };
   }, [activeScene]);
 
+  // Dispatch window resize when sidebar opens/closes so Three.js canvas dynamically adjusts
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 280);
+    return () => clearTimeout(timer);
+  }, [isSidebarOpen]);
+
   // Handle scene switching via backend REST trigger
   const handleSelectScene = async (scene: SceneId) => {
     setActiveScene(scene);
+    setCurrentFrame(0);
+    setResetSignal((prev) => prev + 1);
     setIsLoading(true);
     try {
       await fetch(`/api/load_scene/${scene}`, { method: 'POST' });
@@ -166,7 +174,6 @@ export const App: React.FC = () => {
         isSidebarOpen={isSidebarOpen}
         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         onOpenOnboarding={() => setIsOnboardingOpen(true)}
-        onOpenScorecard={() => setIsScorecardOpen(true)}
         backendConnected={isBackendConnected}
         backendPingMs={backendPing}
         memoryMb={telemetryData?.telemetry?.total_heap_mb ?? 3.2616}
@@ -215,6 +222,10 @@ export const App: React.FC = () => {
           <TacticalObjectiveCard
             sceneId={activeScene}
             memoryMb={telemetryData?.telemetry?.total_heap_mb ?? 3.2616}
+            cameraMode={cameraMode}
+            onCameraModeChange={setCameraMode}
+            colorMode={colorMode}
+            onColorModeChange={setColorMode}
           />
 
           {/* Floating Top Quick-Scenario Bar (Apple / Linear minimal pill) */}
@@ -661,13 +672,6 @@ export const App: React.FC = () => {
         onClose={() => setIsOnboardingOpen(false)}
         onSelectScene={handleSelectScene}
         onSelectStressMode={setStressMode}
-      />
-
-      {/* Executive DRDO 5-Point Verification Scorecard Modal */}
-      <DRDOScorecardModal
-        isOpen={isScorecardOpen}
-        onClose={() => setIsScorecardOpen(false)}
-        memoryMb={telemetryData?.telemetry?.total_heap_mb ?? 3.2616}
       />
     </div>
   );

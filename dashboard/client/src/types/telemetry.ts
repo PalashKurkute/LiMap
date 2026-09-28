@@ -50,7 +50,15 @@ export interface CrossSectionResponse {
   profile: CrossSectionPoint[];
 }
 
-export type SceneId = 'scene_a_bridge' | 'scene_b_potholes' | 'scene_c_moving' | 'scene_d_poles';
+export type SceneId =
+  | 'scene_a_bridge'
+  | 'scene_b_potholes'
+  | 'scene_c_moving'
+  | 'scene_d_poles'
+  | 'real_seq08_f00'
+  | 'real_seq08_f25'
+  | 'real_seq08_f50'
+  | 'real_seq08_f100';
 
 export type CameraViewMode = 'chase' | 'orbit' | 'bev' | 'cockpit' | 'cross_cut';
 export type ColorMapMode = 'elevation' | 'traversability' | 'uncertainty' | 'semantics';

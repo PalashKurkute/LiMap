@@ -16,16 +16,13 @@ import { CrossSectionViewer } from './components/CrossSectionViewer';
 import { RegretPanel } from './components/RegretPanel';
 import { DisplaysPanel } from './components/DisplaysPanel';
 import { StressHarnessPanel } from './components/StressHarnessPanel';
+import { ReplayWidget } from './components/ReplayWidget';
 import {
   X,
   Gauge,
   Radio,
   ShieldCheck,
   ShieldAlert,
-  Play,
-  Pause,
-  SkipBack,
-  SkipForward,
   RotateCcw,
   Compass,
 } from 'lucide-react';
@@ -35,6 +32,7 @@ const SCENES: { id: SceneId; label: string; badge: string; key: string }[] = [
   { id: 'scene_b_potholes', label: 'Potholes & Craters', badge: 'Neg. Hazard', key: '2' },
   { id: 'scene_c_moving', label: 'Dynamic Vehicle', badge: 'MOS 8 m/s', key: '3' },
   { id: 'scene_d_poles', label: 'Thin Pole Array', badge: 'Foveation', key: '4' },
+  { id: 'real_seq08_f00', label: 'Real KITTI Seq 08', badge: '976 Scans', key: '5' },
 ];
 
 export const App: React.FC = () => {
@@ -57,11 +55,11 @@ export const App: React.FC = () => {
   const [resetSignal, setResetSignal] = useState<number>(0);
 
   // Viewport & Shading controls
-  const [cameraMode, setCameraMode] = useState<CameraViewMode>('chase');
-  const [displayMode, setDisplayMode] = useState<DEMDisplayMode>('surface');
+  const [cameraMode, setCameraMode] = useState<CameraViewMode>('orbit');
+  const [displayMode, setDisplayMode] = useState<DEMDisplayMode>('voxels');
   const [colorMode, setColorMode] = useState<ColorMapMode>('elevation');
   const [isWireframe, setIsWireframe] = useState<boolean>(false);
-  const [showScaleBar, setShowScaleBar] = useState<boolean>(false);
+  const [showScaleBar, setShowScaleBar] = useState<boolean>(true);
 
   // Playback & Replay timeline
   const [controlMode, setControlMode] = useState<'wasd' | 'playback'>('wasd');
@@ -78,7 +76,7 @@ export const App: React.FC = () => {
     trajectory: true,
     trackers: true,
     foveaRings: true,
-    sweepWave: true,
+    sweepWave: false,
     headlights: true,
   });
 
@@ -185,6 +183,18 @@ export const App: React.FC = () => {
             onTelemetryUpdate={setCarTelemetry}
             resetSignal={resetSignal}
             showScaleBar={showScaleBar}
+          />
+
+          {/* Floating Bottom-Right Replay & Timeline Widget */}
+          <ReplayWidget
+            controlMode={controlMode}
+            onControlModeChange={setControlMode}
+            isPlaying={isPlaying}
+            onIsPlayingChange={setIsPlaying}
+            currentFrame={currentFrame}
+            onFrameSeek={setCurrentFrame}
+            playbackSpeed={playbackSpeed}
+            onPlaybackSpeedChange={setPlaybackSpeed}
           />
         </div>
 
@@ -471,158 +481,6 @@ export const App: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Trajectory Playback & Timeline Scrubber Card */}
-                <div className="glass-panel" style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Play size={14} />
-                      <span>REPLAY &amp; TIMELINE</span>
-                    </div>
-
-                    {/* Drive vs Replay Mode Toggle */}
-                    <div style={{ display: 'flex', background: 'rgba(0,0,0,0.4)', borderRadius: '4px', padding: '2px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                      <button
-                        onClick={() => setControlMode('wasd')}
-                        style={{
-                          padding: '3px 7px',
-                          borderRadius: '3px',
-                          border: 'none',
-                          background: controlMode === 'wasd' ? 'rgba(0, 230, 118, 0.25)' : 'transparent',
-                          color: controlMode === 'wasd' ? 'var(--accent-emerald)' : 'var(--text-muted)',
-                          fontSize: '10px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Manual Drive
-                      </button>
-                      <button
-                        onClick={() => setControlMode('playback')}
-                        style={{
-                          padding: '3px 7px',
-                          borderRadius: '3px',
-                          border: 'none',
-                          background: controlMode === 'playback' ? 'rgba(0, 240, 255, 0.25)' : 'transparent',
-                          color: controlMode === 'playback' ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                          fontSize: '10px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Auto Replay
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Transport Controls & Timecode */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <button
-                        onClick={() => setCurrentFrame(0)}
-                        title="Rewind to Frame 0"
-                        style={{
-                          background: 'rgba(255,255,255,0.05)',
-                          border: '1px solid var(--card-border)',
-                          color: 'var(--text-muted)',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          padding: '4px 6px',
-                          display: 'flex',
-                          alignItems: 'center',
-                        }}
-                      >
-                        <SkipBack size={13} />
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (controlMode !== 'playback') setControlMode('playback');
-                          setIsPlaying(!isPlaying);
-                        }}
-                        title={isPlaying && controlMode === 'playback' ? 'Pause Replay' : 'Start Replay'}
-                        style={{
-                          background: 'rgba(0, 240, 255, 0.15)',
-                          border: '1px solid var(--accent-cyan)',
-                          color: 'var(--accent-cyan)',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          padding: '4px 10px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                        }}
-                      >
-                        {isPlaying && controlMode === 'playback' ? <Pause size={13} /> : <Play size={13} />}
-                        <span>{isPlaying && controlMode === 'playback' ? 'Pause' : 'Play'}</span>
-                      </button>
-                      <button
-                        onClick={() => setCurrentFrame(120)}
-                        title="Seek to Frame 120"
-                        style={{
-                          background: 'rgba(255,255,255,0.05)',
-                          border: '1px solid var(--card-border)',
-                          color: 'var(--text-muted)',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          padding: '4px 6px',
-                          display: 'flex',
-                          alignItems: 'center',
-                        }}
-                      >
-                        <SkipForward size={13} />
-                      </button>
-                    </div>
-
-                    {/* Speed multiplier */}
-                    <div style={{ display: 'flex', gap: '3px' }}>
-                      {([1, 2, 4] as const).map((spd) => (
-                        <button
-                          key={spd}
-                          onClick={() => setPlaybackSpeed(spd)}
-                          style={{
-                            background: playbackSpeed === spd ? 'rgba(0, 240, 255, 0.22)' : 'rgba(255,255,255,0.04)',
-                            border: `1px solid ${playbackSpeed === spd ? 'var(--accent-cyan)' : 'transparent'}`,
-                            color: playbackSpeed === spd ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                            borderRadius: '3px',
-                            padding: '3px 6px',
-                            fontSize: '10px',
-                            fontFamily: 'var(--font-mono)',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          {spd}x
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Frame Scrubber Slider */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-                      <span>Frame: {String(currentFrame).padStart(3, '0')} / 120</span>
-                      <span style={{ color: 'var(--accent-cyan)' }}>Time: +{(currentFrame * 0.033).toFixed(2)}s</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={120}
-                      value={currentFrame}
-                      onChange={(e) => {
-                        if (controlMode !== 'playback') setControlMode('playback');
-                        setCurrentFrame(Number(e.target.value));
-                      }}
-                      style={{
-                        width: '100%',
-                        accentColor: 'var(--accent-cyan)',
-                        cursor: 'pointer',
-                        height: '5px',
-                      }}
-                    />
-                  </div>
-                </div>
-
                 {/* Real-Time Spatial Hash Metrics Card */}
                 <div className="glass-panel" style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <div style={{ fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent-emerald)', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -865,7 +723,7 @@ export const App: React.FC = () => {
                     trajectory: true,
                     trackers: true,
                     foveaRings: true,
-                    sweepWave: true,
+                    sweepWave: false,
                     headlights: true,
                   })}
                 />

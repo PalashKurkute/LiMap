@@ -21,7 +21,7 @@
       "waypoints_count": 39
     },
     {
-      "frame_idx": 5,
+      "frame_idx": 1,
       "cost_dense_3d": 19.0,
       "cost_foveagrid_25d": 19.0,
       "cost_naive_2d": 19.0,
@@ -31,7 +31,7 @@
       "waypoints_count": 39
     },
     {
-      "frame_idx": 10,
+      "frame_idx": 2,
       "cost_dense_3d": 19.0,
       "cost_foveagrid_25d": 19.0,
       "cost_naive_2d": 19.0,

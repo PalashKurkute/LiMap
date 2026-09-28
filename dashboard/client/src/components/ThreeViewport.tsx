@@ -107,7 +107,7 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
   playbackSpeed: propPlaybackSpeed,
   onTelemetryUpdate,
   resetSignal,
-  showScaleBar = false,
+  showScaleBar = true,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
 
@@ -119,16 +119,16 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
     trajectory: true,
     trackers: true,
     foveaRings: true,
-    sweepWave: true,
+    sweepWave: false,
     headlights: true,
   };
 
   // FastDEM Viewport & Generation Controls
-  const [cameraMode, setCameraMode] = useState<CameraViewMode>(propCameraMode ?? 'chase');
-  const [displayMode, setDisplayMode] = useState<DEMDisplayMode>(propDisplayMode ?? 'surface');
+  const [cameraMode, setCameraMode] = useState<CameraViewMode>(propCameraMode ?? 'orbit');
+  const [displayMode, setDisplayMode] = useState<DEMDisplayMode>(propDisplayMode ?? 'voxels');
   const [colorMode, setColorMode] = useState<ColorMapMode>(propColorMode ?? 'elevation');
   const [isWireframe, setIsWireframe] = useState<boolean>(propIsWireframe ?? false);
-  const [showSweepWave] = useState<boolean>(true);
+  const [showSweepWave] = useState<boolean>(false);
   const [showCloudOverlay] = useState<boolean>(false);
 
   // Foxglove / Rerun-inspired Replay & Timeline State

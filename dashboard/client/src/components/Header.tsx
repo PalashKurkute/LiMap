@@ -21,6 +21,7 @@ export const Header: React.FC<HeaderProps> = ({
       else if (e.key === '2') onSelectScene('scene_b_potholes');
       else if (e.key === '3') onSelectScene('scene_c_moving');
       else if (e.key === '4') onSelectScene('scene_d_poles');
+      else if (e.key === '5') onSelectScene('real_seq08_f00');
       else if (e.key === 't' || e.key === 'T') onToggleSidebar();
     };
     window.addEventListener('keydown', handleKeyDown);

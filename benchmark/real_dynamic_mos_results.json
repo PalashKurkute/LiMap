@@ -1,57 +1,35 @@
 {
   "dataset": "SemanticKITTI",
   "sequence": "08",
-  "frames_evaluated": 65,
-  "total_points_evaluated": 7767430,
-  "total_gt_dynamic_points": 290101,
-  "total_pred_dynamic_points": 244291,
+  "frames_evaluated": 10,
+  "total_points_evaluated": 1206751,
+  "total_gt_dynamic_points": 14927,
+  "total_pred_dynamic_points": 219295,
   "confusion_matrix": {
-    "true_positives": 150839,
-    "false_positives": 93452,
-    "false_negatives": 139262,
-    "true_negatives": 7383877
+    "true_positives": 11004,
+    "false_positives": 208291,
+    "false_negatives": 3923,
+    "true_negatives": 983533
   },
   "classification_metrics": {
-    "precision_pct": 61.75,
-    "recall_pct": 52.0,
-    "f1_score_pct": 56.45,
-    "false_positive_rate_pct": 1.25
+    "precision_pct": 5.02,
+    "recall_pct": 73.72,
+    "f1_score_pct": 9.4,
+    "false_positive_rate_pct": 17.477
   },
   "task_4_3_ego_turn_robustness": {
-    "straight_driving_frames": 44,
-    "straight_fpr_pct": 1.05,
-    "turning_frames": 21,
-    "turning_fpr_pct": 1.69,
-    "fpr_degradation_during_turn_pct": 0.641,
+    "straight_driving_frames": 10,
+    "straight_fpr_pct": 17.477,
+    "turning_frames": 0,
+    "turning_fpr_pct": 0.0,
+    "fpr_degradation_during_turn_pct": -17.477,
     "viewpoint_robustness_check_passed": true,
-    "turning_frame_indices": [
-      44,
-      45,
-      46,
-      47,
-      48,
-      49,
-      50,
-      51,
-      52,
-      53,
-      54,
-      55,
-      56,
-      57,
-      58,
-      59,
-      60,
-      61,
-      62,
-      63,
-      64
-    ]
+    "turning_frame_indices": []
   },
   "anti_ghosting_metrics": {
-    "kalman_tracks_formed": 1557,
-    "ghost_cells_carved": 864,
+    "kalman_tracks_formed": 580,
+    "ghost_cells_carved": 1677,
     "range_disparity_thresh_m": 0.35
   },
-  "total_run_time_s": 326.59
+  "total_run_time_s": 17.29
 }

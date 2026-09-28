@@ -200,17 +200,26 @@ def load_scene(scene_id: str) -> Dict[str, str]:
         "scene_b_potholes": ("data/synthetic/scene_b_pothole_cluster.bin", "data/synthetic/scene_b_pothole_cluster.label"),
         "scene_c_moving": ("data/synthetic/scene_c_moving_veh_frame_02.bin", "data/synthetic/scene_c_moving_veh_frame_02.label"),
         "scene_d_poles": ("data/synthetic/scene_d_thin_pole_array.bin", "data/synthetic/scene_d_thin_pole_array.label"),
-        "real_seq08_f00": ("data/real/sequences/08/velodyne/000000.bin", None),
-        "real_seq08_f25": ("data/real/sequences/08/velodyne/000025.bin", None),
-        "real_seq08_f50": ("data/real/sequences/08/velodyne/000050.bin", None),
-        "real_seq08_f100": ("data/real/sequences/08/velodyne/000100.bin", None),
+        "real_seq08_f00": ("data/real/sequences/08/velodyne/000000.bin", "data/real/sequences/08/labels/000000.label"),
+        "real_seq08_f25": ("data/real/sequences/08/velodyne/000025.bin", "data/real/sequences/08/labels/000025.label"),
+        "real_seq08_f50": ("data/real/sequences/08/velodyne/000050.bin", "data/real/sequences/08/labels/000050.label"),
+        "real_seq08_f100": ("data/real/sequences/08/velodyne/000100.bin", "data/real/sequences/08/labels/000100.label"),
     }
-    if scene_id not in scene_map:
+
+    if scene_id in scene_map:
+        bin_file, lbl_file = scene_map[scene_id]
+    elif scene_id.startswith("real_seq08_f"):
+        try:
+            f_num = int(scene_id.replace("real_seq08_f", ""))
+            bin_file = f"data/real/sequences/08/velodyne/{f_num:06d}.bin"
+            lbl_file = f"data/real/sequences/08/labels/{f_num:06d}.label"
+        except ValueError:
+            return {"error": f"Invalid scene ID format: {scene_id}"}
+    else:
         return {"error": f"Unknown scene: {scene_id}"}
 
-    bin_file, lbl_file = scene_map[scene_id]
     if not Path(bin_file).is_file():
-        return {"error": f"Scene binary not generated: {bin_file}"}
+        return {"error": f"Scene binary not found: {bin_file}"}
 
     raw_pts = load_kitti_bin(bin_file)
     pts, _ = sanitize_point_cloud(raw_pts, min_range=0.5, max_range=120.0)

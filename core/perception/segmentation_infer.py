@@ -8,7 +8,7 @@ zero-dependency edge verification. Unprojects 2D predictions back to 3D point cl
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, cast
 import numpy as np
 
 from core.perception.range_projection import SphericalRangeProjector
@@ -84,7 +84,9 @@ class SemanticSegmentationEngine:
                     break
 
         self.onnx_path = Path(onnx_model_path) if onnx_model_path else None
-        self.session = None
+        self.session: Optional[ort.InferenceSession] = None
+        self.input_name: str = ""
+        self.output_name: str = ""
 
         if self.onnx_path and self.onnx_path.is_file() and _HAS_ORT:
             providers = ["CUDAExecutionProvider", "CPUExecutionProvider"] if use_gpu else ["CPUExecutionProvider"]
@@ -117,6 +119,9 @@ class SemanticSegmentationEngine:
 
     def _run_onnx(self, range_img: np.ndarray) -> np.ndarray:
         """Executes ONNX neural network backbone on (64, 2048, 5) range image."""
+        if self.session is None:
+            raise RuntimeError("ONNX inference session is not initialized.")
+
         # SalsaNext normalization on valid lidar returns
         valid = range_img[:, :, 0] > 0.0
         norm_img = np.zeros_like(range_img, dtype=np.float32)
@@ -127,7 +132,8 @@ class SemanticSegmentationEngine:
 
         img_trans = np.transpose(norm_img, (2, 0, 1))[None, ...].astype(np.float32)
         outputs = self.session.run([self.output_name], {self.input_name: img_trans})
-        logits = outputs[0][0]  # (20, H, W)
+        output_tensor = cast(np.ndarray, outputs[0])
+        logits = output_tensor[0]  # (20, H, W)
         pred_learning_idx = np.argmax(logits, axis=0).astype(np.uint32)
         pred_canonical_classes = LEARNING_MAP_INV[pred_learning_idx]
         return pred_canonical_classes

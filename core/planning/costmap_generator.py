@@ -44,6 +44,41 @@ SEMANTIC_COST_LOOKUP: Dict[int, int] = {
     50: COST_LETHAL,      # Building / Structure -> 254 (unless underpass clearance permits)
 }
 
+_SEM_LUT = np.zeros(256, dtype=np.int32)
+for _k, _v in SEMANTIC_COST_LOOKUP.items():
+    _SEM_LUT[_k] = _v
+
+try:
+    import numba
+
+    @numba.njit(cache=True)
+    def _paint_costmap_numba(
+        costmap: np.ndarray,
+        gx: np.ndarray,
+        gy: np.ndarray,
+        half_w: np.ndarray,
+        total_cost: np.ndarray,
+        valid_idx: np.ndarray,
+        ny: int,
+        nx: int,
+    ) -> None:
+        for k in range(len(valid_idx)):
+            i = valid_idx[k]
+            hw = half_w[i]
+            y0 = max(0, gy[i] - hw)
+            y1 = min(ny, gy[i] + hw + 1)
+            x0 = max(0, gx[i] - hw)
+            x1 = min(nx, gx[i] + hw + 1)
+            tc = total_cost[i]
+            for y in range(y0, y1):
+                for x in range(x0, x1):
+                    if tc > costmap[y, x]:
+                        costmap[y, x] = tc
+
+    _HAS_NUMBA = True
+except Exception:
+    _HAS_NUMBA = False
+
 
 class CostmapGenerator:
     """Generates multi-layer Nav2-compatible costmaps from FoveaGrid."""
@@ -72,6 +107,7 @@ class CostmapGenerator:
         self,
         grid: SpatialHashGrid,
         patch_size_m: float = 6.0,
+        coords: Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]] = None,
     ) -> Dict[Tuple[int, int], LocalPatchPlane]:
         """Fits local ground tangent planes across spatial patches (SIH Standard 4.4).
         
@@ -79,27 +115,33 @@ class CostmapGenerator:
         """
         planes: Dict[Tuple[int, int], LocalPatchPlane] = {}
         active = grid.get_active_cells()
-        if len(active) < 6:
+        if len(active) < grid.ground_estimator.min_points:
             return planes
 
-        ring_resolutions = np.array([r.cell_size for r in grid.lattice.rings], dtype=np.float32)
-        res = ring_resolutions[active["ring_id"]]
-        cx = (active["ix"] + 0.5) * res
-        cy = (active["iy"] + 0.5) * res
+        if coords is not None:
+            cx, cy, cz = coords
+        else:
+            ring_resolutions = np.array([r.cell_size for r in grid.lattice.rings], dtype=np.float32)
+            res = ring_resolutions[active["ring_id"]]
+            cx = (active["ix"] + 0.5) * res
+            cy = (active["iy"] + 0.5) * res
+            cz = active["mean_z"]
 
-        bx = np.floor(cx / patch_size_m).astype(int)
-        by = np.floor(cy / patch_size_m).astype(int)
-        unique_bins = set(zip(bx, by))
+        bx = np.floor(cx / patch_size_m).astype(np.int32)
+        by = np.floor(cy / patch_size_m).astype(np.int32)
 
-        for bin_idx in unique_bins:
-            center_x = (bin_idx[0] + 0.5) * patch_size_m
-            center_y = (bin_idx[1] + 0.5) * patch_size_m
-            plane = grid.fit_local_ground(
-                center_xy=(center_x, center_y),
-                radius_m=patch_size_m * 0.75,
-            )
-            if plane is not None:
-                planes[bin_idx] = plane
+        pts = np.column_stack((cx, cy, cz))
+        bin_keys = (bx.astype(np.int64) << 32) ^ (by.astype(np.int64) & 0xFFFFFFFF)
+        unique_keys, inverse_indices = np.unique(bin_keys, return_inverse=True)
+
+        for u_idx, key in enumerate(unique_keys):
+            idx = np.where(inverse_indices == u_idx)[0]
+            if len(idx) >= grid.ground_estimator.min_points:
+                b_x = int(key >> 32)
+                b_y = int(np.int32(key & 0xFFFFFFFF))
+                plane = grid.ground_estimator.fit_patch_plane(pts[idx])
+                if plane is not None:
+                    planes[(b_x, b_y)] = plane
 
         return planes
 
@@ -122,77 +164,102 @@ class CostmapGenerator:
         """
         costmap = np.zeros((self.ny, self.nx), dtype=np.uint8)
         active_cells = grid.get_active_cells()
+        if len(active_cells) == 0:
+            return costmap
 
         lattice = grid.lattice
-        patch_planes = self.fit_terrain_planes(grid) if enable_slope_compensation else {}
 
-        for c in active_cells:
-            r_id = int(c["ring_id"])
-            c_res = lattice.rings[r_id].cell_size
-            wx = (int(c["ix"]) + 0.5) * c_res
-            wy = (int(c["iy"]) + 0.5) * c_res
+        # --- Step 1: Vectorized coordinate computation ---
+        ring_ids = active_cells["ring_id"].astype(np.int32)
+        ring_sizes = np.array([r.cell_size for r in lattice.rings], dtype=np.float64)
+        c_res = ring_sizes[ring_ids]
 
-            # Map world coordinate to costmap image pixel
-            gx = int((wx - self.origin_x) / self.res)
-            gy = int((wy - self.origin_y) / self.res)
+        wx = (active_cells["ix"].astype(np.float64) + 0.5) * c_res
+        wy = (active_cells["iy"].astype(np.float64) + 0.5) * c_res
 
-            if gx < 0 or gx >= self.nx or gy < 0 or gy >= self.ny:
-                continue
+        gx = ((wx - self.origin_x) / self.res).astype(np.int32)
+        gy = ((wy - self.origin_y) / self.res).astype(np.int32)
 
-            sem = int(c["sem_id"])
-            cnt = int(c["count"])
-            mean_z = float(c["mean_z"])
-            m2 = float(c["m2_z"])
-            var_z = m2 / max(cnt - 1, 1)
-            overhang_z = float(c["overhang_z"])
-            clearance = float(c["clearance"])
-            base_cost = SEMANTIC_COST_LOOKUP.get(sem, 0)
-            if overhang_z < 900.0:
-                # Dual-elevation cell: vertical gap to canopy is clearance, not ground roughness
-                terrain_risk = 0
-            else:
-                rough_cost = int(min(var_z * self.roughness_weight, 80.0))
-                uncertainty_cost = int(min(var_z * self.uncertainty_weight, 240.0))
-                terrain_risk = max(rough_cost, uncertainty_cost)
+        valid_mask = (gx >= 0) & (gx < self.nx) & (gy >= 0) & (gy < self.ny)
 
-            # Local PCA slope evaluation (Standard 4.4)
-            bin_k = (int(np.floor(wx / 6.0)), int(np.floor(wy / 6.0)))
-            patch_plane = patch_planes.get(bin_k) if enable_slope_compensation else None
+        # --- Step 2: Vectorized cost computation ---
+        sem = active_cells["sem_id"].astype(np.int32)
+        cnt = active_cells["count"].astype(np.int32)
+        mean_z = active_cells["mean_z"].astype(np.float64)
+        m2_z = active_cells["m2_z"].astype(np.float64)
+        overhang_z = active_cells["overhang_z"].astype(np.float64)
+        clearance = active_cells["clearance"].astype(np.float64)
 
-            if patch_plane is not None and patch_plane.is_traversable_grade:
-                diff = np.array([wx - patch_plane.centroid[0], wy - patch_plane.centroid[1], mean_z - patch_plane.centroid[2]])
-                d_norm = float(np.dot(diff, patch_plane.normal))
-                is_solid_obstacle = (d_norm > 0.3)
-            else:
-                is_solid_obstacle = (mean_z > -1.2)
+        var_z = m2_z / np.maximum(cnt - 1, 1).astype(np.float64)
 
-            # 3. Dual-elevation clearance check vs naive 2D collapse
-            if ignore_overhang_clearance:
-                # Naive 2D collapse: treats any elevated structure as a lethal obstacle
-                if sem == 50 or overhang_z < 900.0 or is_solid_obstacle:
-                    total_cost = COST_LETHAL
-                else:
-                    total_cost = min(COST_LETHAL, base_cost + terrain_risk)
-            else:
-                # FoveaGrid 2.5D: Evaluates true 3D vehicle clearance
-                eff_clearance = clearance
-                if eff_clearance > 900.0 and mean_z > 0.3:
-                    eff_clearance = mean_z - (-1.73)  # Clearance relative to road datum (-1.73m)
+        base_cost = _SEM_LUT[np.clip(sem, 0, 255)]
+        rough_cost = np.minimum(var_z * self.roughness_weight, 80.0).astype(np.int32)
+        uncertainty_cost = np.minimum(var_z * self.uncertainty_weight, 240.0).astype(np.int32)
+        terrain_risk = np.maximum(rough_cost, uncertainty_cost)
 
-                if (overhang_z < 900.0 or mean_z > 0.3) and eff_clearance >= self.vehicle_height_m + 0.2:
-                    total_cost = terrain_risk  # Safe overhead underpass (nominal road cost)
-                elif sem == 50 or is_solid_obstacle:
-                    total_cost = COST_LETHAL      # Solid pillar, wall, or low obstacle
-                else:
-                    total_cost = min(COST_LETHAL, base_cost + terrain_risk)
+        has_overhang = overhang_z < 900.0
+        terrain_risk = np.where(has_overhang, 0, terrain_risk)
 
-            # Fill cell's spatial footprint on costmap based on ring resolution (min 1 pixel radius to prevent pinholes)
-            half_w = max(1, round(c_res / (2.0 * self.res)))
-            y0 = max(0, gy - half_w)
-            y1 = min(self.ny, gy + half_w + 1)
-            x0 = max(0, gx - half_w)
-            x1 = min(self.nx, gx + half_w + 1)
-            costmap[y0:y1, x0:x1] = np.maximum(costmap[y0:y1, x0:x1], total_cost)
+        is_solid_obstacle = mean_z > -1.2
+        if enable_slope_compensation:
+            patch_planes = self.fit_terrain_planes(grid, coords=(wx, wy, mean_z))
+            if patch_planes:
+                bx = np.floor(wx / 6.0).astype(np.int32)
+                by = np.floor(wy / 6.0).astype(np.int32)
+                bin_keys = (bx.astype(np.int64) << 32) ^ (by.astype(np.int64) & 0xFFFFFFFF)
+                unique_bk, u_inv = np.unique(bin_keys, return_inverse=True)
+                for u_idx, bk in enumerate(unique_bk):
+                    b_coord = (int(bk >> 32), int(np.int32(bk & 0xFFFFFFFF)))
+                    plane = patch_planes.get(b_coord)
+                    if plane is not None and plane.is_traversable_grade:
+                        idx = np.where(u_inv == u_idx)[0]
+                        diff_x = wx[idx] - plane.centroid[0]
+                        diff_y = wy[idx] - plane.centroid[1]
+                        diff_z = mean_z[idx] - plane.centroid[2]
+                        d_norm = diff_x * plane.normal[0] + diff_y * plane.normal[1] + diff_z * plane.normal[2]
+                        is_solid_obstacle[idx] = d_norm > 0.3
+
+        if ignore_overhang_clearance:
+            total_cost = np.where(
+                (sem == 50) | has_overhang | is_solid_obstacle,
+                COST_LETHAL,
+                np.minimum(COST_LETHAL, base_cost + terrain_risk),
+            ).astype(np.uint8)
+        else:
+            eff_clearance = np.where(
+                (clearance > 900.0) & (mean_z > 0.3),
+                mean_z - (-1.73),
+                clearance,
+            )
+            is_safe_underpass = (has_overhang | (mean_z > 0.3)) & (eff_clearance >= self.vehicle_height_m + 0.2)
+            is_solid_lethal = (~is_safe_underpass) & ((sem == 50) | is_solid_obstacle)
+
+            total_cost = np.where(
+                is_safe_underpass,
+                terrain_risk,
+                np.where(
+                    is_solid_lethal,
+                    COST_LETHAL,
+                    np.minimum(COST_LETHAL, base_cost + terrain_risk),
+                ),
+            ).astype(np.uint8)
+
+        # --- Step 3: Painting loop ---
+        half_w = np.maximum(1, np.round(c_res / (2.0 * self.res))).astype(np.int32)
+        valid_idx = np.where(valid_mask)[0]
+
+        if _HAS_NUMBA:
+            _paint_costmap_numba(
+                costmap, gx, gy, half_w, total_cost, valid_idx, self.ny, self.nx
+            )
+        else:
+            for i in valid_idx:
+                hw = int(half_w[i])
+                y0 = max(0, int(gy[i]) - hw)
+                y1 = min(self.ny, int(gy[i]) + hw + 1)
+                x0 = max(0, int(gx[i]) - hw)
+                x1 = min(self.nx, int(gx[i]) + hw + 1)
+                costmap[y0:y1, x0:x1] = np.maximum(costmap[y0:y1, x0:x1], total_cost[i])
 
         # 4. Inflate dynamic obstacles
         if dynamic_tracks:

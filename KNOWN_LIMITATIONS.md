@@ -53,14 +53,18 @@ The system includes a dedicated ROS 2 Nav2 costmap export layer:
 
 ---
 
-## 4. Jetson / Embedded Hardware Execution Path
+## 4. Jetson / Embedded Hardware & Real-Time Throughput
 
 **Status: HONEST REMAINING LIMITATION**.
 
-All pipeline algorithms currently execute via CPU Numba JIT (x86_64) and ONNX Runtime CPU. 
-- While the core pipeline latency is **3.19 ms** (well within the 100 ms / 10 Hz budget), this was profiled on a desktop/workstation x86_64 processor.
-- A physical execution on an NVIDIA Jetson Orin with TensorRT FP16 compilation has not yet been benchmarked on physical hardware.
-- The pipeline relies strictly on NumPy, Numba, and ONNX Runtime CPU, making it fully portable across ARM64 / Jetson Linux environments without modification.
+All pipeline algorithms currently execute via CPU Numba JIT (x86_64) and ONNX Runtime CPU.
+- **Measured P1 Latency Profile (`benchmark/latency_profile_results.json`, 100 frames of Seq 08, 95 warm):**
+  - **Spatial Hash Insert:** **51.65 ms** warm mean (p50: 50.47 ms) — **23.0x speedup** over pre-optimization baseline (1185.84 ms).
+  - **Nav2 Costmap Rasterization:** **272.09 ms** warm mean (p50: 263.34 ms) — **10.5x speedup** over pre-optimization baseline (2863.59 ms).
+  - **Core 2.5D Perception (Grid + Costmap):** **323.74 ms** warm mean (~3.09 FPS, p50: 315.22 ms / 3.17 FPS).
+  - **Full Pipeline (with SalsaNext ONNX CPU):** **2323.27 ms** warm mean (~0.43 FPS), dominated by sequential CPU SalsaNext inference (~1999.53 ms).
+- Physical execution on NVIDIA Jetson Orin with TensorRT FP16 compilation has not yet been benchmarked on physical hardware.
+- Achieving sustained 10 Hz for the full perception stack requires GPU acceleration (TensorRT / CUDA on Jetson Orin) or asynchronous multi-rate decoupling where semantic inference runs at 2–5 Hz while 2.5D grid and costmap updates execute synchronously at $\ge 10\text{ Hz}$.
 
 ---
 

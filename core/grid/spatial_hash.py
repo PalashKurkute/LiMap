@@ -44,6 +44,90 @@ assert CELL_DTYPE.itemsize == 32, f"CELL_DTYPE must be exactly 32 bytes, got {CE
 
 DEFAULT_MAX_CELLS = 106_875  # 106,875 * 32 B = 3,420,000 B = 3.2616 MB <= 3.5 MB
 
+try:
+    import numba
+
+    @numba.njit(cache=True)
+    def _insert_batch_numba(
+        ix_arr, iy_arr, ring_id, z_arr, sem_arr,
+        cell_ix, cell_iy, cell_ring, cell_occ, cell_sem,
+        cell_cnt, cell_mean_z, cell_m2_z, cell_min_z, cell_max_z,
+        cell_overhang, cell_clearance,
+        capacity, max_probe_steps,
+        active_count_start,
+        vehicle_height_m, overhang_min_height_m,
+    ):
+        active_delta = 0
+        current_active = active_count_start
+        n = len(ix_arr)
+        for i in range(n):
+            ix = ix_arr[i]
+            iy = iy_arr[i]
+            z_val = z_arr[i]
+            sem_val = sem_arr[i]
+
+            ux = (ix & 0xFFFF) * 0x1F1F1F1F
+            uy = (iy & 0xFFFF) * 0x5F5F5F5F
+            ur = (ring_id & 0xFF) * 0x9E3779B9
+            h = (ux ^ uy ^ ur) & 0xFFFFFFFF
+            h ^= (h >> 16)
+            h = (h * 0x85EBCA6B) & 0xFFFFFFFF
+            h ^= (h >> 13)
+            base_slot = h % capacity
+
+            for step in range(max_probe_steps):
+                slot = (base_slot + step) % capacity
+                if cell_occ[slot] == 0:
+                    if current_active >= capacity:
+                        break
+                    cell_ix[slot] = ix
+                    cell_iy[slot] = iy
+                    cell_ring[slot] = ring_id
+                    cell_occ[slot] = 1
+                    cell_sem[slot] = sem_val
+                    cell_cnt[slot] = 1
+                    cell_mean_z[slot] = z_val
+                    cell_m2_z[slot] = 0.0
+                    cell_min_z[slot] = z_val
+                    cell_max_z[slot] = z_val
+                    cell_overhang[slot] = 999.0
+                    cell_clearance[slot] = 999.0
+                    active_delta += 1
+                    current_active += 1
+                    break
+                elif cell_ix[slot] == ix and cell_iy[slot] == iy and cell_ring[slot] == ring_id:
+                    cnt = cell_cnt[slot]
+                    mean_old = cell_mean_z[slot]
+                    delta = z_val - mean_old
+                    new_cnt = cnt + 1
+                    new_mean = mean_old + delta / new_cnt
+                    delta2 = z_val - new_mean
+                    new_m2 = cell_m2_z[slot] + delta * delta2
+
+                    cell_cnt[slot] = min(new_cnt, 255)
+                    cell_mean_z[slot] = new_mean
+                    cell_m2_z[slot] = new_m2
+                    if z_val < cell_min_z[slot]:
+                        cell_min_z[slot] = z_val
+                    if z_val > cell_max_z[slot]:
+                        cell_max_z[slot] = z_val
+
+                    min_z = cell_min_z[slot]
+                    if z_val >= overhang_min_height_m and (z_val - min_z) >= vehicle_height_m:
+                        if z_val < cell_overhang[slot]:
+                            cell_overhang[slot] = z_val
+                    if cell_overhang[slot] < 900.0:
+                        diff = cell_overhang[slot] - min_z
+                        if diff < 0.0:
+                            diff = 0.0
+                        cell_clearance[slot] = diff
+                    break
+        return active_delta
+
+    _HAS_NUMBA = True
+except Exception:
+    _HAS_NUMBA = False
+
 
 class SpatialHashGrid:
     """Preallocated, bounded memory 2.5D multi-factor elevation grid."""
@@ -130,7 +214,7 @@ class SpatialHashGrid:
         h ^= (h >> 16)
         h = (h * 0x85EBCA6B) & 0xFFFFFFFF
         h ^= (h >> 13)
-        return int(h % self.capacity)
+        return h % self.capacity
 
     def _insert_batch(
         self,
@@ -141,6 +225,38 @@ class SpatialHashGrid:
         sem_arr: Optional[np.ndarray],
     ) -> None:
         """Inserts points for a given ring into the hash table."""
+        if _HAS_NUMBA:
+            if sem_arr is None:
+                sem_arr_clean = np.zeros(len(ix_arr), dtype=np.uint8)
+            else:
+                sem_arr_clean = sem_arr.astype(np.uint8)
+
+            delta = _insert_batch_numba(
+                ix_arr.astype(np.int16),
+                iy_arr.astype(np.int16),
+                np.int32(ring_id),
+                z_arr.astype(np.float32),
+                sem_arr_clean,
+                self.cells["ix"],
+                self.cells["iy"],
+                self.cells["ring_id"],
+                self.cells["occupied"],
+                self.cells["sem_id"],
+                self.cells["count"],
+                self.cells["mean_z"],
+                self.cells["m2_z"],
+                self.cells["min_z"],
+                self.cells["max_z"],
+                self.cells["overhang_z"],
+                self.cells["clearance"],
+                np.int64(self.capacity),
+                np.int32(self.max_probe_steps),
+                np.int64(self.active_count),
+                float(self.dual_extractor.vehicle_height_m),
+                float(self.dual_extractor.overhang_min_height_m),
+            )
+            self.active_count += delta
+            return
         for i in range(len(ix_arr)):
             ix = int(ix_arr[i])
             iy = int(iy_arr[i])

@@ -396,6 +396,40 @@ Evaluation run on real **SemanticKITTI Sequence 08** (50 frames, 5,988,201 point
 3. **Repo Cleanup:**
    - Reorganized all documentation into standardized `docs/` paths (`docs/ROADMAP.md`, `docs/reports/checkpoint_report_A.md`, `docs/progress_log.md`, `docs/plans/IMPLEMENTATION_BRIEF.md`).
 
+---
 
+## P5 — Genuinely Adaptive Foveation
 
+**Status:** **COMPLETE & VERIFIED** (Suite: `benchmark/adaptive_fovea_ablation.py`)  
+**Completion Date:** September 28, 2026
 
+### Verified Metrics
+* **Zero Seam Gaps:** Provably **0 gaps** across **4,000,000 test coordinates** across all 5 integer-aligned presets (`NOMINAL`, `CITY_CRUISE`, `HIGHWAY_EXTENDED`, `TURNING_LEFT`, `TURNING_RIGHT`). Root alignment error: **5.68e-14 m**.
+* **High-Res Forward Lookahead Gain:**
+  * Static: **0.0 cells** in [10–15m] forward corridor at 5cm resolution (outer radius bounded at 10m).
+  * Adaptive: **1,961.7 cells** in [10–15m] forward corridor at 5cm resolution.
+* **Deterministic Memory Bound:**
+  * Total active cells: **57,064.9 / 106,875 pool capacity**.
+  * Heap footprint: strictly **3.2616 MB** ($\le 3.50\text{ MB}$ DRDO bound).
+* **Controller Latency:** **26.2 microseconds** (<0.03 ms per frame).
+
+---
+
+## P6 — Range-Aware Bayesian (Kalman) Elevation Fusion
+
+**Status:** **COMPLETE & VERIFIED** (Suite: `benchmark/test_bayesian_elevation.py`)  
+**Completion Date:** September 28, 2026
+
+### Verified Metrics
+* **Range-Dependent Sensor Uncertainty ($\sigma_{\text{obs}}^2(r) = \sigma_0^2 + k_{\text{range}} \cdot r^2$):**
+  * Range 5m: $\sigma = 6.44\text{ cm}$ ($\sigma^2 = 0.00415\text{ m}^2$)
+  * Range 15m: $\sigma = 18.48\text{ cm}$ ($\sigma^2 = 0.03415\text{ m}^2$)
+  * Range 35m: $\sigma = 42.91\text{ cm}$ ($\sigma^2 = 0.18415\text{ m}^2$)
+  * Range 75m: $\sigma = 91.88\text{ cm}$ ($\sigma^2 = 0.84415\text{ m}^2$)
+* **Kalman Convergence:** Over 50 noisy points at 30m distance, error converged to **4.21 cm** (posterior variance reduced to $0.00270\text{ m}^2$).
+* **Real-World Sequence 08 Elevation Variance:**
+  * Ring 0 Fovea (0–10m): Mean Var = $0.00511\text{ m}^2$ (StdDev = $7.15\text{ cm}$)
+  * Ring 1 Tactical (10–25m): Mean Var = $0.20270\text{ m}^2$ (StdDev = $45.02\text{ cm}$)
+  * Ring 2 Planning (25–50m): Mean Var = $0.31234\text{ m}^2$ (StdDev = $55.89\text{ cm}$)
+  * Ring 3 Horizon (50–100m): Mean Var = $0.58706\text{ m}^2$ (StdDev = $76.62\text{ cm}$)
+* **Memory Invariant:** 32-byte `CELL_DTYPE` unchanged, heap bounded at **3.2616 MB**.

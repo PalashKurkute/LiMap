@@ -167,6 +167,7 @@ class SpatialHashGrid:
         points: np.ndarray,
         semantic_labels: Optional[np.ndarray] = None,
         ego_velocity_xy: Optional[np.ndarray] = None,
+        yaw_rate_rads: float = 0.0,
     ) -> int:
         """Inserts an (N, 3+) point cloud into the bounded spatial hash.
         
@@ -179,7 +180,7 @@ class SpatialHashGrid:
         z = xyz[:, 2]
 
         if ego_velocity_xy is not None:
-            fovea_state = self.fovea.update(ego_velocity_xy)
+            fovea_state = self.fovea.update(ego_velocity_xy, yaw_rate_rads=yaw_rate_rads)
             warped_xy = self.fovea.warp_coordinates(xy, fovea_state)
         else:
             warped_xy = xy
@@ -193,7 +194,9 @@ class SpatialHashGrid:
             if not np.any(ring_mask):
                 continue
 
-            r_pts_xy = warped_xy[ring_mask]
+            # Metric cell coordinates are computed from unwarped physical coordinates;
+            # warped_xy is strictly used for ring resolution tier assignment.
+            r_pts_xy = xy[ring_mask]
             r_z = z[ring_mask]
             r_sem = semantic_labels[ring_mask] if semantic_labels is not None else None
 

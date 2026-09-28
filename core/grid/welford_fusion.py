@@ -91,3 +91,43 @@ class WelfordElevationAccumulator:
         valid = count >= 2
         var[valid] = m2[valid] / (count[valid] - 1)
         return var
+
+    @staticmethod
+    def sensor_variance(
+        range_m: np.ndarray | float,
+        sigma_0: float = 0.02,
+        k_range: float = 1.5e-4,
+    ) -> np.ndarray | float:
+        """Computes range-dependent LiDAR measurement variance (SIH Standard 2.4).
+        
+        sigma_obs^2(r) = sigma_0^2 + k_range * r^2
+        Accounts for optical beam divergence and incident range degradation.
+        """
+        return (sigma_0 ** 2) + k_range * (range_m ** 2)
+
+    @classmethod
+    def kalman_elevation_update(
+        cls,
+        prior_mean: np.ndarray | float,
+        prior_var: np.ndarray | float,
+        obs_z: np.ndarray | float,
+        range_m: np.ndarray | float,
+        sigma_0: float = 0.02,
+        k_range: float = 1.5e-4,
+    ) -> Tuple[np.ndarray | float, np.ndarray | float]:
+        """Executes 1D Kalman elevation filter update incorporating range observation noise.
+        
+        Args:
+            prior_mean: Current cell elevation estimate.
+            prior_var: Current cell elevation variance (uncertainty).
+            obs_z: New LiDAR point height observation.
+            range_m: Radial distance from sensor to observation point.
+        Returns:
+            (posterior_mean, posterior_var)
+        """
+        R = cls.sensor_variance(range_m, sigma_0=sigma_0, k_range=k_range)
+        # Innovation and Kalman Gain
+        K = prior_var / np.maximum(prior_var + R, 1e-6)
+        posterior_mean = prior_mean + K * (obs_z - prior_mean)
+        posterior_var = (1.0 - K) * prior_var
+        return posterior_mean, posterior_var

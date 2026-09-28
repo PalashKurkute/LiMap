@@ -1,165 +1,161 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { StressModeId } from '../types/telemetry';
-import { ShieldAlert, CheckCircle, CloudRain, EyeOff, Ghost } from 'lucide-react';
+import { ShieldAlert, CheckCircle, CloudRain, EyeOff, Ghost, Sliders } from 'lucide-react';
 
 interface StressHarnessPanelProps {
   activeStressMode: StressModeId;
   onSelectStressMode: (mode: StressModeId) => void;
 }
 
-interface StressScenario {
-  id: StressModeId;
-  title: string;
-  subtitle: string;
-  icon: React.ReactNode;
-  statusText: string;
-  severity: 'nominal' | 'warning' | 'critical';
-  defenseBehavior: string;
-  memoryImpact: string;
-}
-
 export const StressHarnessPanel: React.FC<StressHarnessPanelProps> = ({
   activeStressMode,
   onSelectStressMode,
 }) => {
-  const scenarios: StressScenario[] = [
+  const [dropoutSlider, setDropoutSlider] = useState<number>(0);
+  const [rainNoiseSlider, setRainNoiseSlider] = useState<number>(0);
+
+  const scenarios: {
+    id: StressModeId;
+    title: string;
+    description: string;
+    icon: React.ReactNode;
+    defenseRule: string;
+  }[] = [
     {
       id: 'nominal',
-      title: 'Nominal Scan (Clean 64-Beam)',
-      subtitle: 'Standard Velodyne/Ouster optical transmission without degradation.',
-      icon: <CheckCircle size={15} style={{ color: 'var(--accent-emerald)' }} />,
-      statusText: 'ALL BEAMS OPERATIONAL',
-      severity: 'nominal',
-      defenseBehavior: 'Standard Welford running elevation and variance estimation across all 4 concentric rings.',
-      memoryImpact: '3.2616 MB (Nominal pool)',
+      title: 'Nominal 64-Beam Ingestion',
+      description: 'Clean Ouster / Velodyne LiDAR returns with zero simulated degradation.',
+      icon: <CheckCircle size={15} className="text-slate-800" />,
+      defenseRule: 'Welford recursive mean & variance across all 4 concentric lattice rings.',
     },
     {
       id: 'dropout_50',
-      title: '50% Beam Occlusion (Sensor Mud)',
-      subtitle: 'Simulates heavy mud/dirt on sensor aperture or 32 of 64 emitter diodes failing.',
-      icon: <EyeOff size={15} style={{ color: 'var(--accent-amber)' }} />,
-      statusText: '32 BEAMS OCCLUDED',
-      severity: 'warning',
-      defenseBehavior: 'Sparse lattice interpolation via Chan parallel variance merge; zero cell reallocation.',
-      memoryImpact: '3.2616 MB (Zero reallocation)',
+      title: '50% Sensor Dropout (Aperture Mud)',
+      description: 'Simulates heavy mud coverage or 32 emitter diodes failing instantaneously.',
+      icon: <EyeOff size={15} className="text-amber-600" />,
+      defenseRule: 'Chan parallel variance merge; preallocated flat hash table retains exact 3.2616 MB footprint.',
     },
     {
       id: 'monsoon_noise',
-      title: 'Monsoon Rain & Fog Clutter',
-      subtitle: 'Simulates Indian monsoon downpour with extreme aerosol returns and ground spray.',
-      icon: <CloudRain size={15} style={{ color: 'var(--accent-cyan)' }} />,
-      statusText: 'STOCHASTIC CLUTTER ACTIVE',
-      severity: 'warning',
-      defenseBehavior: 'Bayesian variance gating rejects false ground spikes with high σ² without corrupting costmap.',
-      memoryImpact: '3.2616 MB (Noise rejected)',
+      title: 'Monsoon Rain & Aerosol Clutter',
+      description: 'Indian monsoon downpour with extreme false returns and ground spray scatter.',
+      icon: <CloudRain size={15} className="text-blue-600" />,
+      defenseRule: 'Bayesian variance gating filters spurious floating returns without costmap pollution.',
     },
     {
       id: 'ghost_stress',
-      title: 'Dynamic Ghost Trail Ambush',
-      subtitle: 'Fast overtaking vehicle (15 m/s) leaving stale elevation trails in blind spots.',
-      icon: <Ghost size={15} style={{ color: 'var(--accent-purple)' }} />,
-      statusText: 'MOVING VEHICLE PHANTOM',
-      severity: 'critical',
-      defenseBehavior: 'Moving-Object Segmentation (MOS) + Line-of-sight ray tracing carves ghost cells in <200ms.',
-      memoryImpact: '3.2616 MB (Ghost erased in 2 scans)',
+      title: 'High-Speed Dynamic Ghost Trail',
+      description: 'Overtaking vehicle (15 m/s) cutting across forward trajectory.',
+      icon: <Ghost size={15} className="text-slate-700" />,
+      defenseRule: 'Range-disparity MOS flags dynamic cells; ray carving sweeps phantom trails in <200ms.',
     },
   ];
 
   return (
-    <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-      <div className="panel-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <ShieldAlert size={14} style={{ color: 'var(--accent-amber)' }} />
-          <span>Defense Adversarial Stress Harness</span>
+    <div className="bg-white border border-slate-300 rounded-xl p-4 shadow-sm flex flex-col gap-4 text-slate-900">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+        <div className="flex items-center gap-2">
+          <ShieldAlert size={15} className="text-slate-800" />
+          <span className="text-xs font-bold tracking-tight uppercase">
+            Adversarial Stress Harness
+          </span>
         </div>
-        <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
+        <span className="text-[10px] font-mono font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
           SIH26053 §9.2
         </span>
       </div>
 
-      <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-        Deliberately inject sensor degradation to mathematically prove memory bounds and zero crash failure (Standard 9.2).
+      <div className="text-xs text-slate-600 leading-relaxed">
+        Select degraded sensor modes to verify that memory allocation stays strictly constant at 3.26 MB without memory spikes.
       </div>
 
-      {/* Scenario Cards */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {/* Interactive Direct-Manipulation Degradation Sliders */}
+      <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3 flex flex-col gap-3">
+        <div className="flex items-center justify-between text-[11px] font-mono">
+          <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+            <Sliders size={12} />
+            <span>BEAM DROPOUT SIMULATOR</span>
+          </span>
+          <span className="font-bold text-slate-900">{dropoutSlider}% DROPOUT</span>
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={90}
+          step={5}
+          value={dropoutSlider}
+          onChange={(e) => {
+            const val = parseInt(e.target.value);
+            setDropoutSlider(val);
+            if (val > 30) {
+              onSelectStressMode('dropout_50');
+            } else if (val === 0 && rainNoiseSlider === 0) {
+              onSelectStressMode('nominal');
+            }
+          }}
+          className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900"
+        />
+        <div className="flex justify-between text-[9px] font-mono text-slate-400">
+          <span>0% (Nominal)</span>
+          <span>50% (Mud Occlusion)</span>
+          <span>90% (Near Total Blindness)</span>
+        </div>
+      </div>
+
+      {/* Preset Defense Mode Scenarios */}
+      <div className="flex flex-col gap-2">
         {scenarios.map((s) => {
           const isActive = activeStressMode === s.id;
           return (
             <div
               key={s.id}
-              onClick={() => onSelectStressMode(s.id)}
-              style={{
-                padding: '10px 12px',
-                borderRadius: '8px',
-                background: isActive ? 'rgba(0, 240, 255, 0.08)' : 'rgba(255, 255, 255, 0.02)',
-                border: `1px solid ${isActive ? 'var(--accent-cyan)' : 'var(--card-border)'}`,
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '6px',
-                boxShadow: isActive ? '0 0 16px rgba(0, 240, 255, 0.15)' : 'none',
+              onClick={() => {
+                onSelectStressMode(s.id);
+                if (s.id === 'dropout_50') setDropoutSlider(50);
+                if (s.id === 'nominal') {
+                  setDropoutSlider(0);
+                  setRainNoiseSlider(0);
+                }
               }}
+              className={`p-3 rounded-lg border transition-all cursor-pointer flex flex-col gap-1.5 ${
+                isActive
+                  ? 'border-slate-900 bg-slate-50 shadow-sm'
+                  : 'border-slate-200 hover:border-slate-300 bg-white'
+              }`}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
                   {s.icon}
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: isActive ? 'var(--accent-cyan)' : 'var(--text-primary)' }}>
+                  <span className={`text-xs font-semibold ${isActive ? 'text-slate-900' : 'text-slate-700'}`}>
                     {s.title}
                   </span>
                 </div>
-                <span
-                  style={{
-                    fontSize: '9px',
-                    fontFamily: 'var(--font-mono)',
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    background: isActive ? 'rgba(0, 240, 255, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                    color: isActive ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                  }}
-                >
-                  {s.statusText}
-                </span>
+                {isActive && (
+                  <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-slate-900 bg-slate-200/80 px-1.5 py-0.5 rounded">
+                    Active
+                  </span>
+                )}
               </div>
 
-              <div style={{ fontSize: '10px', color: 'var(--text-muted)', lineHeight: '1.3' }}>
-                {s.subtitle}
+              <div className="text-[11px] text-slate-500 leading-snug">
+                {s.description}
               </div>
 
-              <div
-                style={{
-                  fontSize: '9.5px',
-                  fontFamily: 'var(--font-mono)',
-                  color: isActive ? 'var(--accent-emerald)' : 'var(--text-subtle)',
-                  paddingTop: '4px',
-                  borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-                }}
-              >
-                &bull; DEFENSE RESPONSE: {s.defenseBehavior}
+              <div className="text-[10px] font-mono text-slate-700 pt-1 border-t border-slate-100 mt-0.5">
+                &bull; Defense Invariant: {s.defenseRule}
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* DRDO Invariant Banner */}
-      <div
-        style={{
-          padding: '8px 12px',
-          borderRadius: '6px',
-          background: 'rgba(0, 230, 118, 0.08)',
-          border: '1px solid rgba(0, 230, 118, 0.25)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          fontSize: '10.5px',
-          fontFamily: 'var(--font-mono)',
-          color: 'var(--accent-emerald)',
-        }}
-      >
-        <CheckCircle size={14} />
-        <span>DRDO INVARIANT: Flat hash pool is 100% preallocated. Zero allocations under all stress modes.</span>
+      {/* DRDO Invariant Guarantee Card */}
+      <div className="p-2.5 rounded-lg bg-slate-100 border border-slate-200 flex items-start gap-2 text-[10px] font-mono text-slate-700">
+        <CheckCircle size={14} className="text-slate-900 shrink-0 mt-0.5" />
+        <span>
+          O(1) BOUND VERIFIED: Spatial hash array is preallocated to 106,875 elements. Zero dynamic heap growth during sensor failure modes.
+        </span>
       </div>
     </div>
   );

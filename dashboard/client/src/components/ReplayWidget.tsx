@@ -1,9 +1,7 @@
 import React from 'react';
-import { Play, Pause, SkipBack, SkipForward } from 'lucide-react';
+import { Play, Pause, RotateCcw } from 'lucide-react';
 
 interface ReplayWidgetProps {
-  controlMode: 'wasd' | 'playback';
-  onControlModeChange: (mode: 'wasd' | 'playback') => void;
   isPlaying: boolean;
   onIsPlayingChange: (playing: boolean) => void;
   currentFrame: number;
@@ -13,8 +11,6 @@ interface ReplayWidgetProps {
 }
 
 export const ReplayWidget: React.FC<ReplayWidgetProps> = ({
-  controlMode,
-  onControlModeChange,
   isPlaying,
   onIsPlayingChange,
   currentFrame,
@@ -24,216 +20,73 @@ export const ReplayWidget: React.FC<ReplayWidgetProps> = ({
 }) => {
   return (
     <div
-      style={{
-        position: 'absolute',
-        bottom: '20px',
-        right: '20px',
-        width: '360px',
-        maxWidth: 'calc(100vw - 40px)',
-        background: 'rgba(10, 14, 24, 0.90)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        borderRadius: '12px',
-        padding: '12px 14px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '10px',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6), 0 0 1px rgba(0, 240, 255, 0.3)',
-        zIndex: 25,
-      }}
+      style={{ width: '320px', minWidth: '320px' }}
+      className="absolute bottom-6 right-6 bg-white border border-slate-300 rounded-2xl p-4 shadow-xl flex flex-col gap-3 z-20 select-none text-slate-900"
     >
-      {/* Top Header: Title + Mode Switcher */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div
-          style={{
-            fontSize: '11px',
-            fontWeight: 700,
-            fontFamily: 'var(--font-mono)',
-            color: 'var(--accent-cyan)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            letterSpacing: '0.6px',
-          }}
-        >
-          <Play size={14} />
-          <span>REPLAY &amp; TIMELINE</span>
-        </div>
-
-        {/* Drive vs Replay Mode Toggle */}
-        <div
-          style={{
-            display: 'flex',
-            background: 'rgba(0,0,0,0.5)',
-            borderRadius: '5px',
-            padding: '2px',
-            border: '1px solid rgba(255,255,255,0.08)',
-          }}
-        >
-          <button
-            onClick={() => onControlModeChange('wasd')}
-            style={{
-              padding: '3px 8px',
-              borderRadius: '4px',
-              border: 'none',
-              background: controlMode === 'wasd' ? 'rgba(0, 230, 118, 0.25)' : 'transparent',
-              color: controlMode === 'wasd' ? 'var(--accent-emerald)' : 'var(--text-muted)',
-              fontSize: '10px',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            Manual Drive
-          </button>
-          <button
-            onClick={() => onControlModeChange('playback')}
-            style={{
-              padding: '3px 8px',
-              borderRadius: '4px',
-              border: 'none',
-              background: controlMode === 'playback' ? 'rgba(0, 240, 255, 0.25)' : 'transparent',
-              color: controlMode === 'playback' ? 'var(--accent-cyan)' : 'var(--text-muted)',
-              fontSize: '10px',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            Auto Replay
-          </button>
-        </div>
+      {/* Top Header */}
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
+          Mission Playback
+        </span>
+        <span className="text-[10px] font-mono text-slate-500 font-semibold bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">
+          Autonomous Nav
+        </span>
       </div>
 
-      {/* Transport Controls & Speed Selector */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+      {/* Transport Controls & Speed */}
+      <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => onFrameSeek(0)}
-            title="Rewind to Frame 0"
-            style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              color: 'var(--text-muted)',
-              borderRadius: '5px',
-              cursor: 'pointer',
-              padding: '5px 8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.15s ease',
-            }}
+            className="p-1.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors"
+            title="Rewind to start"
           >
-            <SkipBack size={13} />
+            <RotateCcw size={13} />
           </button>
 
           <button
-            onClick={() => {
-              if (controlMode !== 'playback') onControlModeChange('playback');
-              onIsPlayingChange(!isPlaying);
-            }}
-            title={isPlaying && controlMode === 'playback' ? 'Pause Replay' : 'Start Replay'}
-            style={{
-              background: isPlaying && controlMode === 'playback' ? 'rgba(0, 240, 255, 0.18)' : 'rgba(0, 240, 255, 0.12)',
-              border: '1.5px solid var(--accent-cyan)',
-              color: 'var(--accent-cyan)',
-              borderRadius: '5px',
-              cursor: 'pointer',
-              padding: '5px 12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '11px',
-              fontWeight: 600,
-              transition: 'all 0.15s ease',
-            }}
+            onClick={() => onIsPlayingChange(!isPlaying)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-sm transition-all active:scale-95"
           >
-            {isPlaying && controlMode === 'playback' ? <Pause size={13} /> : <Play size={13} />}
-            <span>{isPlaying && controlMode === 'playback' ? 'Pause' : 'Play'}</span>
-          </button>
-
-          <button
-            onClick={() => onFrameSeek(120)}
-            title="Seek to Frame 120"
-            style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              color: 'var(--text-muted)',
-              borderRadius: '5px',
-              cursor: 'pointer',
-              padding: '5px 8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <SkipForward size={13} />
+            {isPlaying ? <Pause size={13} /> : <Play size={13} />}
+            <span>{isPlaying ? 'Pause' : 'Play'}</span>
           </button>
         </div>
 
-        {/* Playback Speed Multipliers */}
-        <div style={{ display: 'flex', gap: '3px' }}>
-          {([1, 2, 4] as const).map((spd) => {
-            const isSelected = playbackSpeed === spd;
-            return (
-              <button
-                key={spd}
-                onClick={() => onPlaybackSpeedChange(spd)}
-                style={{
-                  background: isSelected ? 'rgba(0, 240, 255, 0.22)' : 'rgba(255, 255, 255, 0.04)',
-                  border: `1px solid ${isSelected ? 'var(--accent-cyan)' : 'rgba(255, 255, 255, 0.08)'}`,
-                  color: isSelected ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                  borderRadius: '4px',
-                  padding: '4px 7px',
-                  fontSize: '10px',
-                  fontFamily: 'var(--font-mono)',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                {spd}x
-              </button>
-            );
-          })}
+        {/* Speed Selector */}
+        <div className="flex gap-1 text-[11px] font-mono">
+          {([1, 2, 4] as const).map((spd) => (
+            <button
+              key={spd}
+              onClick={() => onPlaybackSpeedChange(spd)}
+              className={`px-2 py-0.5 rounded-md border transition-all ${
+                playbackSpeed === spd
+                  ? 'bg-slate-900 border-slate-900 text-white font-semibold'
+                  : 'bg-slate-50 border-slate-300 text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              {spd}x
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Frame Scrubber Slider */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: '10px',
-            fontFamily: 'var(--font-mono)',
-            color: 'var(--text-muted)',
-          }}
-        >
+      {/* Frame Scrubber */}
+      <div className="flex flex-col gap-1.5 pt-1">
+        <div className="flex justify-between items-center text-[10px] font-mono text-slate-500 font-medium">
           <span>Frame: {String(currentFrame).padStart(3, '0')} / 120</span>
-          <span style={{ color: 'var(--accent-cyan)' }}>Time: +{(currentFrame * 0.033).toFixed(2)}s</span>
+          <span>+{(currentFrame * 0.033).toFixed(2)}s</span>
         </div>
-        <input
-          type="range"
-          min={0}
-          max={120}
-          value={currentFrame}
-          onChange={(e) => {
-            if (controlMode !== 'playback') onControlModeChange('playback');
-            onFrameSeek(Number(e.target.value));
-          }}
-          style={{
-            width: '100%',
-            accentColor: 'var(--accent-cyan)',
-            cursor: 'pointer',
-            height: '4px',
-          }}
-        />
+        <div className="py-1">
+          <input
+            type="range"
+            min={0}
+            max={120}
+            value={currentFrame}
+            onChange={(e) => onFrameSeek(Number(e.target.value))}
+            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900 block"
+          />
+        </div>
       </div>
     </div>
   );

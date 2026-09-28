@@ -1,31 +1,21 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
 
 :root {
-  --bg-primary: #07090e;
-  --bg-secondary: #0d121c;
-  --card-bg: rgba(13, 18, 28, 0.82);
-  --card-border: rgba(255, 255, 255, 0.08);
-  --card-hover-border: rgba(0, 240, 255, 0.35);
+  --bg-primary: #F8FAFC;
+  --bg-secondary: #FFFFFF;
+  --card-bg: #FFFFFF;
+  --card-border: #E2E8F0;
 
-  --accent-cyan: #00f0ff;
-  --accent-emerald: #00e676;
-  --accent-amber: #ffab00;
-  --accent-crimson: #ff1744;
-  --accent-purple: #b388ff;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #64748B;
+  --text-subtle: #94A3B8;
 
-  --text-primary: #f0f4fc;
-  --text-muted: #7e8b9f;
-  --text-subtle: #4a5568;
-
-  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
 
 body {
   background-color: var(--bg-primary);
@@ -35,6 +25,7 @@ body {
   height: 100vh;
   width: 100vw;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #root {
@@ -46,150 +37,45 @@ body {
 
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
+  background: #F1F5F9;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 3px;
+  background: #CBD5E1;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-cyan);
+  background: #94A3B8;
 }
 
-/* Glassmorphic Panels */
-.glass-panel {
-  background: var(--card-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--card-border);
-  border-radius: 8px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-}
-
-.panel-title {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  color: var(--text-muted);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: 8px;
-  margin-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-/* Tabular Monospace Values */
+/* Utility classes */
 .mono-val {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
 
-/* Micro-animations */
-@keyframes pulseGlow {
-  0%, 100% { opacity: 1; transform: scale(1); filter: drop-shadow(0 0 6px var(--accent-emerald)); }
-  50% { opacity: 0.6; transform: scale(0.9); filter: drop-shadow(0 0 2px var(--accent-emerald)); }
-}
-
-.pulsing-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--accent-emerald);
-  animation: pulseGlow 1.8s infinite ease-in-out;
-}
-
-/* FastDEM RViz Elevation Colorbar */
-.fastdem-colorbar-container {
-  position: absolute;
-  top: 70px;
-  right: 18px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(9, 13, 21, 0.88);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(0, 240, 255, 0.25);
-  border-radius: 8px;
-  padding: 10px 10px 10px 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
-  z-index: 10;
-  pointer-events: auto;
-  user-select: none;
-}
-
-.fastdem-colorbar-gradient {
-  width: 12px;
-  height: 180px;
-  border-radius: 3px;
-  background: linear-gradient(
-    to bottom,
-    #ff1744 0%,      /* +2.5m Obstacle Red */
-    #ff9100 25%,     /* +1.2m Berm Orange */
-    #ffd600 45%,     /* +0.5m Slope Yellow */
-    #00e676 60%,     /* -1.0m Ground Emerald */
-    #00f0ff 80%,     /* -1.73m Surface Cyan */
-    #3d5afe 100%     /* -2.2m Pothole Deep Blue */
-  );
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  position: relative;
-}
-
-.fastdem-colorbar-ticks {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  height: 180px;
-  font-family: var(--font-mono);
-  font-size: 9.5px;
-  color: var(--text-muted);
-}
-
-.fastdem-colorbar-pointer {
-  position: absolute;
-  left: -4px;
-  width: 20px;
-  height: 2px;
-  background: #ffffff;
-  box-shadow: 0 0 6px #ffffff;
-  pointer-events: none;
-  transition: top 0.08s ease-out;
-}
-
-/* FastDEM Sub-10ms Live Generation Pulse */
-@keyframes radarSweep {
-  0% { transform: scale(0.1); opacity: 0.9; }
-  80% { opacity: 0.4; }
-  100% { transform: scale(1.6); opacity: 0; }
-}
-
-/* Slide-out Sidebar Drawer (Opens from Left under Hamburger Menu) */
+/* Drawer styles with crisp contrast */
 .telemetry-drawer {
   position: absolute;
   top: 0;
   left: 0;
   bottom: 0;
   width: 440px;
-  max-width: 92vw;
-  background: rgba(10, 14, 22, 0.94);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border-right: 1px solid var(--card-border);
-  box-shadow: 8px 0 36px rgba(0, 0, 0, 0.75);
+  max-width: 90vw;
+  background: #F8FAFC;
+  border-right: 1px solid #CBD5E1;
+  box-shadow: 4px 0 24px rgba(15, 23, 42, 0.12);
   display: flex;
   flex-direction: column;
-  z-index: 100;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 40;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .telemetry-drawer.closed {
@@ -202,78 +88,85 @@ body {
   pointer-events: auto;
 }
 
-/* Floating Corner 'Open' Tab (deck.gl Inspiration) */
-.floating-open-btn {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(0, 240, 255, 0.35);
-  border-radius: 8px;
-  color: var(--text-primary);
-  padding: 8px 14px;
-  font-family: var(--font-mono);
-  font-size: 11px;
+/* High contrast card & button utilities */
+.card-clean {
+  background-color: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.btn-clean-inactive {
+  background-color: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  color: #334155;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.btn-clean-inactive:hover {
+  background-color: #F1F5F9;
+  border-color: #94A3B8;
+  color: #0F172A;
+}
+
+.btn-clean-active {
+  background-color: #0F172A;
+  border: 1px solid #0F172A;
+  color: #FFFFFF;
   font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-  transition: all 0.2s ease;
-  z-index: 20;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1);
 }
 
-.floating-open-btn:hover {
-  background: rgba(0, 240, 255, 0.15);
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 16px rgba(0, 240, 255, 0.35);
-  transform: translateY(-1px);
+/* Apple-Grade Spring Animations & Transitions */
+@keyframes appleSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
-/* Floating Controls Card (deck.gl style in bottom right) */
-.floating-controls-card {
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
-  background: rgba(13, 18, 28, 0.88);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--card-border);
-  border-radius: 10px;
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-  z-index: 20;
-  user-select: none;
+@keyframes beamPulse {
+  0%, 100% {
+    opacity: 0.6;
+    stroke-width: 1.5;
+  }
+  50% {
+    opacity: 1;
+    stroke-width: 2.2;
+  }
 }
 
-/* WASD Virtual Drive Keys */
-.wasd-key {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 5px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: var(--text-muted);
-  transition: all 0.1s ease;
-  cursor: pointer;
+@keyframes carRoll {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-0.8px);
+  }
 }
 
-.wasd-key.active {
-  background: rgba(0, 240, 255, 0.25);
-  border-color: var(--accent-cyan);
-  color: var(--accent-cyan);
-  box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
-  transform: scale(0.96);
+.apple-slide-enter {
+  animation: appleSlideIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+.apple-card-hover {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s ease;
+}
+
+.apple-card-hover:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+}
+
+.apple-press {
+  transition: transform 0.1s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.12s ease;
+}
+
+.apple-press:active {
+  transform: scale(0.975);
+}

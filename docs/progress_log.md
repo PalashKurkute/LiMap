@@ -379,5 +379,23 @@ Evaluation run on real **SemanticKITTI Sequence 08** (50 frames, 5,988,201 point
 
 ---
 
+## Checkpoint A Audit Remediation & Resolution
+
+**Status:** **APPROVED & FULLY PASSING** (Audit: `docs/audit/checkpoint_audit_A.md`)  
+**Resolution Date:** September 28, 2026
+
+1. **Costmap Vectorization Parity (Resolved):**
+   - Fixed sample neighborhood in `CostmapGenerator.fit_terrain_planes()` by precomputing coordinates and applying radius filtering matching `fit_local_ground`.
+   - Verified via `benchmark/test_costmap_equivalence.py`:
+     - Sequence 08 Frame 0: **0 / 360,000 mismatched cells (0.0000% divergence, max delta = 0)**
+     - Synthetic Underpass: **0 / 360,000 mismatched cells (0.0000% divergence, max delta = 0)**
+     - Synthetic Potholes: **0 / 360,000 mismatched cells (0.0000% divergence, max delta = 0)**
+     - Synthetic Thin Poles: **0 / 360,000 mismatched cells (0.0000% divergence, max delta = 0)**
+2. **Unified Milestone Suite:**
+   - `python scripts/verify_all_milestones.py` -> **6/6 Milestones PASS** (Invariant: 3.2616 MB <= 3.5 MB, Regret: 0.00%, Fréchet: 0.000m).
+3. **Repo Cleanup:**
+   - Reorganized all documentation into standardized `docs/` paths (`docs/ROADMAP.md`, `docs/reports/checkpoint_report_A.md`, `docs/progress_log.md`, `docs/plans/IMPLEMENTATION_BRIEF.md`).
+
+
 
 

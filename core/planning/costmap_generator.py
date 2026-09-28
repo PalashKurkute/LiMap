@@ -107,7 +107,6 @@ class CostmapGenerator:
         self,
         grid: SpatialHashGrid,
         patch_size_m: float = 6.0,
-        coords: Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]] = None,
     ) -> Dict[Tuple[int, int], LocalPatchPlane]:
         """Fits local ground tangent planes across spatial patches (SIH Standard 4.4).
         
@@ -115,33 +114,32 @@ class CostmapGenerator:
         """
         planes: Dict[Tuple[int, int], LocalPatchPlane] = {}
         active = grid.get_active_cells()
-        if len(active) < grid.ground_estimator.min_points:
+        if len(active) < 6:
             return planes
 
-        if coords is not None:
-            cx, cy, cz = coords
-        else:
-            ring_resolutions = np.array([r.cell_size for r in grid.lattice.rings], dtype=np.float32)
-            res = ring_resolutions[active["ring_id"]]
-            cx = (active["ix"] + 0.5) * res
-            cy = (active["iy"] + 0.5) * res
-            cz = active["mean_z"]
+        ring_resolutions = np.array([r.cell_size for r in grid.lattice.rings], dtype=np.float32)
+        res = ring_resolutions[active["ring_id"]]
+        cx = (active["ix"] + 0.5) * res
+        cy = (active["iy"] + 0.5) * res
+        cz = active["mean_z"]
 
-        bx = np.floor(cx / patch_size_m).astype(np.int32)
-        by = np.floor(cy / patch_size_m).astype(np.int32)
+        bx = np.floor(cx / patch_size_m).astype(int)
+        by = np.floor(cy / patch_size_m).astype(int)
+        unique_bins = set(zip(bx, by))
+        radius_sq = (patch_size_m * 0.75) ** 2
+        min_pts = grid.ground_estimator.min_points
 
-        pts = np.column_stack((cx, cy, cz))
-        bin_keys = (bx.astype(np.int64) << 32) ^ (by.astype(np.int64) & 0xFFFFFFFF)
-        unique_keys, inverse_indices = np.unique(bin_keys, return_inverse=True)
-
-        for u_idx, key in enumerate(unique_keys):
-            idx = np.where(inverse_indices == u_idx)[0]
-            if len(idx) >= grid.ground_estimator.min_points:
-                b_x = int(key >> 32)
-                b_y = int(np.int32(key & 0xFFFFFFFF))
-                plane = grid.ground_estimator.fit_patch_plane(pts[idx])
-                if plane is not None:
-                    planes[(b_x, b_y)] = plane
+        for bin_idx in unique_bins:
+            center_x = (bin_idx[0] + 0.5) * patch_size_m
+            center_y = (bin_idx[1] + 0.5) * patch_size_m
+            dist_sq = (cx - center_x) ** 2 + (cy - center_y) ** 2
+            in_radius = dist_sq <= radius_sq
+            if np.sum(in_radius) < min_pts:
+                continue
+            patch_pts = np.column_stack((cx[in_radius], cy[in_radius], cz[in_radius]))
+            plane = grid.ground_estimator.fit_patch_plane(patch_pts)
+            if plane is not None:
+                planes[bin_idx] = plane
 
         return planes
 
@@ -202,7 +200,7 @@ class CostmapGenerator:
 
         is_solid_obstacle = mean_z > -1.2
         if enable_slope_compensation:
-            patch_planes = self.fit_terrain_planes(grid, coords=(wx, wy, mean_z))
+            patch_planes = self.fit_terrain_planes(grid)
             if patch_planes:
                 bx = np.floor(wx / 6.0).astype(np.int32)
                 by = np.floor(wy / 6.0).astype(np.int32)

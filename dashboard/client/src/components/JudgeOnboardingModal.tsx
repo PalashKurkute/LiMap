@@ -108,11 +108,11 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
               </div>
             </div>
 
-            {/* 3. FoveaGrid 2.5D (Ours) */}
+            {/* 3. LiMap 2.5D (Ours) */}
             <div className="bg-white p-3.5 rounded-xl border-2 border-slate-900 shadow-sm flex flex-col justify-between apple-card-hover">
               <div>
                 <div className="flex items-baseline justify-between mb-2">
-                  <span className="font-bold text-sm text-slate-900">FoveaGrid 2.5D</span>
+                  <span className="font-bold text-sm text-slate-900">LiMap 2.5D</span>
                   <span className="text-xs font-mono font-bold text-emerald-700 px-1.5 py-0.5 bg-emerald-50 rounded">3.2616 MB</span>
                 </div>
                 {/* Schematic: 2.5D Living Pass */}
@@ -136,7 +136,7 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
 
           <div className="p-3 bg-slate-100 rounded-xl border border-slate-200 text-xs text-slate-800 leading-normal flex items-center gap-2">
             <span className="font-bold text-slate-900 shrink-0">The Breakthrough:</span>
-            <span>FoveaGrid locks memory at exactly <strong className="font-mono font-bold text-slate-900">3.2616 MB</strong> across a 100-meter range with zero dynamic memory allocation, preventing lag spikes and system crashes during high-speed maneuvers.</span>
+            <span>LiMap locks memory at exactly <strong className="font-mono font-bold text-slate-900">3.2616 MB</strong> across a 100-meter range with zero dynamic memory allocation, preventing lag spikes and system crashes during high-speed maneuvers.</span>
           </div>
         </div>
       ),
@@ -270,7 +270,7 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
       content: (
         <div className="flex flex-col gap-3 text-slate-800 leading-relaxed">
           <p className="text-sm text-slate-700 font-medium">
-            Pick any scenario to see how FoveaGrid handles situations that commonly fail ordinary autonomous vehicles:
+            Pick any scenario to see how LiMap handles situations that commonly fail ordinary autonomous vehicles:
           </p>
 
           <div className="grid grid-cols-2 gap-3">
@@ -294,7 +294,7 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
                   </svg>
                 </div>
                 <p className="text-xs text-slate-700 leading-normal mb-1.5">
-                  Normal cars freeze here because 2D maps think the bridge is a brick wall. FoveaGrid confirms 2.5m open space and drives straight through.
+                  Normal cars freeze here because 2D maps think the bridge is a brick wall. LiMap confirms 2.5m open space and drives straight through.
                 </p>
               </div>
               <div className="text-xs font-bold text-slate-900 flex items-center justify-between pt-1.5 border-t border-slate-100">
@@ -323,7 +323,7 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
                   </svg>
                 </div>
                 <p className="text-xs text-slate-700 leading-normal mb-1.5">
-                  Flat sensors shine straight over road craters. FoveaGrid measures running surface variance in real time to steer safely around depressions.
+                  Flat sensors shine straight over road craters. LiMap measures running surface variance in real time to steer safely around depressions.
                 </p>
               </div>
               <div className="text-xs font-bold text-slate-900 flex items-center justify-between pt-1.5 border-t border-slate-100">
@@ -386,7 +386,7 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
                   </svg>
                 </div>
                 <p className="text-xs text-slate-700 leading-normal mb-1.5">
-                  Rough grids miss skinny lamp posts and fence wires. FoveaGrid automatically sharpens to 5cm resolution close to the vehicle without wasting RAM far away.
+                  Rough grids miss skinny lamp posts and fence wires. LiMap automatically sharpens to 5cm resolution close to the vehicle without wasting RAM far away.
                 </p>
               </div>
               <div className="text-xs font-bold text-slate-900 flex items-center justify-between pt-1.5 border-t border-slate-100">
@@ -538,7 +538,7 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
       content: (
         <div className="flex flex-col gap-3.5 text-slate-800 leading-relaxed">
           <p className="text-sm text-slate-700 font-medium">
-            How does FoveaGrid react when heavy combat mud, dust storms, or pouring rain blinds half the LiDAR beams?
+            How does LiMap react when heavy combat mud, dust storms, or pouring rain blinds half the LiDAR beams?
           </p>
 
           <div className="grid grid-cols-2 gap-4">
@@ -691,7 +691,7 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
                 </div>
                 {/* Visual Comparison Bar */}
                 <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-1.5">
-                  <div className="bg-emerald-600 h-full w-[2%]" title="FoveaGrid 3.2616 MB" />
+                  <div className="bg-emerald-600 h-full w-[2%]" title="LiMap 3.2616 MB" />
                 </div>
               </div>
               <p className="text-xs text-slate-700 border-t border-slate-100 pt-1.5">

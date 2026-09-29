@@ -292,7 +292,7 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
           <div className="h-4 w-px bg-slate-700 mx-1" />
 
           <div className="flex items-center gap-2">
-            <span className="font-bold text-sm text-white tracking-tight">FoveaGrid Data-Inspection Matrix</span>
+            <span className="font-bold text-sm text-white tracking-tight">LiMap Data-Inspection Matrix</span>
             <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
               AUDIT PROOF ARTIFACT
             </span>
@@ -542,7 +542,7 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
                 <span className="text-slate-300">122.1 MB (37.4x)</span>
               </div>
               <div className="flex justify-between text-emerald-400 font-bold pt-1 border-t border-slate-800">
-                <span>FoveaGrid 2.5D:</span>
+                <span>LiMap 2.5D:</span>
                 <span>3.2616 MB (PROVED)</span>
               </div>
             </div>

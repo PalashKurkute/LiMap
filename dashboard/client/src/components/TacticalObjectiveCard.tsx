@@ -86,7 +86,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
                   <span className="font-bold">Blind to Overhangs</span>
                 </div>
                 <div className="bg-emerald-50 text-emerald-800 p-1.5 rounded border border-emerald-200 flex flex-col">
-                  <span className="text-[9px] uppercase text-emerald-600 font-bold">2.5D FoveaGrid</span>
+                  <span className="text-[9px] uppercase text-emerald-600 font-bold">2.5D LiMap</span>
                   <span className="font-bold">
                     {tacticalSummary?.min_clearance_m != null 
                       ? `${tacticalSummary.min_clearance_m}m Safe ✓` 
@@ -128,7 +128,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
                   <span className="font-bold">Variance Blind</span>
                 </div>
                 <div className="bg-emerald-50 text-emerald-800 p-1.5 rounded border border-emerald-200 flex flex-col">
-                  <span className="text-[9px] uppercase text-emerald-600 font-bold">2.5D FoveaGrid</span>
+                  <span className="text-[9px] uppercase text-emerald-600 font-bold">2.5D LiMap</span>
                   <span className="font-bold">
                     {tacticalSummary?.max_variance_m2 != null
                       ? `Var: ${tacticalSummary.max_variance_m2}m² ✓`
@@ -165,7 +165,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
                   <span className="font-bold">Decay Ghosting</span>
                 </div>
                 <div className="bg-emerald-50 text-emerald-800 p-1.5 rounded border border-emerald-200 flex flex-col">
-                  <span className="text-[9px] uppercase text-emerald-600 font-bold">2.5D FoveaGrid</span>
+                  <span className="text-[9px] uppercase text-emerald-600 font-bold">2.5D LiMap</span>
                   <span className="font-bold">
                     {tacticalSummary?.mos_active ? 'Dynamic Trk ✓' : 'Clear ✓'}
                   </span>
@@ -202,7 +202,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
                   <span className="font-bold">Misses Thin Objects</span>
                 </div>
                 <div className="bg-emerald-50 text-emerald-800 p-1.5 rounded border border-emerald-200 flex flex-col">
-                  <span className="text-[9px] uppercase text-emerald-600 font-bold">2.5D FoveaGrid</span>
+                  <span className="text-[9px] uppercase text-emerald-600 font-bold">2.5D LiMap</span>
                   <span className="font-bold">
                     {tacticalSummary?.core_res_m != null ? `${tacticalSummary.core_res_m * 100}cm Core Res ✓` : 'Scanning...'}
                   </span>
@@ -239,7 +239,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
                   <span className="font-bold">~3,051 MB RAM</span>
                 </div>
                 <div className="bg-emerald-50 text-emerald-800 p-1.5 rounded border border-emerald-200 flex flex-col">
-                  <span className="text-[9px] uppercase text-emerald-600 font-bold">2.5D FoveaGrid</span>
+                  <span className="text-[9px] uppercase text-emerald-600 font-bold">2.5D LiMap</span>
                   <span className="font-bold">{memoryMb.toFixed(4)} MB Bounded ✓</span>
                 </div>
               </div>

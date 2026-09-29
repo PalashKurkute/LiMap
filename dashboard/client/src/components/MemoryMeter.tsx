@@ -50,11 +50,11 @@ export const MemoryMeter: React.FC<MemoryMeterProps> = ({ baselines, telemetry }
           </div>
         </div>
 
-        {/* 3. FoveaGrid 2.5D (Ours) */}
+        {/* 3. LiMap 2.5D (Ours) */}
         <div className="flex flex-col gap-1 pt-1 border-t border-slate-50">
           <div className="flex justify-between items-center text-xs">
             <span className="font-bold text-slate-900 flex items-center gap-1.5">
-              <span>3. FoveaGrid 2.5D (Ours)</span>
+              <span>3. LiMap 2.5D (Ours)</span>
               <span className="text-[10px] font-mono font-normal text-slate-500">(106,875 cells)</span>
             </span>
             <span className="font-mono font-bold text-slate-900">

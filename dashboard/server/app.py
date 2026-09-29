@@ -1,6 +1,6 @@
 """High-Performance FastAPI & Binary WebSocket Streaming Telemetry Server.
 
-Streams FoveaGrid 2.5D multi-layer elevation data, memory metrics, and tracked obstacles
+Streams LiMap 2.5D multi-layer elevation data, memory metrics, and tracked obstacles
 via zero-copy binary ArrayBuffers to the UI/UX Pro Max dashboard.
 Provides REST APIs for cross-section slicing, benchmark verification, and scene selection.
 """
@@ -31,7 +31,7 @@ from core.tracking.kalman_tracker import DynamicObstacleTracker
 from core.planning.costmap_generator import CostmapGenerator
 
 app = FastAPI(
-    title="FoveaGrid 2.5D Defense Perception Telemetry API",
+    title="LiMap 2.5D Defense Perception Telemetry API",
     version="1.0.0",
     description="SIH26053 / DRDO Real-Time Adaptive Variable-Resolution 2.5D LiDAR Perception Stack",
 )
@@ -75,7 +75,7 @@ def serve_dashboard():
 
 @app.get("/api/health")
 def health_check() -> Dict[str, str]:
-    return {"status": "ONLINE", "stack": "FoveaGrid-2.5D", "client": "DRDO-SIH26053"}
+    return {"status": "ONLINE", "stack": "LiMap-2.5D", "client": "DRDO-SIH26053"}
 
 
 @app.get("/api/telemetry")

@@ -42,7 +42,7 @@ export const RegretPanel: React.FC = () => {
         <div className="flex flex-col divide-y divide-slate-200 text-xs">
           <div className="py-2 flex justify-between items-center">
             <div>
-              <div className="font-semibold text-slate-900">FoveaGrid 2.5D (Ours)</div>
+              <div className="font-semibold text-slate-900">LiMap 2.5D (Ours)</div>
               <div className="text-[10px] text-slate-500">Dual-elevation + Bayesian variance</div>
             </div>
             <div className="text-right font-mono">

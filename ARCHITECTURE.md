@@ -1,7 +1,7 @@
-# Technical Architecture Specification: FoveaGrid 2.5D
+# Technical Architecture Specification: LiMap 2.5D
 
 **Project:** Adaptive Variable-Resolution 2.5D LiDAR Mapping for Dynamic Environment Perception  
-**Codename:** `FoveaGrid-2.5D`  
+**Codename:** `LiMap-2.5D`  
 **Target Hardware (Planned Deployment):** NVIDIA Jetson Orin Series (AGX Orin / Orin Nano) & Standard x86_64 Edge Stations [Prototype currently validated on x86_64 CPU]  
 **Middleware Standards (Planned Integration):** ROS 2 (Humble / Jazzy), REP 103/105, `grid_map_msgs`, WebSocket Telemetry [Prototype currently uses standalone Python/NumPy engine with WebSocket telemetry server]  
 
@@ -9,7 +9,7 @@
 
 ## 1. System Overview
 
-`FoveaGrid-2.5D` is a real-time, memory-bounded, perception-to-planning engine designed to transform high-frequency 3D LiDAR point clouds ($1.3\text{M points/sec}$) into a multi-layer 2.5D spatial representation. It eliminates the single-plane overhang blindness of classic elevation maps, eliminates ghost streaks caused by dynamic objects, and reduces memory consumption by **$>97\%$** through multi-factor foveation while maintaining sub-millimeter/centimeter traversability precision where it matters.
+`LiMap-2.5D` is a real-time, memory-bounded, perception-to-planning engine designed to transform high-frequency 3D LiDAR point clouds ($1.3\text{M points/sec}$) into a multi-layer 2.5D spatial representation. It eliminates the single-plane overhang blindness of classic elevation maps, eliminates ghost streaks caused by dynamic objects, and reduces memory consumption by **$>97\%$** through multi-factor foveation while maintaining sub-millimeter/centimeter traversability precision where it matters.
 
 ```
 +---------------------------------------------------------------------------------------------------------+

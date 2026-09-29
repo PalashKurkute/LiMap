@@ -78,7 +78,7 @@ Status: ALL 5 CRITERIA VERIFIED (5/5 PASSED)
 4. Anti-Ghosting: 0.00s Ghost Persistence (MOS active) -> PASSED
 5. Planner Regret: 0.04% Divergence vs 3.2 GB Dense Octree -> PASSED
 ------------------------------------------------
-Architecture: FoveaGrid 2.5D Adaptive Variable-Resolution LiDAR Perception Stack`;
+Architecture: LiMap 2.5D Adaptive Variable-Resolution LiDAR Perception Stack`;
 
     navigator.clipboard.writeText(text);
     setCopied(true);

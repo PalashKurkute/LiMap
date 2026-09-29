@@ -45,7 +45,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2.5">
           <span className="text-sm font-bold tracking-tight text-slate-900">
-            FoveaGrid 2.5D
+            LiMap 2.5D
           </span>
           <span className="text-[10px] font-mono font-bold bg-slate-900 text-white px-1.5 py-0.5 rounded">
             2.5D DEM

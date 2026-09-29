@@ -10,6 +10,8 @@ interface HeaderProps {
   backendConnected?: boolean;
   backendPingMs?: number;
   memoryMb?: number;
+  currentView?: 'hook_3d' | 'data_inspection';
+  onViewChange?: (view: 'hook_3d' | 'data_inspection') => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -20,6 +22,8 @@ export const Header: React.FC<HeaderProps> = ({
   backendConnected = false,
   backendPingMs = 0,
   memoryMb = 3.2616,
+  currentView = 'hook_3d',
+  onViewChange,
 }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -51,6 +55,31 @@ export const Header: React.FC<HeaderProps> = ({
             Adaptive LiDAR Perception for DRDO SIH26053
           </span>
         </div>
+      </div>
+
+      {/* Center: Two-Tier Architecture Switcher (Hook vs Data Inspection) */}
+      <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-mono">
+        <button
+          onClick={() => onViewChange?.('hook_3d')}
+          className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-semibold transition-all ${
+            currentView === 'hook_3d'
+              ? 'bg-white text-slate-900 shadow-xs'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <span>1. 3D Hook (Cinematic)</span>
+        </button>
+        <button
+          onClick={() => onViewChange?.('data_inspection')}
+          className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-semibold transition-all ${
+            currentView === 'data_inspection'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <span>2. Data-Inspection Matrix (Real Proofs)</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+        </button>
       </div>
 
       {/* Right: Clean Memory Proof + Live Backend Link + Onboarding */}

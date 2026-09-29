@@ -192,6 +192,55 @@ def get_benchmark_results() -> Dict[str, object]:
     return {"status": "NO_RUN_RESULTS", "message": "Run scripts/run_seq08.py first"}
 
 
+@app.get("/api/grid_cells")
+def get_grid_cells(limit: int = 5000) -> Dict[str, object]:
+    """Exposes real active cells with resolution tier, semantics, height, variance, clearance."""
+    active = GLOBAL_GRID.get_active_cells()
+    if len(active) == 0:
+        return {"total_active": 0, "cells": []}
+
+    if len(active) > limit:
+        indices = np.linspace(0, len(active) - 1, limit, dtype=np.int32)
+        sampled = active[indices]
+    else:
+        sampled = active
+
+    lattice = GLOBAL_GRID.lattice
+    cell_list = []
+    for c in sampled:
+        r_id = int(c["ring_id"])
+        res = float(lattice.rings[r_id].cell_size) if r_id < len(lattice.rings) else 0.1
+        count = int(c["count"])
+        variance = float(c["m2_z"] / (count - 1)) if count > 1 else 0.0
+
+        x_m = round(float(c["ix"] * res + res * 0.5), 2)
+        y_m = round(float(c["iy"] * res + res * 0.5), 2)
+
+        cell_list.append({
+            "ix": int(c["ix"]),
+            "iy": int(c["iy"]),
+            "ring_id": r_id,
+            "res_m": res,
+            "x_m": x_m,
+            "y_m": y_m,
+            "sem_id": int(c["sem_id"]),
+            "count": count,
+            "mean_z": round(float(c["mean_z"]), 2),
+            "variance": round(variance, 4),
+            "min_z": round(float(c["min_z"]), 2),
+            "max_z": round(float(c["max_z"]), 2),
+            "overhang_z": round(float(c["overhang_z"]), 2) if c["overhang_z"] > -900 else None,
+            "clearance": round(float(c["clearance"]), 2) if c["clearance"] > 0 else None,
+        })
+
+    return {
+        "total_active": len(active),
+        "sampled_count": len(cell_list),
+        "heap_mb": GLOBAL_GRID.total_memory_mb,
+        "cells": cell_list,
+    }
+
+
 @app.post("/api/load_scene/{scene_id}")
 def load_scene(scene_id: str) -> Dict[str, str]:
     """Loads synthetic stress scenes or real SemanticKITTI frames into the live engine."""

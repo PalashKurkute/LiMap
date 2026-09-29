@@ -24,16 +24,16 @@ export const RegretPanel: React.FC = () => {
             <div className="text-[10px] font-mono font-medium text-slate-500 uppercase">
               Path Cost Regret vs 3D Ground Truth
             </div>
-            <div className="text-2xl font-bold font-mono tracking-tight text-slate-900">
-              3.94% REGRET
+            <div className="text-xl font-bold font-mono tracking-tight text-amber-700">
+              PENDING COMPUTATION
             </div>
           </div>
           <div className="text-right">
             <div className="text-[10px] font-mono font-medium text-slate-500 uppercase">
               Fréchet Distance
             </div>
-            <div className="text-base font-semibold font-mono text-slate-800">
-              0.14 meters
+            <div className="text-sm font-semibold font-mono text-slate-600">
+              Pending Run
             </div>
           </div>
         </div>
@@ -46,8 +46,8 @@ export const RegretPanel: React.FC = () => {
               <div className="text-[10px] text-slate-500">Dual-elevation + Bayesian variance</div>
             </div>
             <div className="text-right font-mono">
-              <span className="font-semibold text-slate-900">3.94% Regret</span>
-              <div className="text-[10px] text-slate-500">Passes Bridge Safely</div>
+              <span className="font-semibold text-amber-700">Pending Evaluation</span>
+              <div className="text-[10px] text-slate-500">Awaiting planner run</div>
             </div>
           </div>
 
@@ -78,7 +78,7 @@ export const RegretPanel: React.FC = () => {
         <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-300 text-[10px] font-mono text-slate-700 flex items-start gap-2">
           <CheckCircle2 size={13} className="text-slate-900 shrink-0 mt-0.5" />
           <span>
-            MATHEMATICALLY PROVED: 935.7x compression ratio achieves &lt;4% navigation trajectory divergence with zero safety-critical compromises.
+            VERIFICATION IN PROGRESS: Closed-loop Hybrid-A* trajectory comparison pending per-scene run.
           </span>
         </div>
       </div>

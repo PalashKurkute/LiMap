@@ -19,6 +19,7 @@ import { ReplayWidget } from './components/ReplayWidget';
 import { JudgeOnboardingModal } from './components/JudgeOnboardingModal';
 import { InteractiveCrossSection } from './components/InteractiveCrossSection';
 import { TacticalObjectiveCard } from './components/TacticalObjectiveCard';
+import { DataInspectionScreen } from './components/DataInspectionScreen';
 import {
   X,
   Gauge,
@@ -27,6 +28,7 @@ import {
   ShieldAlert,
   RotateCcw,
   Compass,
+  Database,
 } from 'lucide-react';
 
 const SCENES: { id: SceneId; label: string; badge: string; desc: string; key: string }[] = [
@@ -39,6 +41,7 @@ const SCENES: { id: SceneId; label: string; badge: string; desc: string; key: st
 
 export const App: React.FC = () => {
   const [activeScene, setActiveScene] = useState<SceneId>('scene_a_bridge');
+  const [currentView, setCurrentView] = useState<'hook_3d' | 'data_inspection'>('hook_3d');
   const [telemetryData, setTelemetryData] = useState<TelemetryResponse | null>(null);
   const [crossSectionData, setCrossSectionData] = useState<CrossSectionResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -177,9 +180,11 @@ export const App: React.FC = () => {
         backendConnected={isBackendConnected}
         backendPingMs={backendPing}
         memoryMb={telemetryData?.telemetry?.total_heap_mb ?? 3.2616}
+        currentView={currentView}
+        onViewChange={setCurrentView}
       />
 
-      {/* Main Full-Bleed 3D Model Workspace */}
+      {/* Main Workspace (Tier A Hook vs Tier B Data-Inspection) */}
       <div
         style={{
           display: 'flex',
@@ -189,81 +194,115 @@ export const App: React.FC = () => {
           backgroundColor: 'var(--bg-primary)',
         }}
       >
-        {/* Center: 100% Immersive 3D Viewport with Movable UGV */}
-        <div style={{ flex: 1, height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }}>
-          <ThreeViewport
-            sceneId={activeScene}
-            telemetry={telemetryData?.telemetry ?? null}
-            layerVisibility={layerVisibility}
-            stressMode={stressMode}
-            onLayerVisibilityChange={setLayerVisibility}
-            onStressModeChange={setStressMode}
-            cameraMode={cameraMode}
-            onCameraModeChange={setCameraMode}
-            displayMode={displayMode}
-            onDisplayModeChange={setDisplayMode}
-            colorMode={colorMode}
-            onColorModeChange={setColorMode}
-            isWireframe={isWireframe}
-            onWireframeChange={setIsWireframe}
-            isPlaying={isPlaying}
-            onIsPlayingChange={setIsPlaying}
-            currentFrame={currentFrame}
-            onFrameSeek={setCurrentFrame}
-            onCurrentFrameChange={setCurrentFrame}
-            playbackSpeed={playbackSpeed}
-            onPlaybackSpeedChange={setPlaybackSpeed}
-            onTelemetryUpdate={setCarTelemetry}
-            resetSignal={resetSignal}
-            showScaleBar={showScaleBar}
+        {currentView === 'data_inspection' ? (
+          <DataInspectionScreen
+            activeScene={activeScene}
+            telemetryData={telemetryData}
+            onBackToHook={() => setCurrentView('hook_3d')}
+            onSelectScene={handleSelectScene}
           />
+        ) : (
+          /* Center: 100% Immersive 3D Viewport with Movable UGV */
+          <div style={{ flex: 1, height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+            <ThreeViewport
+              sceneId={activeScene}
+              telemetry={telemetryData?.telemetry ?? null}
+              layerVisibility={layerVisibility}
+              stressMode={stressMode}
+              onLayerVisibilityChange={setLayerVisibility}
+              onStressModeChange={setStressMode}
+              cameraMode={cameraMode}
+              onCameraModeChange={setCameraMode}
+              displayMode={displayMode}
+              onDisplayModeChange={setDisplayMode}
+              colorMode={colorMode}
+              onColorModeChange={setColorMode}
+              isWireframe={isWireframe}
+              onWireframeChange={setIsWireframe}
+              isPlaying={isPlaying}
+              onIsPlayingChange={setIsPlaying}
+              currentFrame={currentFrame}
+              onFrameSeek={setCurrentFrame}
+              onCurrentFrameChange={setCurrentFrame}
+              playbackSpeed={playbackSpeed}
+              onPlaybackSpeedChange={setPlaybackSpeed}
+              onTelemetryUpdate={setCarTelemetry}
+              resetSignal={resetSignal}
+              showScaleBar={showScaleBar}
+            />
 
-          {/* Tactical Scenario Mission & Verification Objective HUD */}
-          <TacticalObjectiveCard
-            sceneId={activeScene}
-            memoryMb={telemetryData?.telemetry?.total_heap_mb ?? 3.2616}
-            tacticalSummary={telemetryData?.telemetry?.tactical_summary}
-            cameraMode={cameraMode}
-            onCameraModeChange={setCameraMode}
-            colorMode={colorMode}
-            onColorModeChange={setColorMode}
-          />
+            {/* Truth-in-Advertising Badge Overlay */}
+            <div className="absolute top-18 left-4 z-20">
+              {activeScene === 'real_seq08_f00' ? (
+                <span className="px-2.5 py-1 rounded-md bg-emerald-600/90 text-white font-mono text-[10px] font-bold shadow-md tracking-wider uppercase border border-emerald-500">
+                  REAL PIPELINE REPLAY: SemanticKITTI Seq 08
+                </span>
+              ) : (
+                <span className="px-2.5 py-1 rounded-md bg-amber-500/90 text-white font-mono text-[10px] font-bold shadow-md tracking-wider uppercase border border-amber-400">
+                  SYNTHETIC TEST SCENE (ILLUSTRATIVE)
+                </span>
+              )}
+            </div>
 
-          {/* Floating Top Quick-Scenario Bar (Apple / Linear minimal pill) */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-white/90 backdrop-blur-md border border-slate-200/90 rounded-full px-2 py-1.5 shadow-lg flex items-center gap-1 text-slate-800">
-            {SCENES.map((s) => {
-              const isActive = activeScene === s.id;
-              return (
-                <button
-                  key={s.id}
-                  onClick={() => handleSelectScene(s.id)}
-                  disabled={isLoading}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all apple-press ${
-                    isActive
-                      ? 'bg-slate-900 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                  title={`${s.label} (${s.desc}) [${s.key}]`}
-                >
-                  <span className={`text-[10px] font-mono font-bold ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>
-                    [{s.key}]
-                  </span>
-                  <span>{s.label}</span>
-                </button>
-              );
-            })}
+            {/* Tactical Scenario Mission & Verification Objective HUD */}
+            <TacticalObjectiveCard
+              sceneId={activeScene}
+              memoryMb={telemetryData?.telemetry?.total_heap_mb ?? 3.2616}
+              tacticalSummary={telemetryData?.telemetry?.tactical_summary}
+              cameraMode={cameraMode}
+              onCameraModeChange={setCameraMode}
+              colorMode={colorMode}
+              onColorModeChange={setColorMode}
+            />
+
+            {/* Primary Call-To-Action: Inspect Map & Proofs Button */}
+            <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+              <button
+                onClick={() => setCurrentView('data_inspection')}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-900 text-white text-xs font-semibold shadow-lg backdrop-blur-md transition-all border border-slate-700/80 active:scale-95"
+                title="Inspect real 2.5D cells, Welford statistics, and verified proof matrix"
+              >
+                <Database size={13} className="text-cyan-400" />
+                <span>Inspect Map &amp; Proofs &rarr;</span>
+              </button>
+            </div>
+
+            {/* Floating Top Quick-Scenario Bar (Apple / Linear minimal pill) */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-white/90 backdrop-blur-md border border-slate-200/90 rounded-full px-2 py-1.5 shadow-lg flex items-center gap-1 text-slate-800">
+              {SCENES.map((s) => {
+                const isActive = activeScene === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => handleSelectScene(s.id)}
+                    disabled={isLoading}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all apple-press ${
+                      isActive
+                        ? 'bg-slate-900 text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                    title={`${s.label} (${s.desc}) [${s.key}]`}
+                  >
+                    <span className={`text-[10px] font-mono font-bold ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>
+                      [{s.key}]
+                    </span>
+                    <span>{s.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Floating Bottom-Right Replay & Timeline Widget */}
+            <ReplayWidget
+              isPlaying={isPlaying}
+              onIsPlayingChange={setIsPlaying}
+              currentFrame={currentFrame}
+              onFrameSeek={setCurrentFrame}
+              playbackSpeed={playbackSpeed}
+              onPlaybackSpeedChange={setPlaybackSpeed}
+            />
           </div>
-
-          {/* Floating Bottom-Right Replay & Timeline Widget */}
-          <ReplayWidget
-            isPlaying={isPlaying}
-            onIsPlayingChange={setIsPlaying}
-            currentFrame={currentFrame}
-            onFrameSeek={setCurrentFrame}
-            playbackSpeed={playbackSpeed}
-            onPlaybackSpeedChange={setPlaybackSpeed}
-          />
-        </div>
+        )}
 
         {/* Slide-out Telemetry Drawer (Apple / Swiss Light Minimalism) */}
         <aside className={`telemetry-drawer ${isSidebarOpen ? 'open' : 'closed'}`}>
@@ -470,15 +509,15 @@ export const App: React.FC = () => {
               </div>
             )}
 
-            {/* Tab 2: Live Vehicle Telemetry & Drive Instructions */}
+            {/* Tab 2: Vehicle Telemetry & Drive Instructions */}
             {activeTab === 'telemetry' && (
               <div className="flex flex-col gap-4">
-                {/* Live UGV Kinematic HUD Card */}
+                {/* UGV Kinematic HUD Card */}
                 <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col gap-3">
                   <div className="flex justify-between items-center border-b border-slate-100 pb-2">
                     <div className="text-xs font-bold text-slate-900 uppercase flex items-center gap-1.5">
                       <Gauge size={14} className="text-slate-800" />
-                      <span>Live Vehicle Telemetry</span>
+                      <span>Vehicle Telemetry (Simulated)</span>
                     </div>
                     <button
                       onClick={() => setResetSignal((prev) => prev + 1)}
@@ -646,11 +685,19 @@ export const App: React.FC = () => {
           </span>
           <span>&bull;</span>
           <span>
-            INGESTION: <strong style={{ color: '#0f172a' }}>123K pts &rarr; 3.26 MB (99.89% throttled)</strong>
+            INGESTION: <strong style={{ color: '#0f172a' }}>
+              123K pts &rarr; {telemetryData?.telemetry?.total_heap_mb?.toFixed(4) ?? '3.2616'} MB (99.89% throttled)
+            </strong>
           </span>
           <span>&bull;</span>
           <span>
             SEAM GAPS: <strong style={{ color: '#0f172a' }}>0.00% (PROVED)</strong>
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '10px', color: '#475569', backgroundColor: '#e2e8f0', padding: '2px 8px', borderRadius: '4px' }}>
+            SCOPE: CPU-Only &bull; SemanticKITTI Seq 08 &bull; Staged Hazards vs Real Replay
           </span>
         </div>
 
@@ -662,7 +709,7 @@ export const App: React.FC = () => {
           </span>
           <span>&bull;</span>
           <span>
-            CYCLE LATENCY: <strong style={{ color: '#0f172a' }}>24.8 ms (40.3 FPS)</strong>
+            CYCLE LATENCY: <strong style={{ color: '#0f172a' }}>Profiling (Pending)</strong>
           </span>
         </div>
       </footer>
@@ -673,6 +720,7 @@ export const App: React.FC = () => {
         onClose={() => setIsOnboardingOpen(false)}
         onSelectScene={handleSelectScene}
         onSelectStressMode={setStressMode}
+        onOpenInspection={() => setCurrentView('data_inspection')}
       />
     </div>
   );

@@ -144,7 +144,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
               <div className="flex justify-between items-baseline">
                 <span className="text-xs font-bold text-slate-900">Proof: Moving Object Filter</span>
                 <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                  ZERO GHOST TRAILS
+                  1,899 GHOST CARVED (P3/P4)
                 </span>
               </div>
 
@@ -240,7 +240,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
                 </div>
                 <div className="bg-emerald-50 text-emerald-800 p-1.5 rounded border border-emerald-200 flex flex-col">
                   <span className="text-[9px] uppercase text-emerald-600 font-bold">2.5D FoveaGrid</span>
-                  <span className="font-bold">{memoryMb.toFixed(2)} MB Bounded ✓</span>
+                  <span className="font-bold">{memoryMb.toFixed(4)} MB Bounded ✓</span>
                 </div>
               </div>
             </div>

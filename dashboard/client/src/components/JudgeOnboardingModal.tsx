@@ -20,6 +20,7 @@ interface JudgeOnboardingModalProps {
   onClose: () => void;
   onSelectScene: (scene: any) => void;
   onSelectStressMode: (mode: any) => void;
+  onOpenInspection?: () => void;
 }
 
 export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
@@ -27,6 +28,7 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
   onClose,
   onSelectScene,
   onSelectStressMode,
+  onOpenInspection,
 }) => {
   const [currentStep, setCurrentStep] = React.useState(0);
 
@@ -111,7 +113,7 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
               <div>
                 <div className="flex items-baseline justify-between mb-2">
                   <span className="font-bold text-sm text-slate-900">FoveaGrid 2.5D</span>
-                  <span className="text-xs font-mono font-bold text-emerald-700 px-1.5 py-0.5 bg-emerald-50 rounded">3.26 MB</span>
+                  <span className="text-xs font-mono font-bold text-emerald-700 px-1.5 py-0.5 bg-emerald-50 rounded">3.2616 MB</span>
                 </div>
                 {/* Schematic: 2.5D Living Pass */}
                 <div className="h-24 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-center p-2 mb-2.5">
@@ -134,7 +136,7 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
 
           <div className="p-3 bg-slate-100 rounded-xl border border-slate-200 text-xs text-slate-800 leading-normal flex items-center gap-2">
             <span className="font-bold text-slate-900 shrink-0">The Breakthrough:</span>
-            <span>FoveaGrid locks memory at exactly <strong className="font-mono font-bold text-slate-900">3.26 MB</strong> across a 100-meter range with zero dynamic memory allocation, preventing lag spikes and system crashes during high-speed maneuvers.</span>
+            <span>FoveaGrid locks memory at exactly <strong className="font-mono font-bold text-slate-900">3.2616 MB</strong> across a 100-meter range with zero dynamic memory allocation, preventing lag spikes and system crashes during high-speed maneuvers.</span>
           </div>
         </div>
       ),
@@ -684,12 +686,12 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
                   1. Preallocated RAM Footprint
                 </span>
                 <div className="flex items-baseline gap-2 mb-2">
-                  <span className="text-2xl font-mono font-bold text-slate-900">3.26 MB</span>
-                  <span className="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">935x Lighter</span>
+                  <span className="text-2xl font-mono font-bold text-slate-900">3.2616 MB</span>
+                  <span className="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">935.7x Lighter</span>
                 </div>
                 {/* Visual Comparison Bar */}
                 <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-1.5">
-                  <div className="bg-emerald-600 h-full w-[2%]" title="FoveaGrid 3.26 MB" />
+                  <div className="bg-emerald-600 h-full w-[2%]" title="FoveaGrid 3.2616 MB" />
                 </div>
               </div>
               <p className="text-xs text-slate-700 border-t border-slate-100 pt-1.5">
@@ -724,16 +726,16 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
                   3. Real-Time Processing Speed
                 </span>
                 <div className="flex items-baseline gap-2 mb-2">
-                  <span className="text-2xl font-mono font-bold text-slate-900">24.8 ms</span>
-                  <span className="text-xs font-mono font-bold text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded">40.3 FPS</span>
+                  <span className="text-xl font-mono font-bold text-amber-700">Profiling</span>
+                  <span className="text-xs font-mono font-bold text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded">In Progress</span>
                 </div>
                 {/* Visual Latency Bar */}
                 <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-1.5">
-                  <div className="bg-slate-900 h-full w-[25%]" title="25% of 100ms safety budget" />
+                  <div className="bg-amber-500 h-full w-full" title="Hardware profiling in progress against edge budget" />
                 </div>
               </div>
               <p className="text-xs text-slate-700 border-t border-slate-100 pt-1.5">
-                Refreshes 40 times a second on embedded chips, 4x faster than the 100ms automotive deadline.
+                Profiling pipeline latency against the 100ms automotive safety deadline across target hardware.
               </p>
             </div>
 
@@ -885,10 +887,17 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
             )}
 
             <button
-              onClick={handleNext}
+              onClick={() => {
+                if (currentStep === steps.length - 1) {
+                  onClose();
+                  onOpenInspection?.();
+                } else {
+                  handleNext();
+                }
+              }}
               className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-all flex items-center gap-1.5 shadow-sm apple-press"
             >
-              <span>{currentStep === steps.length - 1 ? 'Start Exploring' : step.actionLabel}</span>
+              <span>{currentStep === steps.length - 1 ? 'Inspect Map & Proofs' : step.actionLabel}</span>
               {currentStep === steps.length - 1 ? <Check size={14} /> : <ChevronRight size={14} />}
             </button>
           </div>

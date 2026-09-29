@@ -67,7 +67,7 @@ export const StressHarnessPanel: React.FC<StressHarnessPanelProps> = ({
       </div>
 
       <div className="text-xs text-slate-600 leading-relaxed">
-        Select degraded sensor modes to verify that memory allocation stays strictly constant at 3.26 MB without memory spikes.
+        Select degraded sensor modes to verify that memory allocation stays strictly constant at 3.2616 MB without memory spikes.
       </div>
 
       {/* Interactive Direct-Manipulation Degradation Sliders */}
@@ -75,9 +75,11 @@ export const StressHarnessPanel: React.FC<StressHarnessPanelProps> = ({
         <div className="flex items-center justify-between text-[11px] font-mono">
           <span className="font-semibold text-slate-700 flex items-center gap-1.5">
             <Sliders size={12} />
-            <span>BEAM DROPOUT SIMULATOR</span>
+            <span>BEAM DROPOUT (SIMULATED)</span>
           </span>
-          <span className="font-bold text-slate-900">{dropoutSlider}% DROPOUT</span>
+          <span className="text-[9px] font-mono text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+            {dropoutSlider}% DROPOUT (MOCK)
+          </span>
         </div>
         <input
           type="range"

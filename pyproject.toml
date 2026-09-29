@@ -13,16 +13,11 @@ authors = [
 ]
 dependencies = [
     "numpy>=1.26.0,<3.0.0",
-    "numba>=0.59.0",
     "scipy>=1.11.0",
     "pydantic>=2.0.0",
     "fastapi>=0.109.0",
     "uvicorn[standard]>=0.27.0",
     "websockets>=12.0",
-    "open3d>=0.18.0",
-    "kiss-icp>=0.2.0",
-    "onnxruntime>=1.16.0",
-    "matplotlib>=3.8.0",
 ]
 
 [project.optional-dependencies]
@@ -34,6 +29,13 @@ dev = [
 gpu = [
     "cupy-cuda12x>=12.0.0",
     "onnxruntime-gpu>=1.16.0",
+]
+offline = [
+    "numba>=0.59.0",
+    "open3d>=0.18.0",
+    "kiss-icp>=0.2.0",
+    "onnxruntime>=1.16.0",
+    "matplotlib>=3.8.0",
 ]
 
 [tool.setuptools.packages.find]

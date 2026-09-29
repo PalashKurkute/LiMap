@@ -38,7 +38,10 @@ gpu = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["core*", "benchmark*"]
+include = ["core*", "benchmark*", "dashboard*"]
+
+[tool.vercel]
+entrypoint = "dashboard.server.app:app"
 
 [tool.ruff]
 line-length = 100

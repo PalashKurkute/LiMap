@@ -251,11 +251,6 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
                   Click and drag anywhere to spin around the rover. Right-click to slide horizontally. Scroll to zoom right up to the sensor puck or pull out to a wide tactical view.
                 </p>
               </div>
-
-              <div className="mt-2 pt-2 border-t border-slate-100 flex justify-between text-xs font-mono text-slate-700">
-                <span>Toggle Sidebar:</span>
-                <span className="font-bold text-slate-900">[T]</span>
-              </div>
             </div>
           </div>
         </div>

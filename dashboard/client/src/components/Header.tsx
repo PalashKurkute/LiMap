@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import type { SceneId } from '../types/telemetry';
-import { Menu, HelpCircle, HardDrive } from 'lucide-react';
+import { HelpCircle, HardDrive } from 'lucide-react';
 
 interface HeaderProps {
   onSelectScene: (scene: SceneId) => void;
@@ -14,7 +14,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   onSelectScene,
-  isSidebarOpen,
+  isSidebarOpen: _isSidebarOpen,
   onToggleSidebar,
   onOpenOnboarding,
   backendConnected = false,
@@ -39,18 +39,6 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="h-13 bg-white border-b border-slate-200 px-4 flex items-center justify-between z-30 select-none">
       {/* Left: Brand + Status */}
       <div className="flex items-center gap-3">
-        <button
-          onClick={onToggleSidebar}
-          className={`p-2 rounded-lg border transition-all text-xs flex items-center justify-center ${
-            isSidebarOpen 
-              ? 'bg-slate-900 border-slate-900 text-white' 
-              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-          }`}
-          title="Toggle Telemetry Sidebar [T]"
-        >
-          <Menu size={16} />
-        </button>
-
         <div className="flex items-center gap-2.5">
           <span className="text-sm font-bold tracking-tight text-slate-900">
             FoveaGrid 2.5D

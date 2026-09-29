@@ -222,6 +222,7 @@ export const App: React.FC = () => {
           <TacticalObjectiveCard
             sceneId={activeScene}
             memoryMb={telemetryData?.telemetry?.total_heap_mb ?? 3.2616}
+            tacticalSummary={telemetryData?.telemetry?.tactical_summary}
             cameraMode={cameraMode}
             onCameraModeChange={setCameraMode}
             colorMode={colorMode}

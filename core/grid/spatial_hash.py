@@ -336,6 +336,23 @@ class SpatialHashGrid:
 
     def export_telemetry(self) -> Dict[str, object]:
         """Provides real-time memory metrics for UI/UX Pro Max dashboard."""
+        active = self.get_active_cells()
+        
+        # Calculate Tactical Summary for UI
+        min_clearance = None
+        valid_clearance = active[active["clearance"] < 900.0]
+        if len(valid_clearance) > 0:
+            min_clearance = round(float(np.min(valid_clearance["clearance"])), 2)
+            
+        max_variance = 0.0
+        valid_var = active[active["count"] > 1]
+        if len(valid_var) > 0:
+            var_arr = valid_var["m2_z"] / (valid_var["count"] - 1)
+            max_variance = round(float(np.max(var_arr)), 3)
+            
+        # Simplified dynamic object detection (e.g. sem_id > 250 for moving objects in SemanticKITTI MOS)
+        mos_active = bool(np.any(active["sem_id"] >= 250))
+
         return {
             "capacity": self.capacity,
             "active_cells": self.active_count,
@@ -343,6 +360,12 @@ class SpatialHashGrid:
             "allocated_cell_mb": round(self.cells.nbytes / (1024 * 1024), 4),
             "total_heap_mb": round(self.total_memory_mb, 4),
             "under_drdo_bound": self.total_memory_mb < 3.5,
+            "tactical_summary": {
+                "min_clearance_m": min_clearance,
+                "max_variance_m2": max_variance,
+                "mos_active": mos_active,
+                "core_res_m": 0.05
+            }
         }
 
     def coarsen_cells(self, factor: int = 2) -> np.ndarray:

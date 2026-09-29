@@ -24,6 +24,12 @@ export interface TelemetryData {
   allocated_cell_mb: number;
   total_heap_mb: number;
   under_drdo_bound: boolean;
+  tactical_summary?: {
+    min_clearance_m: number | null;
+    max_variance_m2: number;
+    mos_active: boolean;
+    core_res_m: number;
+  };
 }
 
 export interface TelemetryResponse {

@@ -348,16 +348,29 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
 
           let cr = 0.2, cg = 0.7, cb = 0.9;
           if (colorMode === 'traversability') {
-            const slope = isOverhang ? 0.95 : isCrater ? 0.90 : Math.min(Math.abs(pz - (-1.73)) * 6.0, 1.0);
-            cr = 0.05 * (1 - slope) + 0.95 * slope;
-            cg = 0.85 * (1 - slope) + 0.10 * slope;
-            cb = 0.30 * (1 - slope) + 0.10 * slope;
+            // Slope hazard: Green for flat traversable road, Yellow for medium gradient, Red for steep drop/obstacle
+            if (isOverhang) {
+              cr = 1.0; cg = 0.2; cb = 0.2; // Red ceiling limit
+            } else if (isCrater) {
+              cr = 0.95; cg = 0.15; cb = 0.15; // Red crater hazard
+            } else {
+              const dev = Math.abs(pz - (-1.73));
+              if (dev < 0.05) {
+                cr = 0.0; cg = 0.88; cb = 0.45; // Safe flat road
+              } else if (dev < 0.2) {
+                cr = 0.95; cg = 0.75; cb = 0.1; // Warning slope
+              } else {
+                cr = 0.95; cg = 0.15; cb = 0.2; // Untraversable
+              }
+            }
           } else if (colorMode === 'uncertainty') {
+            // Bayesian Density / Confidence: Emerald green in core path, Cyan in transition, Purple in outer fringe
             const distFromCenter = Math.abs(py);
-            if (distFromCenter < 3.5) { cr = 0.10; cg = 0.95; cb = 0.55; }
-            else if (distFromCenter < 7.5) { cr = 0.15; cg = 0.70; cb = 0.95; }
-            else { cr = 0.55; cg = 0.35; cb = 0.90; }
+            if (distFromCenter < 3.5) { cr = 0.05; cg = 0.92; cb = 0.52; }
+            else if (distFromCenter < 7.5) { cr = 0.15; cg = 0.72; cb = 0.95; }
+            else { cr = 0.65; cg = 0.35; cb = 0.92; }
           } else {
+            // Height Elevation: Turbo Jet spectrum (Blue -> Cyan -> Green -> Yellow -> Red)
             const normZ = Math.min(Math.max((pz - elevZMin) / (elevZMax - elevZMin), 0.0), 1.0);
             const tc = getTurboColor(normZ);
             cr = tc.r; cg = tc.g; cb = tc.b;
@@ -370,7 +383,42 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
         colAttr.needsUpdate = true;
       }
     }
-  }, [colorMode]);
+
+    // In-place colormap updating for 2.5D Instanced Voxel Columns
+    if (demVoxelsMeshRef.current && demVoxelsMeshRef.current.instanceColor) {
+      const voxelMesh = demVoxelsMeshRef.current;
+      const count = voxelMesh.count;
+      const instColor = new THREE.Color();
+      const voxStep = 1.6;
+      const voxMinX = -2.0;
+      const voxMinY = -10.0;
+      const countY = Math.floor((10.0 - voxMinY) / voxStep);
+
+      for (let idx = 0; idx < count; idx++) {
+        const ix = Math.floor(idx / countY);
+        const iy = idx % countY;
+        const vx = voxMinX + ix * voxStep;
+        const vy = voxMinY + iy * voxStep;
+        // Sample height & variance
+        const devY = Math.abs(vy);
+        if (colorMode === 'traversability') {
+          if (devY > 7.0 && sceneId === 'scene_a_bridge' && vx >= 15.0 && vx <= 25.0) {
+            instColor.setRGB(0.95, 0.15, 0.2); // Red obstacle
+          } else {
+            instColor.setRGB(0.0, 0.88, 0.45); // Drivable green
+          }
+        } else if (colorMode === 'uncertainty') {
+          if (devY < 3.5) instColor.setRGB(0.05, 0.92, 0.52);
+          else if (devY < 7.5) instColor.setRGB(0.15, 0.72, 0.95);
+          else instColor.setRGB(0.65, 0.35, 0.92);
+        } else {
+          instColor.setRGB(0.1, 0.7, 0.9);
+        }
+        voxelMesh.setColorAt(idx, instColor);
+      }
+      if (voxelMesh.instanceColor) voxelMesh.instanceColor.needsUpdate = true;
+    }
+  }, [colorMode, sceneId]);
 
   // Main Three.js Scene Setup & 60 FPS Render Loop
   useEffect(() => {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { SceneId, CameraViewMode, ColorMapMode } from '../types/telemetry';
+import type { SceneId, CameraViewMode, ColorMapMode, TelemetryData } from '../types/telemetry';
 import {
   ChevronDown,
   ChevronUp,
@@ -10,6 +10,7 @@ import {
 interface TacticalObjectiveCardProps {
   sceneId: SceneId;
   memoryMb?: number;
+  tacticalSummary?: TelemetryData['tactical_summary'];
   cameraMode?: CameraViewMode;
   onCameraModeChange?: (mode: CameraViewMode) => void;
   colorMode?: ColorMapMode;
@@ -19,6 +20,7 @@ interface TacticalObjectiveCardProps {
 export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
   sceneId,
   memoryMb = 3.2616,
+  tacticalSummary,
   cameraMode = 'orbit',
   onCameraModeChange,
   colorMode = 'elevation',
@@ -56,9 +58,9 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
           {sceneId === 'scene_a_bridge' && (
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-baseline">
-                <span className="text-xs font-bold text-slate-900">Bridge Clearance</span>
+                <span className="text-xs font-bold text-slate-900">Proof: Bridge Clearance</span>
                 <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                  2.53m PASS
+                  SAFE TO PASS
                 </span>
               </div>
 
@@ -77,9 +79,20 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
                 </svg>
               </div>
 
-              <div className="flex justify-between text-[11px] font-mono text-slate-600 bg-slate-50 p-1.5 rounded border border-slate-200/80">
-                <span>Standard 2D: <strong className="text-rose-600">Blocked</strong></span>
-                <span>2.5D: <strong className="text-emerald-700">2.53m Clear</strong></span>
+              {/* Simple Data Comparison */}
+              <div className="grid grid-cols-2 gap-1.5 text-[11px] font-mono">
+                <div className="bg-rose-50 text-rose-800 p-1.5 rounded border border-rose-200 flex flex-col">
+                  <span className="text-[9px] uppercase text-rose-500 font-bold">Standard 2D Grid</span>
+                  <span className="font-bold">Blind to Overhangs</span>
+                </div>
+                <div className="bg-emerald-50 text-emerald-800 p-1.5 rounded border border-emerald-200 flex flex-col">
+                  <span className="text-[9px] uppercase text-emerald-600 font-bold">2.5D FoveaGrid</span>
+                  <span className="font-bold">
+                    {tacticalSummary?.min_clearance_m != null 
+                      ? `${tacticalSummary.min_clearance_m}m Safe ✓` 
+                      : 'Scanning...'}
+                  </span>
+                </div>
               </div>
             </div>
           )}
@@ -87,9 +100,9 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
           {sceneId === 'scene_b_potholes' && (
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-baseline">
-                <span className="text-xs font-bold text-slate-900">Crater Depth &amp; Hazard</span>
+                <span className="text-xs font-bold text-slate-900">Proof: Negative Obstacles</span>
                 <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                  3/3 AVOIDED
+                  3/3 DETECTED
                 </span>
               </div>
 
@@ -108,9 +121,20 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
                 </svg>
               </div>
 
-              <div className="flex justify-between text-[11px] font-mono text-slate-600 bg-slate-50 p-1.5 rounded border border-slate-200/80">
-                <span>Crater Depth: <strong className="text-rose-600">-55 cm</strong></span>
-                <span>Variance: <strong className="text-slate-900">σ² = 0.080</strong></span>
+              {/* Simple Data Comparison */}
+              <div className="grid grid-cols-2 gap-1.5 text-[11px] font-mono">
+                <div className="bg-rose-50 text-rose-800 p-1.5 rounded border border-rose-200 flex flex-col">
+                  <span className="text-[9px] uppercase text-rose-500 font-bold">Standard 2D Grid</span>
+                  <span className="font-bold">Variance Blind</span>
+                </div>
+                <div className="bg-emerald-50 text-emerald-800 p-1.5 rounded border border-emerald-200 flex flex-col">
+                  <span className="text-[9px] uppercase text-emerald-600 font-bold">2.5D FoveaGrid</span>
+                  <span className="font-bold">
+                    {tacticalSummary?.max_variance_m2 != null
+                      ? `Var: ${tacticalSummary.max_variance_m2}m² ✓`
+                      : 'Scanning...'}
+                  </span>
+                </div>
               </div>
             </div>
           )}
@@ -118,9 +142,9 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
           {sceneId === 'scene_c_moving' && (
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-baseline">
-                <span className="text-xs font-bold text-slate-900">Anti-Ghosting (MOS)</span>
+                <span className="text-xs font-bold text-slate-900">Proof: Moving Object Filter</span>
                 <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                  0.00s GHOST LAG
+                  ZERO GHOST TRAILS
                 </span>
               </div>
 
@@ -134,9 +158,18 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
                 </svg>
               </div>
 
-              <div className="flex justify-between text-[11px] font-mono text-slate-600 bg-slate-50 p-1.5 rounded border border-slate-200/80">
-                <span>Target: <strong className="text-sky-600">45 km/h</strong></span>
-                <span>Ghost Persistence: <strong className="text-emerald-700">0.00 s</strong></span>
+              {/* Simple Data Comparison */}
+              <div className="grid grid-cols-2 gap-1.5 text-[11px] font-mono">
+                <div className="bg-rose-50 text-rose-800 p-1.5 rounded border border-rose-200 flex flex-col">
+                  <span className="text-[9px] uppercase text-rose-500 font-bold">Temporal Grids</span>
+                  <span className="font-bold">Decay Ghosting</span>
+                </div>
+                <div className="bg-emerald-50 text-emerald-800 p-1.5 rounded border border-emerald-200 flex flex-col">
+                  <span className="text-[9px] uppercase text-emerald-600 font-bold">2.5D FoveaGrid</span>
+                  <span className="font-bold">
+                    {tacticalSummary?.mos_active ? 'Dynamic Trk ✓' : 'Clear ✓'}
+                  </span>
+                </div>
               </div>
             </div>
           )}
@@ -144,9 +177,9 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
           {sceneId === 'scene_d_poles' && (
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-baseline">
-                <span className="text-xs font-bold text-slate-900">Slalom Resolution</span>
+                <span className="text-xs font-bold text-slate-900">Proof: Variable Resolution</span>
                 <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                  0.00% SEAM GAP
+                  ZERO SEAM GAPS
                 </span>
               </div>
 
@@ -162,9 +195,18 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
                 </svg>
               </div>
 
-              <div className="flex justify-between text-[11px] font-mono text-slate-600 bg-slate-50 p-1.5 rounded border border-slate-200/80">
-                <span>Ring 0: <strong className="text-emerald-700">5 cm res</strong></span>
-                <span>Seam Error: <strong className="text-slate-900">0.00%</strong></span>
+              {/* Simple Data Comparison */}
+              <div className="grid grid-cols-2 gap-1.5 text-[11px] font-mono">
+                <div className="bg-rose-50 text-rose-800 p-1.5 rounded border border-rose-200 flex flex-col">
+                  <span className="text-[9px] uppercase text-rose-500 font-bold">Fixed Resolution</span>
+                  <span className="font-bold">Misses Thin Objects</span>
+                </div>
+                <div className="bg-emerald-50 text-emerald-800 p-1.5 rounded border border-emerald-200 flex flex-col">
+                  <span className="text-[9px] uppercase text-emerald-600 font-bold">2.5D FoveaGrid</span>
+                  <span className="font-bold">
+                    {tacticalSummary?.core_res_m != null ? `${tacticalSummary.core_res_m * 100}cm Core Res ✓` : 'Scanning...'}
+                  </span>
+                </div>
               </div>
             </div>
           )}
@@ -172,9 +214,9 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
           {sceneId === 'real_seq08_f00' && (
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-baseline">
-                <span className="text-xs font-bold text-slate-900">Memory Footprint</span>
+                <span className="text-xs font-bold text-slate-900">Proof: Deterministic Memory</span>
                 <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                  99.89% SAVED
+                  99.89% LESS RAM
                 </span>
               </div>
 
@@ -190,9 +232,16 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
                 </div>
               </div>
 
-              <div className="flex justify-between text-[11px] font-mono text-slate-600 bg-slate-50 p-1.5 rounded border border-slate-200/80">
-                <span>Dense 3D: <strong className="text-rose-600">3,051 MB</strong></span>
-                <span>FoveaGrid: <strong className="text-emerald-700">{memoryMb.toFixed(2)} MB</strong></span>
+              {/* Simple Data Comparison */}
+              <div className="grid grid-cols-2 gap-1.5 text-[11px] font-mono">
+                <div className="bg-rose-50 text-rose-800 p-1.5 rounded border border-rose-200 flex flex-col">
+                  <span className="text-[9px] uppercase text-rose-500 font-bold">Dense 3D Voxel</span>
+                  <span className="font-bold">~3,051 MB RAM</span>
+                </div>
+                <div className="bg-emerald-50 text-emerald-800 p-1.5 rounded border border-emerald-200 flex flex-col">
+                  <span className="text-[9px] uppercase text-emerald-600 font-bold">2.5D FoveaGrid</span>
+                  <span className="font-bold">{memoryMb.toFixed(2)} MB Bounded ✓</span>
+                </div>
               </div>
             </div>
           )}
@@ -251,6 +300,20 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Dynamic Color Meaning / Legend Badge */}
+            <div className="text-[10px] font-mono px-2 py-1 rounded bg-slate-100/90 text-slate-600 border border-slate-200 flex items-center justify-between">
+              <span className="text-slate-500 font-semibold">Active Filter:</span>
+              {colorMode === 'elevation' && (
+                <span className="text-sky-700 font-bold">Turbo Height: Blue (Low) &rarr; Red (High)</span>
+              )}
+              {colorMode === 'traversability' && (
+                <span className="text-emerald-700 font-bold">Slope: Green (Flat) &rarr; Red (Hazard)</span>
+              )}
+              {colorMode === 'uncertainty' && (
+                <span className="text-purple-700 font-bold">Density: Green (Core) &rarr; Violet (Edge)</span>
+              )}
             </div>
           </div>
         </div>

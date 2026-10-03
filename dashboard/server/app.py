@@ -193,11 +193,17 @@ def get_benchmark_results() -> Dict[str, object]:
 
 
 @app.get("/api/grid_cells")
-def get_grid_cells(limit: int = 5000) -> Dict[str, object]:
+def get_grid_cells(limit: int = 15000, ring_id: Optional[int] = None) -> Dict[str, object]:
     """Exposes real active cells with resolution tier, semantics, height, variance, clearance."""
     active = GLOBAL_GRID.get_active_cells()
     if len(active) == 0:
         return {"total_active": 0, "cells": []}
+
+    if ring_id is not None:
+        mask = active["ring_id"] == ring_id
+        active = active[mask]
+        if len(active) == 0:
+            return {"total_active": 0, "cells": []}
 
     if len(active) > limit:
         indices = np.linspace(0, len(active) - 1, limit, dtype=np.int32)

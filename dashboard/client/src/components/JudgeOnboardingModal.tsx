@@ -886,6 +886,17 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
               </button>
             )}
 
+            {currentStep === 0 && (
+              <button
+                onClick={onClose}
+                className="px-3.5 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all flex items-center gap-1 apple-press"
+                title="Skip the guide and go straight to the prototype"
+              >
+                <span>Skip to Prototype</span>
+                <ArrowRight size={13} />
+              </button>
+            )}
+
             <button
               onClick={() => {
                 if (currentStep === steps.length - 1) {

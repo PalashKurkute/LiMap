@@ -24,6 +24,7 @@ from core.ingestion.loader import load_kitti_bin, load_kitti_label
 from core.perception.segmentation_infer import (
     SemanticSegmentationEngine,
     LEARNING_MAP_INV,
+    RAW_TO_CANONICAL,
 )
 
 CLASS_NAMES: Dict[int, str] = {
@@ -97,7 +98,8 @@ def evaluate_seq08_miou(
             continue
 
         pts = load_kitti_bin(str(bin_path))
-        gt_sem, _ = load_kitti_label(str(lbl_path))
+        raw_gt, _ = load_kitti_label(str(lbl_path))
+        gt_sem = RAW_TO_CANONICAL[np.clip(raw_gt, 0, 299)]
 
         t_inf0 = time.perf_counter()
         pred_sem = engine.infer(pts)
@@ -168,19 +170,23 @@ def evaluate_seq08_miou(
         })
 
     # Overall dataset mIoU
-    global_ious: List[float] = []
+    global_ious_present: List[float] = []
+    global_ious_all19: List[float] = []
     global_class_ious: Dict[str, float] = {}
     for c in eval_classes:
         tp_g = sum(band_tp[b][c] for b in range(len(bands)))
         fp_g = sum(band_fp[b][c] for b in range(len(bands)))
         fn_g = sum(band_fn[b][c] for b in range(len(bands)))
         denom_g = tp_g + fp_g + fn_g
-        if denom_g > 0:
-            iou_g = float(tp_g / denom_g)
-            global_class_ious[CLASS_NAMES.get(c, str(c))] = round(iou_g * 100.0, 2)
-            global_ious.append(iou_g)
+        gt_g = tp_g + fn_g
+        iou_g = float(tp_g / denom_g) if denom_g > 0 else 0.0
+        global_class_ious[CLASS_NAMES.get(c, str(c))] = round(iou_g * 100.0, 2)
+        global_ious_all19.append(iou_g)
+        if gt_g > 0:
+            global_ious_present.append(iou_g)
 
-    overall_miou_pct = round(float(np.mean(global_ious) * 100.0), 2) if global_ious else 0.0
+    miou_present_pct = round(float(np.mean(global_ious_present) * 100.0), 2) if global_ious_present else 0.0
+    miou_all19_pct = round(float(np.mean(global_ious_all19) * 100.0), 2) if global_ious_all19 else 0.0
 
     report: Dict[str, Any] = {
         "model": "SalsaNext (Qualcomm AI Hub export, ONNX float)",
@@ -189,7 +195,9 @@ def evaluate_seq08_miou(
         "frames_evaluated": len(bin_files),
         "total_valid_points": total_valid_points,
         "overall_accuracy_pct": round(overall_acc_pct, 2),
-        "overall_miou_pct": overall_miou_pct,
+        "miou_present_classes_pct": miou_present_pct,
+        "overall_miou_pct": miou_all19_pct,
+        "active_gt_classes": len(global_ious_present),
         "mean_inference_latency_ms": round(mean_lat_ms, 2),
         "total_evaluation_time_s": round(total_eval_time_s, 2),
         "distance_bands": band_results,
@@ -207,7 +215,8 @@ def evaluate_seq08_miou(
     print(f"  Frames Evaluated:     {len(bin_files)}")
     print(f"  Total Valid Points:   {total_valid_points:,}")
     print(f"  Overall Accuracy:     {overall_acc_pct:.2f}%")
-    print(f"  Overall mIoU:         {overall_miou_pct:.2f}%")
+    print(f"  Present-Class mIoU:   {miou_present_pct:.2f}% (SemanticKITTI standard across {len(global_ious_present)} active classes)")
+    print(f"  All-19 Class mIoU:    {miou_all19_pct:.2f}% (unweighted with 0.0% on absent classes)")
     print(f"  Mean Latency (CPU):   {mean_lat_ms:.1f} ms")
     print(f"  Total Run Time:       {total_eval_time_s:.1f} s")
     print("  Distance Band Breakdown:")

@@ -54,6 +54,20 @@ LEARNING_MAP_INV = np.array([
     81,  # 19: traffic-sign
 ], dtype=np.uint32)
 
+# Official SemanticKITTI mapping from raw label IDs (including moving objects 252-259) to learning IDs (0-19)
+RAW_TO_LEARNING = np.zeros(300, dtype=np.uint32)
+_RAW_TO_LEARNING_DICT = {
+    0: 0, 1: 0, 10: 1, 11: 2, 13: 5, 15: 3, 16: 5, 18: 4, 20: 5,
+    30: 6, 31: 7, 32: 8, 40: 9, 44: 10, 48: 11, 49: 12, 50: 13,
+    51: 14, 52: 0, 60: 9, 70: 15, 71: 16, 72: 17, 80: 18, 81: 19,
+    99: 0, 252: 1, 253: 7, 254: 6, 255: 8, 256: 5, 257: 5, 258: 4, 259: 5,
+}
+for _k, _v in _RAW_TO_LEARNING_DICT.items():
+    RAW_TO_LEARNING[_k] = _v
+
+# Forward LUT from raw SemanticKITTI point label to canonical class ID
+RAW_TO_CANONICAL = LEARNING_MAP_INV[RAW_TO_LEARNING]
+
 # SalsaNext HDL-64E normalization constants [range, x, y, z, signal]
 SALSANEXT_MEANS = np.array([12.12, 10.88, 0.23, -1.04, 0.21], dtype=np.float32)
 SALSANEXT_STDS = np.array([12.32, 11.47, 6.91, 0.86, 0.16], dtype=np.float32)

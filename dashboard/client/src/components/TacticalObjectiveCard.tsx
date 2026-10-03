@@ -19,7 +19,7 @@ interface TacticalObjectiveCardProps {
 
 export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
   sceneId,
-  memoryMb = 3.2616,
+  memoryMb: _memoryMb = 3.2616,
   tacticalSummary,
   cameraMode = 'orbit',
   onCameraModeChange,
@@ -27,6 +27,9 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
   onColorModeChange,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+
+  // The city driving scene has its own TrafficControls panel at top-left
+  if (sceneId === 'real_seq08_f00') return null;
 
   return (
     <div className="absolute top-4 left-4 z-20 w-84 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl shadow-lg text-slate-800 transition-all select-none overflow-hidden">
@@ -39,7 +42,6 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
             {sceneId === 'scene_b_potholes' && 'Potholes & Craters'}
             {sceneId === 'scene_c_moving' && 'Moving Traffic'}
             {sceneId === 'scene_d_poles' && 'Thin Slalom Poles'}
-            {sceneId === 'real_seq08_f00' && 'SemanticKITTI 64-Beam'}
           </span>
         </div>
 
@@ -211,40 +213,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
             </div>
           )}
 
-          {sceneId === 'real_seq08_f00' && (
-            <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-baseline">
-                <span className="text-xs font-bold text-slate-900">Proof: Deterministic Memory</span>
-                <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                  99.89% LESS RAM
-                </span>
-              </div>
 
-              <div className="h-20 bg-slate-900 rounded-lg p-2.5 relative flex flex-col justify-around border border-slate-800">
-                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                  <div className="w-full h-full bg-rose-500 rounded-full" />
-                </div>
-                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                  <div className="w-[4%] min-w-1 h-full bg-amber-400 rounded-full" />
-                </div>
-                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                  <div className="w-[1.2%] min-w-1 h-full bg-emerald-400 rounded-full" />
-                </div>
-              </div>
-
-              {/* Simple Data Comparison */}
-              <div className="grid grid-cols-2 gap-1.5 text-[11px] font-mono">
-                <div className="bg-rose-50 text-rose-800 p-1.5 rounded border border-rose-200 flex flex-col">
-                  <span className="text-[9px] uppercase text-rose-500 font-bold">Dense 3D Voxel</span>
-                  <span className="font-bold">~3,051 MB RAM</span>
-                </div>
-                <div className="bg-emerald-50 text-emerald-800 p-1.5 rounded border border-emerald-200 flex flex-col">
-                  <span className="text-[9px] uppercase text-emerald-600 font-bold">2.5D LiMap</span>
-                  <span className="font-bold">{memoryMb.toFixed(4)} MB Bounded ✓</span>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* 2. INTEGRATED VIEW & PERSPECTIVE CONTROLS */}
           <div className="pt-2 border-t border-slate-100 flex flex-col gap-2">

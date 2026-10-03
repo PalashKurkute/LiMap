@@ -10,6 +10,7 @@ import type {
   ColorMapMode,
 } from '../types/telemetry';
 import { ThreeViewport } from '../components/ThreeViewport';
+import { CityDrivingViewport } from '../components/CityDrivingViewport';
 import { MemoryMeter } from '../components/MemoryMeter';
 import { RegretPanel } from '../components/RegretPanel';
 import { DisplaysPanel } from '../components/DisplaysPanel';
@@ -111,45 +112,51 @@ export const HomePage: React.FC<HomePageProps> = ({
     <div style={{ display: 'flex', flex: 1, position: 'relative', overflow: 'hidden', backgroundColor: 'var(--bg-primary)' }}>
       {/* Center: 100% Immersive 3D Viewport with Movable UGV */}
       <div style={{ flex: 1, height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }}>
-        <ThreeViewport
-          sceneId={activeScene}
-          telemetry={telemetryData?.telemetry ?? null}
-          layerVisibility={layerVisibility}
-          stressMode={stressMode}
-          onLayerVisibilityChange={setLayerVisibility}
-          onStressModeChange={onSelectStressMode}
-          cameraMode={cameraMode}
-          onCameraModeChange={setCameraMode}
-          displayMode={displayMode}
-          onDisplayModeChange={setDisplayMode}
-          colorMode={colorMode}
-          onColorModeChange={setColorMode}
-          isWireframe={isWireframe}
-          onWireframeChange={setIsWireframe}
-          isPlaying={isPlaying}
-          onIsPlayingChange={setIsPlaying}
-          currentFrame={currentFrame}
-          onFrameSeek={setCurrentFrame}
-          onCurrentFrameChange={setCurrentFrame}
-          playbackSpeed={playbackSpeed}
-          onPlaybackSpeedChange={setPlaybackSpeed}
-          onTelemetryUpdate={setCarTelemetry}
-          resetSignal={resetSignal}
-          showScaleBar={showScaleBar}
-        />
+        {activeScene === 'real_seq08_f00' ? (
+          <CityDrivingViewport
+            isPlaying={isPlaying}
+            onIsPlayingChange={setIsPlaying}
+            playbackSpeed={playbackSpeed}
+            onPlaybackSpeedChange={setPlaybackSpeed}
+            onTelemetryUpdate={setCarTelemetry}
+          />
+        ) : (
+          <ThreeViewport
+            sceneId={activeScene}
+            telemetry={telemetryData?.telemetry ?? null}
+            layerVisibility={layerVisibility}
+            stressMode={stressMode}
+            onLayerVisibilityChange={setLayerVisibility}
+            onStressModeChange={onSelectStressMode}
+            cameraMode={cameraMode}
+            onCameraModeChange={setCameraMode}
+            displayMode={displayMode}
+            onDisplayModeChange={setDisplayMode}
+            colorMode={colorMode}
+            onColorModeChange={setColorMode}
+            isWireframe={isWireframe}
+            onWireframeChange={setIsWireframe}
+            isPlaying={isPlaying}
+            onIsPlayingChange={setIsPlaying}
+            currentFrame={currentFrame}
+            onFrameSeek={setCurrentFrame}
+            onCurrentFrameChange={setCurrentFrame}
+            playbackSpeed={playbackSpeed}
+            onPlaybackSpeedChange={setPlaybackSpeed}
+            onTelemetryUpdate={setCarTelemetry}
+            resetSignal={resetSignal}
+            showScaleBar={showScaleBar}
+          />
+        )}
 
-        {/* Truth-in-Advertising Badge Overlay */}
-        <div className="absolute top-18 left-4 z-20">
-          {activeScene === 'real_seq08_f00' ? (
-            <span className="px-2.5 py-1 rounded-md bg-emerald-600/90 text-white font-mono text-[10px] font-bold shadow-md tracking-wider uppercase border border-emerald-500">
-              REAL PIPELINE REPLAY: SemanticKITTI Seq 08
-            </span>
-          ) : (
+        {/* Truth-in-Advertising Badge — hidden for city scene, its panel has its own header */}
+        {activeScene !== 'real_seq08_f00' && (
+          <div className="absolute top-18 left-4 z-20">
             <span className="px-2.5 py-1 rounded-md bg-amber-500/90 text-white font-mono text-[10px] font-bold shadow-md tracking-wider uppercase border border-amber-400">
               SYNTHETIC TEST SCENE (ILLUSTRATIVE)
             </span>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Tactical Scenario Mission & Verification Objective HUD */}
         <TacticalObjectiveCard

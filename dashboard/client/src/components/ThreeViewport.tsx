@@ -854,6 +854,37 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
       });
     }
 
+    // 4c. 3D Oriented Bounding Boxes for Roadside Features & Trees (matching perception UI)
+    const treeBoxGeo = new THREE.BoxGeometry(3.2, 3.2, 4.2);
+    const treeBoxMat = new THREE.MeshBasicMaterial({ color: 0x0284c7, wireframe: true });
+    const treeLidGeo = new THREE.PlaneGeometry(3.2, 3.2);
+    const treeLidMat = new THREE.MeshBasicMaterial({ color: 0x0284c7, transparent: true, opacity: 0.22, side: THREE.DoubleSide });
+
+    const treePositions = [
+      { x: 12.0, y: 7.0, z: 0.4 },
+      { x: 22.0, y: -7.2, z: 0.5 },
+      { x: 34.0, y: 7.5, z: 0.5 },
+    ];
+    treePositions.forEach((tp) => {
+      const tb = new THREE.Mesh(treeBoxGeo, treeBoxMat);
+      tb.position.set(tp.x, tp.y, tp.z);
+      scene.add(tb);
+
+      const tl = new THREE.Mesh(treeLidGeo, treeLidMat);
+      tl.position.set(tp.x, tp.y, tp.z + 2.1);
+      scene.add(tl);
+    });
+
+    // Roadside Curb Wireframe Corridors
+    const curbBoxGeo = new THREE.BoxGeometry(50.0, 0.5, 0.4);
+    const curbBoxMat = new THREE.MeshBasicMaterial({ color: 0x0369a1, wireframe: true });
+    const leftCurb = new THREE.Mesh(curbBoxGeo, curbBoxMat);
+    leftCurb.position.set(20.0, 5.2, -1.55);
+    scene.add(leftCurb);
+    const rightCurb = new THREE.Mesh(curbBoxGeo, curbBoxMat);
+    rightCurb.position.set(20.0, -5.2, -1.55);
+    scene.add(rightCurb);
+
     // ==========================================
     // 5. FastDEM 2.5D Elevation Column Voxels (InstancedMesh)
     // ==========================================
@@ -1244,12 +1275,24 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
       tl2.position.set(-1.9, -0.55, 0.55);
       otherCar.add(tl2);
 
-      // Crisp 2.5D Tracking Outline (Green / Cyan telemetry bounding bracket)
-      const trackBoxGeo = new THREE.BoxGeometry(4.2, 2.1, 1.4);
-      const trackBoxMat = new THREE.MeshBasicMaterial({ color: 0x10b981, wireframe: true, transparent: true, opacity: 0.45 });
+      // Crisp 3D Tracking Outline (Amber wireframe bounding cuboid matching reference perception UI)
+      const trackBoxGeo = new THREE.BoxGeometry(4.3, 2.1, 1.5);
+      const trackBoxMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b, wireframe: true });
       const trackBox = new THREE.Mesh(trackBoxGeo, trackBoxMat);
       trackBox.position.z = 0.85;
       otherCar.add(trackBox);
+
+      // Translucent Amber Top Lid (matching perception screenshot)
+      const topLidGeo = new THREE.PlaneGeometry(4.3, 2.1);
+      const topLidMat = new THREE.MeshBasicMaterial({
+        color: 0xf59e0b,
+        transparent: true,
+        opacity: 0.38,
+        side: THREE.DoubleSide,
+      });
+      const topLid = new THREE.Mesh(topLidGeo, topLidMat);
+      topLid.position.z = 1.6;
+      otherCar.add(topLid);
 
       // Velocity Vector Arrow
       const velArrow = new THREE.ArrowHelper(

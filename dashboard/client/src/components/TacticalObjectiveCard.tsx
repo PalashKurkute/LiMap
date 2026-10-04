@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { SceneId, CameraViewMode, ColorMapMode, TelemetryData, BaselineMetrics } from '../types/telemetry';
+import type { SceneId, CameraViewMode, ColorMapMode, TelemetryData, BaselineMetrics, RenderMode } from '../types/telemetry';
 import { POOL_MB } from '../lib/constants';
 import {
   ChevronDown,
@@ -17,6 +17,7 @@ interface TacticalObjectiveCardProps {
   onCameraModeChange?: (mode: CameraViewMode) => void;
   colorMode?: ColorMapMode;
   onColorModeChange?: (mode: ColorMapMode) => void;
+  renderMode?: RenderMode;
 }
 
 export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
@@ -28,6 +29,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
   onCameraModeChange,
   colorMode = 'elevation',
   onColorModeChange,
+  renderMode = 'concept',
 }) => {
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
 
@@ -60,7 +62,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
           {/* 1. SCENARIO PROOF & CLEAN TEXT-FREE DIAGRAM */}
           {sceneId === 'scene_a_bridge' && (
             <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-baseline">
+              <div className="flex flex-wrap justify-between items-baseline gap-x-2 gap-y-1">
                 <span className="text-xs font-bold text-fg">Proof: Bridge Clearance</span>
                 <span className="text-[10px] font-mono font-bold text-fg-2 bg-subtle px-1.5 py-0.2 rounded border border-line-strong">
                   {tacticalSummary?.min_clearance_m != null ? `MIN CLEARANCE ${tacticalSummary.min_clearance_m} m` : 'NO CLEARANCE DATA'}
@@ -69,6 +71,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
 
               {/* Clean Schematic without cluttered text inside SVG */}
               <div className="h-20 bg-subtle rounded-lg p-2 relative flex items-center justify-center border border-line-strong">
+                <span className="absolute right-1.5 top-1 font-mono text-[8px] uppercase tracking-wider text-fg-muted">diagram</span>
                 <svg viewBox="0 0 200 60" className="w-full h-full">
                   <rect x="40" y="8" width="120" height="8" rx="2" className="fill-viz-baseline" />
                   <rect x="40" y="16" width="8" height="34" className="fill-scene-prop" />
@@ -92,8 +95,8 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
                   <span className="text-[9px] uppercase text-good-fg font-bold">2.5D LiMap</span>
                   <span className="font-bold">
                     {tacticalSummary?.min_clearance_m != null 
-                      ? `${tacticalSummary.min_clearance_m}m Safe ✓` 
-                      : 'Scanning...'}
+                      ? `${tacticalSummary.min_clearance_m} m min clearance`
+                      : 'no overhang recorded'}
                   </span>
                 </div>
               </div>
@@ -102,7 +105,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
 
           {sceneId === 'scene_b_potholes' && (
             <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-baseline">
+              <div className="flex flex-wrap justify-between items-baseline gap-x-2 gap-y-1">
                 <span className="text-xs font-bold text-fg">Proof: Negative Obstacles</span>
                 <span className="text-[10px] font-mono font-bold text-fg-2 bg-subtle px-1.5 py-0.2 rounded border border-line-strong">
                   {tacticalSummary?.max_variance_m2 != null ? `MAX VARIANCE ${tacticalSummary.max_variance_m2} m²` : 'NO VARIANCE DATA'}
@@ -111,6 +114,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
 
               {/* Clean Waveform without cluttered text */}
               <div className="h-20 bg-subtle rounded-lg p-2 relative flex items-center justify-center border border-line-strong">
+                <span className="absolute right-1.5 top-1 font-mono text-[8px] uppercase tracking-wider text-fg-muted">diagram</span>
                 <svg viewBox="0 0 200 60" className="w-full h-full">
                   <line x1="10" y1="20" x2="190" y2="20" className="stroke-scene-prop-2" strokeWidth="1" strokeDasharray="3,2" />
                   <path
@@ -132,8 +136,8 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
                   <span className="text-[9px] uppercase text-good-fg font-bold">2.5D LiMap</span>
                   <span className="font-bold">
                     {tacticalSummary?.max_variance_m2 != null
-                      ? `Var: ${tacticalSummary.max_variance_m2}m² ✓`
-                      : 'Scanning...'}
+                      ? `max variance ${tacticalSummary.max_variance_m2} m²`
+                      : 'no variance data'}
                   </span>
                 </div>
               </div>
@@ -142,7 +146,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
 
           {sceneId === 'scene_c_moving' && (
             <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-baseline">
+              <div className="flex flex-wrap justify-between items-baseline gap-x-2 gap-y-1">
                 <span className="text-xs font-bold text-fg">Proof: Moving Object Filter</span>
                 <span className="text-[10px] font-mono font-bold text-fg-2 bg-subtle px-1.5 py-0.2 rounded border border-line-strong">
                   {tacticalSummary?.mos_active ? 'DYNAMIC CELLS PRESENT' : 'NO DYNAMIC CELLS'}
@@ -150,6 +154,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
               </div>
 
               <div className="h-20 bg-subtle rounded-lg p-2 relative flex items-center justify-around border border-line-strong">
+                <span className="absolute right-1.5 top-1 font-mono text-[8px] uppercase tracking-wider text-fg-muted">diagram</span>
                 <svg viewBox="0 0 200 60" className="w-full h-full">
                   <line x1="20" y1="45" x2="180" y2="45" className="stroke-scene-prop" strokeWidth="2" />
                   <rect x="50" y="25" width="35" height="18" rx="2" className="fill-accent" />
@@ -168,7 +173,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
                 <div className="bg-good-bg text-good-fg p-1.5 rounded border border-good-line flex flex-col">
                   <span className="text-[9px] uppercase text-good-fg font-bold">2.5D LiMap</span>
                   <span className="font-bold">
-                    {tacticalSummary?.mos_active ? 'Dynamic Trk ✓' : 'Clear ✓'}
+                    {tacticalSummary?.mos_active ? 'dynamic cells flagged' : 'no dynamic cells'}
                   </span>
                 </div>
               </div>
@@ -177,7 +182,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
 
           {sceneId === 'scene_d_poles' && (
             <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-baseline">
+              <div className="flex flex-wrap justify-between items-baseline gap-x-2 gap-y-1">
                 <span className="text-xs font-bold text-fg">Proof: Variable Resolution</span>
                 <span className="text-[10px] font-mono font-bold text-fg-2 bg-subtle px-1.5 py-0.2 rounded border border-line-strong">
                   {tacticalSummary?.core_res_m != null ? `${tacticalSummary.core_res_m * 100} cm CORE CELLS` : 'NO RESOLUTION DATA'}
@@ -185,6 +190,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
               </div>
 
               <div className="h-20 bg-subtle rounded-lg p-2 relative flex items-center justify-center border border-line-strong">
+                <span className="absolute right-1.5 top-1 font-mono text-[8px] uppercase tracking-wider text-fg-muted">diagram</span>
                 <svg viewBox="0 0 200 60" className="w-full h-full">
                   <circle cx="100" cy="30" r="14" fill="none" strokeWidth="1.5" className="stroke-scene-track" />
                   <circle cx="100" cy="30" r="26" fill="none" strokeWidth="1.2" strokeDasharray="3,2" className="stroke-accent" />
@@ -205,7 +211,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
                 <div className="bg-good-bg text-good-fg p-1.5 rounded border border-good-line flex flex-col">
                   <span className="text-[9px] uppercase text-good-fg font-bold">2.5D LiMap</span>
                   <span className="font-bold">
-                    {tacticalSummary?.core_res_m != null ? `${tacticalSummary.core_res_m * 100}cm Core Res ✓` : 'Scanning...'}
+                    {tacticalSummary?.core_res_m != null ? `${tacticalSummary.core_res_m * 100} cm finest cells` : 'no resolution data'}
                   </span>
                 </div>
               </div>
@@ -214,14 +220,14 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
 
           {sceneId === 'real_seq08_f00' && (
             <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-baseline">
+              <div className="flex flex-wrap justify-between items-baseline gap-x-2 gap-y-1">
                 <span className="text-xs font-bold text-fg">Proof: Deterministic Memory</span>
                 <span className="text-[10px] font-mono font-bold text-fg-2 bg-subtle px-1.5 py-0.2 rounded border border-line-strong">
                   {baselines ? `${baselines.reduction_vs_3d} CAPACITY` : 'NO BASELINE DATA'}
                 </span>
               </div>
 
-              {/* Simple Data Comparison (capacity figures are calculated, see Proofs > Memory) */}
+              {/* Simple Data Comparison (capacity figures are calculated; see Evidence) */}
               <div className="grid grid-cols-2 gap-1.5 text-[11px] font-mono">
                 <div className="bg-critical-bg text-critical-fg p-1.5 rounded border border-critical-line flex flex-col">
                   <span className="text-[9px] uppercase text-critical-fg font-bold">Dense 3D Voxel (calc.)</span>
@@ -229,7 +235,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
                 </div>
                 <div className="bg-good-bg text-good-fg p-1.5 rounded border border-good-line flex flex-col">
                   <span className="text-[9px] uppercase text-good-fg font-bold">2.5D LiMap</span>
-                  <span className="font-bold">{memoryMb.toFixed(4)} MB Bounded ✓</span>
+                  <span className="font-bold">{memoryMb.toFixed(4)} MB fixed pool</span>
                 </div>
               </div>
             </div>
@@ -271,11 +277,19 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
                 <span>Color:</span>
               </span>
               <div className="flex gap-1">
-                {[
-                  { id: 'elevation', label: 'Height' },
-                  { id: 'traversability', label: 'Slope' },
-                  { id: 'uncertainty', label: 'Lateral' },
-                ].map((s) => (
+                {(renderMode === 'pipeline'
+                  ? [
+                      { id: 'elevation', label: 'Height' },
+                      { id: 'semantics', label: 'Class' },
+                      { id: 'ring', label: 'Ring' },
+                      { id: 'variance', label: 'Var.' },
+                    ]
+                  : [
+                      { id: 'elevation', label: 'Height' },
+                      { id: 'traversability', label: 'Slope' },
+                      { id: 'uncertainty', label: 'Lateral' },
+                    ]
+                ).map((s) => (
                   <button
                     key={s.id}
                     onClick={() => onColorModeChange?.(s.id as ColorMapMode)}
@@ -291,19 +305,6 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
               </div>
             </div>
 
-            {/* Dynamic Color Meaning / Legend Badge */}
-            <div className="text-[10px] font-mono px-2 py-1 rounded bg-subtle/90 text-fg-2 border border-line flex items-center justify-between">
-              <span className="text-fg-muted font-semibold">Active Filter:</span>
-              {colorMode === 'elevation' && (
-                <span className="text-accent-text font-bold">Turbo Height: Blue (Low) &rarr; Red (High)</span>
-              )}
-              {colorMode === 'traversability' && (
-                <span className="text-good-fg font-bold">Slope: Green (Flat) &rarr; Red (Hazard)</span>
-              )}
-              {colorMode === 'uncertainty' && (
-                <span className="text-accent-text font-bold">Lateral distance (illustrative): Green (centre) &rarr; Violet (edge)</span>
-              )}
-            </div>
           </div>
         </div>
       )}

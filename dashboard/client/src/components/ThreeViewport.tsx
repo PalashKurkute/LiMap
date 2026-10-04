@@ -8,11 +8,23 @@ import type {
   DEMDisplayMode,
   LayerVisibility,
   StressModeId,
+  RenderMode,
+  PipelineData,
+  GridCellData,
 } from '../types/telemetry';
-import { getTurboColor, getTraversabilityColor, pointColorForClass, gradientCss } from '../theme/colormaps';
+import {
+  getTurboColor,
+  getTraversabilityColor,
+  getVarianceColor,
+  pointColorForClass,
+  semanticColor,
+  gradientCss,
+  type Rgb,
+} from '../theme/colormaps';
 import { readSceneTokens, type SceneTokens } from '../theme/sceneTheme';
 import { useTheme } from '../theme/theme';
 import { disposeObject } from '../lib/disposeObject';
+import { prefersReducedMotion } from '../lib/motion';
 
 interface ThreeViewportProps {
   sceneId: SceneId;
@@ -41,6 +53,30 @@ interface ThreeViewportProps {
   onTelemetryUpdate?: (telem: { speed: number; heading: number; x: number; y: number; z: number }) => void;
   resetSignal?: number;
   showScaleBar?: boolean;
+  /** 'pipeline' draws the grid cells / raw returns the pipeline produced; 'concept' the hand-built illustration. */
+  renderMode?: RenderMode;
+  pipelineData?: PipelineData | null;
+}
+
+interface PipelineScene {
+  group: THREE.Group;
+  points: THREE.Points | null;
+  pointSems: number[];
+  cells: THREE.InstancedMesh;
+  cellData: GridCellData[];
+  overhang: THREE.InstancedMesh | null;
+  overhangIdx: number[];
+}
+
+/** Pipeline height colouring is relative to the grid's own ground estimate, so small dips (potholes) and overhangs stand out. */
+export const PIPE_REL_MIN = -0.8;
+export const PIPE_REL_SPAN = 3.8;
+/** Radius (m) at which each lattice ring ends; used to colour raw points by the ring they fall in. */
+const RING_EDGES = [10, 25, 50];
+
+function ringOfRadius(r: number): number {
+  for (let i = 0; i < RING_EDGES.length; i++) if (r < RING_EDGES[i]) return i;
+  return RING_EDGES.length;
 }
 
 
@@ -65,6 +101,8 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
   onTelemetryUpdate,
   resetSignal,
   showScaleBar = true,
+  renderMode = 'concept',
+  pipelineData = null,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
@@ -73,6 +111,15 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
   // Closures registered while building the scene; re-run on theme change so colours update in place.
   const themablesRef = useRef<((t: SceneTokens) => void)[]>([]);
   const realSemsRef = useRef<number[] | null>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const conceptPropsRef = useRef<THREE.Group | null>(null);
+  const pipelineRef = useRef<PipelineScene | null>(null);
+  const [sceneEpoch, setSceneEpoch] = useState(0);
+  const isPipeline = renderMode === 'pipeline' && !!pipelineData && pipelineData.cells.length > 0;
+  const pipelineModeRef = useRef(isPipeline);
+  pipelineModeRef.current = isPipeline;
+  const pipelineGroundZRef = useRef(-1.73);
+  pipelineGroundZRef.current = pipelineData?.groundZ ?? -1.73;
   const lastReportedFrameRef = useRef<number>(propCurrentFrame ?? 0);
 
   const activeLayers: LayerVisibility = layerVisibility ?? {
@@ -204,28 +251,31 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
     }
   };
 
-  // Lightweight Display Mode & ROS 2 Layer Toggles Effect
+  // Lightweight Display Mode & ROS 2 Layer Toggles Effect.
+  // In pipeline mode every hand-built object is hidden and the pipeline's own output is shown instead.
   useEffect(() => {
+    const concept = !isPipeline;
     if (demSurfaceMeshRef.current) {
-      demSurfaceMeshRef.current.visible = activeLayers.demSurface && displayMode === 'surface';
+      demSurfaceMeshRef.current.visible = concept && activeLayers.demSurface && displayMode === 'surface';
       if (demSurfaceMeshRef.current.material instanceof THREE.MeshStandardMaterial) {
         demSurfaceMeshRef.current.material.wireframe = isWireframe;
       }
     }
     if (demVoxelsMeshRef.current) {
-      demVoxelsMeshRef.current.visible = activeLayers.demVoxels || displayMode === 'voxels';
+      demVoxelsMeshRef.current.visible = concept && (activeLayers.demVoxels || displayMode === 'voxels');
     }
     if (cloudPointsRef.current) {
-      cloudPointsRef.current.visible = activeLayers.rawPoints || displayMode === 'points' || showCloudOverlay;
+      cloudPointsRef.current.visible = concept && (activeLayers.rawPoints || displayMode === 'points' || showCloudOverlay);
     }
+    if (conceptPropsRef.current) conceptPropsRef.current.visible = concept;
     if (bridgeDeckMeshRef.current) {
-      bridgeDeckMeshRef.current.visible = activeLayers.bridgeDeck;
+      bridgeDeckMeshRef.current.visible = concept && activeLayers.bridgeDeck;
     }
     if (trajectoryGroupRef.current) {
-      trajectoryGroupRef.current.visible = activeLayers.trajectory;
+      trajectoryGroupRef.current.visible = concept && activeLayers.trajectory;
     }
     if (trackersGroupRef.current) {
-      trackersGroupRef.current.visible = activeLayers.trackers;
+      trackersGroupRef.current.visible = concept && activeLayers.trackers;
     }
     if (sweepRingMeshRef.current) {
       sweepRingMeshRef.current.visible = activeLayers.sweepWave && showSweepWave;
@@ -236,7 +286,13 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
     if (headlightsRef.current) {
       headlightsRef.current.visible = activeLayers.headlights;
     }
-  }, [displayMode, isWireframe, showCloudOverlay, showSweepWave, activeLayers]);
+    const p = pipelineRef.current;
+    if (p) {
+      if (p.points) p.points.visible = displayMode === 'points';
+      p.cells.visible = displayMode !== 'points';
+      if (p.overhang) p.overhang.visible = displayMode !== 'points';
+    }
+  }, [displayMode, isWireframe, showCloudOverlay, showSweepWave, activeLayers, isPipeline, sceneEpoch, pipelineData]);
 
   // Re-colour the existing scene when the theme changes (no rebuild, camera and playback preserved).
   useEffect(() => {
@@ -257,8 +313,140 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
     }
   }, [theme]);
 
+  // Build the pipeline's own output in the existing scene: one instanced quad per grid cell, translucent canopies where an
+  // overhang was recorded, and the raw returns. Rebuilt only when the data or the scene changes, never per frame.
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    if (pipelineRef.current) {
+      scene.remove(pipelineRef.current.group);
+      disposeObject(pipelineRef.current.group);
+      pipelineRef.current = null;
+    }
+    if (!isPipeline || !pipelineData) return;
+
+    const group = new THREE.Group();
+    const white = new THREE.Color('white');
+
+    let points: THREE.Points | null = null;
+    let pointSems: number[] = [];
+    const pts = pipelineData.points;
+    if (pts && pts.n > 0) {
+      const pos = new Float32Array(pts.n * 3);
+      for (let i = 0; i < pts.n; i++) {
+        pos[i * 3] = pts.x[i];
+        pos[i * 3 + 1] = pts.y[i];
+        pos[i * 3 + 2] = pts.z[i];
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(pts.n * 3), 3));
+      points = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.12, vertexColors: true, transparent: true, opacity: 0.95 }));
+      points.frustumCulled = false;
+      pointSems = pts.sem;
+      group.add(points);
+    }
+
+    const cells = pipelineData.cells;
+    const dummy = new THREE.Object3D();
+    // Cells are flat and only ever seen from above, so a 2-triangle quad per cell replaces a 12-triangle box.
+    const cellMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial(), cells.length);
+    cellMesh.frustumCulled = false;
+    const overhangIdx: number[] = [];
+    for (let i = 0; i < cells.length; i++) {
+      const c = cells[i];
+      const size = c.res_m * 0.94;
+      dummy.position.set(c.x_m, c.y_m, c.mean_z);
+      dummy.scale.set(size, size, 1);
+      dummy.updateMatrix();
+      cellMesh.setMatrixAt(i, dummy.matrix);
+      cellMesh.setColorAt(i, white);
+      if (c.overhang_z != null) overhangIdx.push(i);
+    }
+    cellMesh.instanceMatrix.needsUpdate = true;
+    group.add(cellMesh);
+
+    let overhang: THREE.InstancedMesh | null = null;
+    if (overhangIdx.length > 0) {
+      overhang = new THREE.InstancedMesh(
+        new THREE.PlaneGeometry(1, 1),
+        // Canopies are seen from below as well (driving under a bridge), so both faces are drawn.
+        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide }),
+        overhangIdx.length,
+      );
+      overhang.frustumCulled = false;
+      overhangIdx.forEach((ci, k) => {
+        const c = cells[ci];
+        const size = c.res_m * 0.94;
+        dummy.position.set(c.x_m, c.y_m, c.overhang_z as number);
+        dummy.scale.set(size, size, 1);
+        dummy.updateMatrix();
+        overhang!.setMatrixAt(k, dummy.matrix);
+        overhang!.setColorAt(k, white);
+      });
+      overhang.instanceMatrix.needsUpdate = true;
+      group.add(overhang);
+    }
+
+    scene.add(group);
+    pipelineRef.current = { group, points, pointSems, cells: cellMesh, cellData: cells, overhang, overhangIdx };
+    if (points && stressMode === 'dropout_50') points.geometry.setDrawRange(0, Math.floor(pts!.n / 2));
+    // Colours + visibility are applied by the effects below (they run after this one on every dependency change).
+  }, [isPipeline, pipelineData, sceneEpoch]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Paint the pipeline output for the active colour mode and theme (no rebuild).
+  useEffect(() => {
+    const p = pipelineRef.current;
+    if (!p) return;
+    const T = readSceneTokens(theme);
+    const tmp = new THREE.Color();
+    const srgb = (c: Rgb) => tmp.setRGB(c.r, c.g, c.b, THREE.SRGBColorSpace);
+
+    const cellColor = (c: GridCellData): THREE.Color => {
+      switch (colorMode) {
+        case 'semantics':
+          return tmp.set(semanticColor(c.sem_id, theme));
+        case 'ring':
+          return tmp.set(T.ring[c.ring_id] ?? T.ring[3]);
+        case 'variance':
+          return srgb(getVarianceColor(c.variance / 0.05));
+        default:
+          return srgb(getTurboColor((c.mean_z - pipelineGroundZRef.current - PIPE_REL_MIN) / PIPE_REL_SPAN));
+      }
+    };
+    for (let i = 0; i < p.cellData.length; i++) p.cells.setColorAt(i, cellColor(p.cellData[i]));
+    if (p.cells.instanceColor) p.cells.instanceColor.needsUpdate = true;
+
+    if (p.overhang) {
+      tmp.set(theme === 'dark' ? 'hotpink' : 'mediumvioletred');
+      const oh = tmp.clone();
+      for (let k = 0; k < p.overhangIdx.length; k++) p.overhang.setColorAt(k, oh);
+      if (p.overhang.instanceColor) p.overhang.instanceColor.needsUpdate = true;
+    }
+
+    if (p.points) {
+      const pos = p.points.geometry.attributes.position.array as Float32Array;
+      const col = p.points.geometry.attributes.color.array as Float32Array;
+      for (let i = 0; i < p.pointSems.length; i++) {
+        const x = pos[i * 3];
+        const y = pos[i * 3 + 1];
+        const z = pos[i * 3 + 2];
+        let c: THREE.Color;
+        if (colorMode === 'semantics') c = srgb(pointColorForClass(p.pointSems[i], z, theme));
+        else if (colorMode === 'ring') c = tmp.set(T.ring[ringOfRadius(Math.hypot(x, y))]);
+        else c = srgb(getTurboColor((z - pipelineGroundZRef.current - PIPE_REL_MIN) / PIPE_REL_SPAN));
+        col[i * 3] = c.r;
+        col[i * 3 + 1] = c.g;
+        col[i * 3 + 2] = c.b;
+      }
+      p.points.geometry.attributes.color.needsUpdate = true;
+    }
+  }, [colorMode, theme, isPipeline, pipelineData, sceneEpoch]);
+
   // Sensor dropout preview (visual only): hides half of the drawn points.
   useEffect(() => {
+    const pp = pipelineRef.current?.points;
+    if (pp) pp.geometry.setDrawRange(0, stressMode === 'dropout_50' ? Math.floor(pp.geometry.attributes.position.count / 2) : Infinity);
     if (!cloudPointsRef.current) return;
     const geom = cloudPointsRef.current.geometry;
     if (stressMode === 'dropout_50') {
@@ -431,6 +619,11 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
     const shade = (c: string, k: number) => new THREE.Color(c).multiplyScalar(k);
 
     const scene = new THREE.Scene();
+    sceneRef.current = scene;
+    // Hand-built props (bridge pillars, slalom poles) live in one group so pipeline mode can hide them together.
+    const conceptProps = new THREE.Group();
+    scene.add(conceptProps);
+    conceptPropsRef.current = conceptProps;
     const bgColor = new THREE.Color();
     scene.background = bgColor;
     reg((T) => bgColor.set(T.bg));
@@ -846,10 +1039,10 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
       reg((T) => colMat.color.set(T.prop2));
       const leftCol = new THREE.Mesh(colGeo, colMat);
       leftCol.position.set(20.0, 7.5, -0.45);
-      scene.add(leftCol);
+      conceptProps.add(leftCol);
       const rightCol = new THREE.Mesh(colGeo, colMat);
       rightCol.position.set(20.0, -7.5, -0.45);
-      scene.add(rightCol);
+      conceptProps.add(rightCol);
     }
 
     // 4b. 3D Obstacle Bollards & Posts (Scene D: Slalom Obstacles)
@@ -869,11 +1062,11 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
       obstaclePoles.forEach((p) => {
         const pm = new THREE.Mesh(poleGeo, poleMat);
         pm.position.set(p.x, p.y, -0.6); // Base on ground at -1.7, top at +0.5
-        scene.add(pm);
+        conceptProps.add(pm);
 
         const stripe = new THREE.Mesh(stripeGeo, stripeMat);
         stripe.position.set(p.x, p.y, 0.0);
-        scene.add(stripe);
+        conceptProps.add(stripe);
       });
     }
 
@@ -1442,6 +1635,9 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
     let animationId: number;
     let sweepRadius = 0.5;
     let frameCount = 0;
+    // Reduced motion: no turret spin, and idle frames (paused, camera settled) are throttled instead of rendered at 60 fps.
+    const reduceMotion = prefersReducedMotion();
+    let lastRender = 0;
 
     const animate = () => {
       animationId = requestAnimationFrame(animate);
@@ -1449,8 +1645,17 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
       const car = carPhysicsRef.current;
       const dt = 0.016;
 
-      // Autonomous Trajectory Tracking along scenario spline
-      if (trajCurveRef.current) {
+      // Pipeline mode shows ONE scan, so the sensor stays at the scan origin instead of driving an illustrative path.
+      // Concept mode follows the scenario spline.
+      if (pipelineModeRef.current) {
+        car.x = 0;
+        car.y = 0;
+        car.speed = 0;
+        car.heading += (0 - car.heading) * Math.min(12.0 * dt, 1.0);
+        car.steerAngle = 0;
+        if (frontLeftWheelRef.current) frontLeftWheelRef.current.rotation.z = 0;
+        if (frontRightWheelRef.current) frontRightWheelRef.current.rotation.z = 0;
+      } else if (trajCurveRef.current) {
         if (isPlayingRef.current) {
           playbackProgressRef.current = (playbackProgressRef.current + (dt * 0.065 * playbackSpeedRef.current)) % 1.0;
         }
@@ -1482,18 +1687,18 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
 
       // Roof LiDAR Turret spinning (600 RPM)
       if (lidarTurretRef.current) {
-        lidarTurretRef.current.rotation.z += 0.22;
+        if (!reduceMotion) lidarTurretRef.current.rotation.z += 0.22;
       }
 
       // 4. Conformance to Terrain Elevation & Slope Tilt
-      const zCenter = evalElevation(car.x, car.y).z;
+      const zCenter = pipelineModeRef.current ? pipelineGroundZRef.current : evalElevation(car.x, car.y).z;
       const zFront = evalElevation(car.x + Math.cos(car.heading) * 0.9, car.y + Math.sin(car.heading) * 0.9).z;
       const zRear = evalElevation(car.x - Math.cos(car.heading) * 0.9, car.y - Math.sin(car.heading) * 0.9).z;
       const zLeft = evalElevation(car.x - Math.sin(car.heading) * 0.6, car.y + Math.cos(car.heading) * 0.6).z;
       const zRight = evalElevation(car.x + Math.sin(car.heading) * 0.6, car.y - Math.cos(car.heading) * 0.6).z;
 
-      car.pitch = Math.atan2(zFront - zRear, 1.8);
-      car.roll = Math.atan2(zLeft - zRight, 1.2);
+      car.pitch = pipelineModeRef.current ? 0 : Math.atan2(zFront - zRear, 1.8);
+      car.roll = pipelineModeRef.current ? 0 : Math.atan2(zLeft - zRight, 1.2);
       car.z = zCenter + 0.32;
 
       if (carGroupRef.current) {
@@ -1571,9 +1776,16 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
         onTelemetryUpdate?.(telem);
       }
 
+      const now = performance.now();
+      const camSettled =
+        camera.position.distanceToSquared(targetCameraPos.current) < 1e-4 &&
+        currentLookAt.current.distanceToSquared(targetLookAt.current) < 1e-4;
+      if (reduceMotion && !isPlayingRef.current && camSettled && now - lastRender < 120) return;
+      lastRender = now;
       renderer.render(scene, camera);
     };
     animate();
+    setSceneEpoch((e) => e + 1);
 
     const handleResize = () => {
       if (!container || container.clientWidth === 0 || container.clientHeight === 0) return;
@@ -1591,6 +1803,9 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
       resizeObserver.disconnect();
+      sceneRef.current = null;
+      conceptPropsRef.current = null;
+      pipelineRef.current = null;
       disposeObject(scene);
       renderer.dispose();
       if (domElement.parentElement) {

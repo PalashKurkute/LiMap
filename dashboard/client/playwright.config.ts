@@ -6,13 +6,17 @@ const baseURL = process.env.BASE_URL ?? 'http://127.0.0.1:4173';
 
 export default defineConfig({
   testDir: './e2e',
-  timeout: 90_000,
+  timeout: 120_000,
+  expect: { timeout: 10_000 },
   fullyParallel: false,
   workers: 1,
   reporter: [['list']],
   use: {
     baseURL,
     viewport: { width: 1440, height: 900 },
+    // The headless browser software-renders WebGL; reduced motion keeps the 3D view idle-cheap so tests stay fast and
+    // deterministic. Autoplay behaviour is covered explicitly with reducedMotion: 'no-preference'.
+    reducedMotion: 'reduce',
     launchOptions: {
       args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
     },

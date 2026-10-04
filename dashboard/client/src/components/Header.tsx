@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
-import type { SceneId } from '../types/telemetry';
-import { HelpCircle, HardDrive, Moon, Sun } from 'lucide-react';
+import type { DataSource, SceneId, SnapshotMeta } from '../types/telemetry';
+import type { SceneStatus } from '../data/useSceneData';
+import { Database, HelpCircle, HardDrive, Moon, Sun } from 'lucide-react';
 import { POOL_MB } from '../lib/constants';
 import { toggleTheme, useTheme } from '../theme/theme';
 
@@ -11,14 +12,20 @@ interface HeaderProps {
   onOpenOnboarding: () => void;
   backendConnected?: boolean;
   backendPingMs?: number;
+  dataSource?: DataSource | null;
+  dataStatus?: SceneStatus;
+  snapshotMeta?: SnapshotMeta | null;
   memoryMb?: number;
-  currentView?: 'hook_3d' | 'data_inspection';
-  onViewChange?: (view: 'hook_3d' | 'data_inspection') => void;
+  currentView?: AppView;
+  onViewChange?: (view: AppView) => void;
 }
 
-const VIEWS: { id: 'hook_3d' | 'data_inspection'; label: string }[] = [
+export type AppView = 'hook_3d' | 'data_inspection' | 'evidence';
+
+const VIEWS: { id: AppView; label: string }[] = [
   { id: 'hook_3d', label: '3D Explore' },
   { id: 'data_inspection', label: 'Map Inspector' },
+  { id: 'evidence', label: 'Evidence' },
 ];
 
 export const Header: React.FC<HeaderProps> = ({
@@ -28,6 +35,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenOnboarding,
   backendConnected = false,
   backendPingMs = 0,
+  dataSource = null,
+  dataStatus = 'loading',
+  snapshotMeta = null,
   memoryMb = POOL_MB,
   currentView = 'hook_3d',
   onViewChange,
@@ -83,6 +93,27 @@ export const Header: React.FC<HeaderProps> = ({
       </nav>
 
       <div className="flex items-center gap-2.5">
+        <div
+          data-region="data-source"
+          className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 bg-subtle border border-line rounded-lg text-xs font-mono"
+          title={
+            dataSource && snapshotMeta
+              ? `Source: ${dataSource === 'live' ? 'live API' : 'precomputed pipeline snapshot'} · generated ${snapshotMeta.generated_at.slice(0, 10)} · commit ${snapshotMeta.git_sha} · labels: ${snapshotMeta.label_source}`
+              : 'No scene data loaded'
+          }
+        >
+          <Database size={13} className="text-fg-2" aria-hidden="true" />
+          <span className="text-fg-2 font-medium whitespace-nowrap">
+            {dataSource === 'live'
+              ? 'Live API'
+              : dataSource === 'snapshot' && snapshotMeta
+                ? `Snapshot · ${snapshotMeta.generated_at.slice(0, 10)}`
+                : dataStatus === 'loading'
+                  ? 'Loading…'
+                  : 'No scene data'}
+          </span>
+        </div>
+
         <div
           className="flex items-center gap-1.5 px-2.5 py-1 bg-subtle border border-line rounded-lg text-xs font-mono"
           title={backendConnected ? 'Backend API reachable' : 'Backend API not reachable'}

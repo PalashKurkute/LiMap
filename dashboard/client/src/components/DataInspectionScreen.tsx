@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import {
   ArrowLeft,
   Cpu,
@@ -10,7 +10,7 @@ import {
   ZoomOut,
   RotateCcw,
 } from 'lucide-react';
-import type { TelemetryResponse, SceneId } from '../types/telemetry';
+import type { TelemetryResponse, SceneId, SceneData, GridCellData } from '../types/telemetry';
 import { POOL_MB } from '../lib/constants';
 import { readToken, useTheme } from '../theme/theme';
 import {
@@ -25,28 +25,13 @@ import {
   getVarianceColor,
 } from '../theme/colormaps';
 
-export interface GridCellData {
-  ix: number;
-  iy: number;
-  ring_id: number;
-  res_m: number;
-  x_m: number;
-  y_m: number;
-  sem_id: number;
-  count: number;
-  mean_z: number;
-  variance: number;
-  min_z: number;
-  max_z: number;
-  overhang_z: number | null;
-  clearance: number | null;
-}
-
 interface DataInspectionScreenProps {
   activeScene: SceneId;
   telemetryData: TelemetryResponse | null;
+  sceneData: SceneData | null;
+  isLoading: boolean;
   onBackToHook: () => void;
-  onSelectScene?: (sceneId: SceneId) => void;
+  onOpenEvidence: () => void;
 }
 
 type ColorBy = 'ring' | 'semantics' | 'elevation' | 'variance' | 'overhang';
@@ -67,7 +52,6 @@ const RING_CONFIGS = [
   { id: 3, name: 'Horizon', range: '50–100m', res: '50cm', radius: 100 },
 ];
 
-const CELL_LIMIT = 20000;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 60;
 const DEFAULT_ZOOM = 6;
@@ -81,12 +65,14 @@ interface View {
 export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
   activeScene,
   telemetryData,
+  sceneData,
+  isLoading,
   onBackToHook,
+  onOpenEvidence,
 }) => {
   const { theme } = useTheme();
-  const [cells, setCells] = useState<GridCellData[]>([]);
-  const [totalActive, setTotalActive] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const cells = useMemo<GridCellData[]>(() => sceneData?.cells ?? [], [sceneData]);
+  const totalActive = sceneData?.totalActive ?? 0;
   const [selectedCell, setSelectedCell] = useState<GridCellData | null>(null);
   const [colorBy, setColorBy] = useState<ColorBy>('semantics');
   const [filterRing, setFilterRing] = useState<number | 'all'>('all');
@@ -98,37 +84,14 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
   const stageRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{ x: number; y: number; panX: number; panY: number; moved: boolean } | null>(null);
 
-  // Fetch real cells from /api/grid_cells
+  // A new scene (or a snapshot -> live upgrade) invalidates the selection.
   useEffect(() => {
-    let isMounted = true;
-    setIsLoading(true);
     setSelectedCell(null);
-
-    fetch(`/api/grid_cells?limit=${CELL_LIMIT}`)
-      .then((res) => {
-        if (!res.ok) throw new Error('API offline');
-        return res.json();
-      })
-      .then((data) => {
-        if (!isMounted) return;
-        setCells(data.cells || []);
-        setTotalActive(data.total_active || 0);
-        setIsLoading(false);
-      })
-      .catch(() => {
-        if (!isMounted) return;
-        setCells([]);
-        setTotalActive(0);
-        setIsLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [activeScene]);
+  }, [sceneData]);
 
   // Size the canvas to its container (DPR-aware) so drawing and hit-testing share one coordinate system.
-  useEffect(() => {
+  // useLayoutEffect: measure before first paint so picking/drawing never run with a 0x0 size.
+  useLayoutEffect(() => {
     const el = stageRef.current;
     if (!el) return;
     const update = () => setSize({ w: el.clientWidth, h: el.clientHeight, dpr: window.devicePixelRatio || 1 });
@@ -371,7 +334,9 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
     e.preventDefault();
   };
 
-  const isReal = activeScene.startsWith('real_');
+  const isReal = (sceneData?.meta?.kind ?? (activeScene.startsWith('real_') ? 'real' : 'synthetic')) === 'real';
+  const shown = cells.length;
+  const sourceLabel = sceneData?.source === 'live' ? 'LIVE API' : sceneData ? 'PRECOMPUTED SNAPSHOT' : 'NO DATA';
   const sem = selectedCell ? semanticColor(selectedCell.sem_id, theme) : '';
 
   return (
@@ -388,14 +353,19 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
           </button>
           <span className="font-bold text-sm text-fg tracking-tight">Map Inspector</span>
           <span className="px-2 py-0.5 rounded text-[10px] font-mono text-accent-text border border-accent-line bg-accent-subtle">
-            {totalActive ? `${totalActive.toLocaleString()} cells` : 'no cells'}
+            {totalActive
+              ? `${totalActive.toLocaleString()} cells${sceneData?.cellsSampled ? ` (${shown.toLocaleString()} shown)` : ''}`
+              : 'no cells'}
+          </span>
+          <span className="px-2 py-0.5 rounded text-[10px] font-mono text-fg-2 border border-line-strong bg-subtle">
+            {sourceLabel}
           </span>
           <span
             className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
               isReal ? 'text-good-fg bg-good-bg border-good-line' : 'text-warn-fg bg-warn-bg border-warn-line'
             }`}
           >
-            {isReal ? 'REAL: SemanticKITTI Seq 08' : 'SYNTHETIC SCENE'}
+            {isReal ? (sceneData?.meta?.note?.includes('Sparse') ? 'REAL: SemanticKITTI (sparse sample)' : 'REAL: SemanticKITTI Seq 08') : 'SYNTHETIC SCENE'}
           </span>
         </div>
 
@@ -551,7 +521,7 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
           {!isLoading && cells.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
               <div className="max-w-sm text-center text-xs font-mono text-fg-muted bg-panel/90 border border-line rounded-xl p-4">
-                No grid cells available for this scene. Start the API with scene data loaded to inspect real cells.
+                No grid cells are available for this scene: the precomputed snapshot is missing and the API has no data for it.
               </div>
             </div>
           )}
@@ -658,8 +628,12 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
             )}
 
             <div className="text-[10px] font-mono text-fg-muted leading-relaxed">
-              Benchmark results (accuracy, latency, fidelity by distance, regret) are produced offline from
-              <span className="text-fg-2"> benchmark/*.json</span> and are not shown on this screen.
+              Benchmark results (accuracy, speed, fidelity by distance, regret) are produced offline and shown, with their
+              source files, on the{' '}
+              <button onClick={onOpenEvidence} className="text-accent-text underline underline-offset-2 hover:no-underline">
+                Evidence page
+              </button>
+              .
             </div>
           </div>
         </aside>

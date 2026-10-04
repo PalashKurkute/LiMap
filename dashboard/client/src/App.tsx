@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type {
   SceneId,
-  TelemetryResponse,
-  CrossSectionResponse,
+  RenderMode,
+  PipelineData,
   LayerVisibility,
   StressModeId,
   CameraViewMode,
@@ -11,8 +11,6 @@ import type {
 } from './types/telemetry';
 import { Header } from './components/Header';
 import { ThreeViewport } from './components/ThreeViewport';
-import { MemoryMeter } from './components/MemoryMeter';
-import { RegretPanel } from './components/RegretPanel';
 import { DisplaysPanel } from './components/DisplaysPanel';
 import { StressHarnessPanel } from './components/StressHarnessPanel';
 import { ReplayWidget } from './components/ReplayWidget';
@@ -20,7 +18,13 @@ import { JudgeOnboardingModal } from './components/JudgeOnboardingModal';
 import { InteractiveCrossSection } from './components/InteractiveCrossSection';
 import { TacticalObjectiveCard } from './components/TacticalObjectiveCard';
 import { DataInspectionScreen } from './components/DataInspectionScreen';
+import { EvidenceView } from './features/evidence/EvidenceView';
 import { POOL_MB } from './lib/constants';
+import { useSceneData } from './data/useSceneData';
+import { computeGroundZ } from './data/pipeline';
+import { ViewportLegend } from './features/viewport/ViewportLegend';
+import { fetchJson } from './data/api';
+import { prefersReducedMotion } from './lib/motion';
 import {
   X,
   Gauge,
@@ -40,12 +44,28 @@ const SCENES: { id: SceneId; label: string; short: string; badge: string; desc: 
   { id: 'real_seq08_f00', label: 'Real City Driving', short: 'Real city', badge: 'KITTI Data', desc: 'Real LiDAR recorded on a public road', key: '5' },
 ];
 
+type AppView = 'hook_3d' | 'data_inspection' | 'evidence';
+
 export const App: React.FC = () => {
   const [activeScene, setActiveScene] = useState<SceneId>('scene_a_bridge');
-  const [currentView, setCurrentView] = useState<'hook_3d' | 'data_inspection'>('hook_3d');
-  const [telemetryData, setTelemetryData] = useState<TelemetryResponse | null>(null);
-  const [crossSectionData, setCrossSectionData] = useState<CrossSectionResponse | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [currentView, setCurrentView] = useState<AppView>('hook_3d');
+  // Scene data: precomputed snapshot first (static, no backend needed), upgraded to the live API when it has data.
+  const { data: sceneData, status: sceneStatus } = useSceneData(activeScene);
+  const telemetryData = sceneData?.telemetry ?? null;
+  const crossSectionData = sceneData?.crossSection ?? null;
+  const isLoading = sceneStatus === 'loading';
+
+  // 'pipeline' = the grid cells and raw returns the pipeline produced; 'concept' = the hand-built illustration.
+  const [viewMode, setViewMode] = useState<RenderMode>('pipeline');
+  const pipelineData = useMemo<PipelineData | null>(
+    () =>
+      sceneData && sceneData.cells.length > 0
+        ? { cells: sceneData.cells, points: sceneData.points, groundZ: computeGroundZ(sceneData.cells) }
+        : null,
+    [sceneData],
+  );
+  const renderMode: RenderMode = viewMode === 'pipeline' && pipelineData ? 'pipeline' : 'concept';
+  const isRealScene = activeScene.startsWith('real_');
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
     try {
@@ -63,7 +83,6 @@ export const App: React.FC = () => {
     }
   };
   const [activeTab, setActiveTab] = useState<'displays' | 'telemetry' | 'proofs' | 'stress'>('displays');
-  const [proofsSubTab, setProofsSubTab] = useState<'memory' | 'clearance' | 'regret'>('memory');
 
   // Live UGV Kinematics
   const [carTelemetry, setCarTelemetry] = useState({
@@ -77,13 +96,13 @@ export const App: React.FC = () => {
 
   // Viewport & Shading controls
   const [cameraMode, setCameraMode] = useState<CameraViewMode>('orbit');
-  const [displayMode, setDisplayMode] = useState<DEMDisplayMode>('points');
+  const [displayMode, setDisplayMode] = useState<DEMDisplayMode>('voxels');
   const [colorMode, setColorMode] = useState<ColorMapMode>('elevation');
   const [isWireframe, setIsWireframe] = useState<boolean>(false);
   const [showScaleBar] = useState<boolean>(false);
 
   // Playback & Replay timeline
-  const [isPlaying, setIsPlaying] = useState<boolean>(true);
+  const [isPlaying, setIsPlaying] = useState<boolean>(() => !prefersReducedMotion());
   const [currentFrame, setCurrentFrame] = useState<number>(0);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
 
@@ -107,46 +126,24 @@ export const App: React.FC = () => {
   const [backendPing, setBackendPing] = useState<number>(0);
   const [isBackendConnected, setIsBackendConnected] = useState<boolean>(false);
 
-  // Poll live telemetry and cross-section from backend FastAPI
+  // API health ping (header chip only). Scene data never depends on it: snapshots are static files.
   useEffect(() => {
-    let isMounted = true;
-
-    const fetchData = async () => {
+    let alive = true;
+    const ping = async () => {
+      if (document.visibilityState === 'hidden') return;
       const t0 = performance.now();
-      try {
-        const [telRes, csRes] = await Promise.all([
-          fetch('/api/telemetry'),
-          fetch('/api/cross_section'),
-        ]);
-
-        const roundtrip = Math.round(performance.now() - t0);
-
-        if (telRes.ok && isMounted) {
-          const telJson: TelemetryResponse = await telRes.json();
-          setTelemetryData(telJson);
-          setIsBackendConnected(true);
-          setBackendPing(roundtrip);
-        }
-
-        if (csRes.ok && isMounted) {
-          const csJson: CrossSectionResponse = await csRes.json();
-          setCrossSectionData(csJson);
-        }
-      } catch {
-        if (isMounted) {
-          setIsBackendConnected(false);
-        }
-      }
+      const h = await fetchJson<{ status: string }>('/api/health', { timeoutMs: 3000 });
+      if (!alive) return;
+      setIsBackendConnected(!!h && h.status === 'ONLINE');
+      if (h) setBackendPing(Math.round(performance.now() - t0));
     };
-
-    fetchData();
-    const interval = setInterval(fetchData, 1500);
-
+    void ping();
+    const id = setInterval(ping, 10000);
     return () => {
-      isMounted = false;
-      clearInterval(interval);
+      alive = false;
+      clearInterval(id);
     };
-  }, [activeScene]);
+  }, []);
 
   // Global shortcuts: Space = play/pause, Left/Right = step 2 frames, Esc = close modal / drawer.
   // Ignored while focus is on an interactive element so native Space/Enter behaviour still works.
@@ -161,7 +158,7 @@ export const App: React.FC = () => {
         else if (isSidebarOpen) setIsSidebarOpen(false);
         return;
       }
-      if (interactive || isOnboardingOpen || currentView !== 'hook_3d') return;
+      if (interactive || isOnboardingOpen || currentView !== 'hook_3d' || renderMode === 'pipeline') return;
       if (e.key === ' ') {
         e.preventDefault();
         setIsPlaying((p) => !p);
@@ -173,34 +170,44 @@ export const App: React.FC = () => {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isOnboardingOpen, isSidebarOpen, currentView]);
+  }, [isOnboardingOpen, isSidebarOpen, currentView, renderMode]);
 
-  // Handle scene switching via backend REST trigger
-  const handleSelectScene = async (scene: SceneId) => {
+  const changeViewMode = (mode: RenderMode) => {
+    setViewMode(mode);
+    // Each mode has its own meaning for the terrain/colour options, so reset them to that mode's defaults.
+    setDisplayMode(mode === 'pipeline' ? 'voxels' : 'points');
+    setColorMode('elevation');
+  };
+
+  const terrainOptions: { id: DEMDisplayMode; label: string; desc: string }[] =
+    renderMode === 'pipeline'
+      ? [
+          { id: 'voxels', label: 'FoveaGrid cells', desc: 'The cells the pipeline produced, drawn at their real size and height' },
+          { id: 'points', label: 'Raw LiDAR returns', desc: 'The input points (a seeded subsample of the scan)' },
+        ]
+      : [
+          { id: 'points', label: 'Point grid', desc: 'Illustrative sample points on the hand-built terrain' },
+          { id: 'surface', label: 'Terrain surface mesh', desc: 'Continuous heightfield geometry' },
+          { id: 'voxels', label: 'Voxel columns', desc: 'Discrete elevation column stacks' },
+        ];
+  const colorOptions: { id: ColorMapMode; label: string; desc: string }[] =
+    renderMode === 'pipeline'
+      ? [
+          { id: 'elevation', label: 'Height', desc: 'Mean cell height, low to high' },
+          { id: 'semantics', label: 'Class', desc: 'Dominant semantic class per cell' },
+          { id: 'ring', label: 'Resolution ring', desc: 'Which lattice ring (5, 10, 25 or 50 cm) holds the cell' },
+          { id: 'variance', label: 'Welford variance', desc: 'Running height variance per cell' },
+        ]
+      : [
+          { id: 'elevation', label: 'Height', desc: 'Turbo spectrum over the hand-built terrain' },
+          { id: 'traversability', label: 'Slope (illustrative)', desc: 'Green flat to red steep' },
+          { id: 'uncertainty', label: 'Lateral distance (illustrative)', desc: 'Distance from the driving corridor, not a measured uncertainty' },
+        ];
+
+  const handleSelectScene = (scene: SceneId) => {
     setActiveScene(scene);
     setCurrentFrame(0);
     setResetSignal((prev) => prev + 1);
-    setIsLoading(true);
-    try {
-      await fetch(`/api/load_scene/${scene}`, { method: 'POST' });
-      // Fetch fresh telemetry and cross section for newly loaded scene
-      const [telRes, csRes] = await Promise.all([
-        fetch('/api/telemetry'),
-        fetch('/api/cross_section'),
-      ]);
-      if (telRes.ok) {
-        const telJson: TelemetryResponse = await telRes.json();
-        setTelemetryData(telJson);
-      }
-      if (csRes.ok) {
-        const csJson: CrossSectionResponse = await csRes.json();
-        setCrossSectionData(csJson);
-      }
-    } catch {
-      // Offline fallback handling
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   return (
@@ -213,6 +220,9 @@ export const App: React.FC = () => {
         onOpenOnboarding={() => setIsOnboardingOpen(true)}
         backendConnected={isBackendConnected}
         backendPingMs={backendPing}
+        dataSource={sceneData?.source ?? null}
+        dataStatus={sceneStatus}
+        snapshotMeta={sceneData?.meta ?? null}
         memoryMb={telemetryData?.telemetry?.total_heap_mb ?? POOL_MB}
         currentView={currentView}
         onViewChange={setCurrentView}
@@ -228,12 +238,16 @@ export const App: React.FC = () => {
           backgroundColor: 'var(--bg-primary)',
         }}
       >
-        {currentView === 'data_inspection' ? (
+        {currentView === 'evidence' ? (
+          <EvidenceView baselines={telemetryData?.baselines ?? null} />
+        ) : currentView === 'data_inspection' ? (
           <DataInspectionScreen
             activeScene={activeScene}
             telemetryData={telemetryData}
+            sceneData={sceneData}
+            isLoading={isLoading}
             onBackToHook={() => setCurrentView('hook_3d')}
-            onSelectScene={handleSelectScene}
+            onOpenEvidence={() => setCurrentView('evidence')}
           />
         ) : (
           /* Center: 100% Immersive 3D Viewport with Movable UGV */
@@ -263,6 +277,8 @@ export const App: React.FC = () => {
               onTelemetryUpdate={setCarTelemetry}
               resetSignal={resetSignal}
               showScaleBar={showScaleBar}
+              renderMode={renderMode}
+              pipelineData={pipelineData}
             />
 
             {/* Top-left stack: scene switcher, provenance stamp, scene card. One column, so nothing can
@@ -296,17 +312,51 @@ export const App: React.FC = () => {
                 })}
               </div>
 
+              {pipelineData && !isRealScene && (
+                <div
+                  role="group"
+                  aria-label="What the 3D view shows"
+                  className="pointer-events-auto flex rounded-full border border-line bg-panel/90 p-0.5 text-[11px] font-semibold shadow-sm backdrop-blur-md"
+                >
+                  {(['pipeline', 'concept'] as RenderMode[]).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => changeViewMode(m)}
+                      aria-pressed={viewMode === m}
+                      title={
+                        m === 'pipeline'
+                          ? 'The grid cells and raw returns the pipeline produced for this scan'
+                          : 'A hand-built illustration of the scenario (not pipeline output)'
+                      }
+                      className={`rounded-full px-3 py-1 whitespace-nowrap transition-colors ${
+                        viewMode === m ? 'bg-accent text-accent-on' : 'text-fg-2 hover:text-fg'
+                      }`}
+                    >
+                      {m === 'pipeline' ? 'Pipeline output' : 'Concept view'}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <span
                 data-region="provenance"
                 className={`pointer-events-auto px-2.5 py-1 rounded-md font-mono text-[10px] font-bold shadow-sm tracking-wider uppercase border ${
-                  activeScene.startsWith('real_')
-                    ? 'bg-good-bg text-good-fg border-good-line'
-                    : 'bg-warn-bg text-warn-fg border-warn-line'
+                  renderMode === 'concept'
+                    ? 'bg-warn-bg text-warn-fg border-warn-line'
+                    : isRealScene
+                      ? 'bg-good-bg text-good-fg border-good-line'
+                      : 'bg-accent-subtle text-accent-text border-accent-line'
                 }`}
               >
-                {activeScene.startsWith('real_')
-                  ? 'Real recording · SemanticKITTI seq 08 · dataset labels'
-                  : 'Synthetic scene · illustrative'}
+                {renderMode === 'concept'
+                  ? isRealScene
+                    ? 'Real recording · sample points'
+                    : 'Concept illustration · hand-built'
+                  : isRealScene
+                    ? sceneData?.meta?.note?.includes('Sparse')
+                      ? 'Real recording · SemanticKITTI · sparse sample · dataset labels'
+                      : 'Real recording · SemanticKITTI seq 08 · dataset labels'
+                    : 'Synthetic scan · pipeline output'}
               </span>
 
               <TacticalObjectiveCard
@@ -318,8 +368,11 @@ export const App: React.FC = () => {
                 onCameraModeChange={setCameraMode}
                 colorMode={colorMode}
                 onColorModeChange={setColorMode}
+                renderMode={renderMode}
               />
             </div>
+
+            <ViewportLegend renderMode={renderMode} colorMode={colorMode} cells={sceneData?.cells ?? []} />
 
             {/* Primary call to action */}
             <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
@@ -333,8 +386,9 @@ export const App: React.FC = () => {
               </button>
             </div>
 
-            {/* Floating Bottom-Right Replay & Timeline Widget */}
-            <ReplayWidget
+            {/* Bottom-right: illustrative replay in concept mode; a plain note in pipeline mode (one scan, no timeline) */}
+            {renderMode === 'concept' ? (
+              <ReplayWidget
               isPlaying={isPlaying}
               onIsPlayingChange={setIsPlaying}
               currentFrame={currentFrame}
@@ -342,6 +396,18 @@ export const App: React.FC = () => {
               playbackSpeed={playbackSpeed}
               onPlaybackSpeedChange={setPlaybackSpeed}
             />
+            ) : (
+              <div
+                data-region="replay"
+                className="absolute bottom-6 right-6 z-20 w-72 rounded-2xl border border-line-strong bg-panel p-4 text-xs text-fg-2 shadow-xl"
+              >
+                <div className="mb-1 font-bold uppercase tracking-wider text-fg">Single scan</div>
+                <p className="leading-relaxed">
+                  This is one LiDAR scan run through the pipeline, not a recording in time, so there is nothing to play back. The
+                  vehicle model marks the sensor position.
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -428,19 +494,15 @@ export const App: React.FC = () => {
                   {/* TERRAIN RENDERING MODE (Vertical Stack) */}
                   <div className="flex flex-col gap-1.5">
                     <span className="text-[11px] font-bold text-fg uppercase tracking-wide">
-                      Terrain Rendering
+                      {renderMode === 'pipeline' ? 'What to draw' : 'Terrain Rendering'}
                     </span>
                     <div className="flex flex-col gap-1.5">
-                      {[
-                        { id: 'points', label: 'Fovea Laser Dots', desc: 'Adaptive nested rings (5cm to 50cm)' },
-                        { id: 'surface', label: 'Terrain Surface Mesh', desc: 'Continuous heightfield geometry' },
-                        { id: 'voxels', label: '3D Voxel Blocks', desc: 'Discrete elevation column stacks' },
-                      ].map((grid) => {
+                      {terrainOptions.map((grid) => {
                         const isSelected = displayMode === grid.id;
                         return (
                           <button
                             key={grid.id}
-                            onClick={() => setDisplayMode(grid.id as DEMDisplayMode)}
+                            onClick={() => setDisplayMode(grid.id)}
                             className={`p-2.5 rounded-xl text-left border transition-all flex items-center justify-between apple-press ${
                               isSelected
                                 ? 'bg-accent-subtle text-fg border-accent shadow-sm'
@@ -498,19 +560,15 @@ export const App: React.FC = () => {
                   {/* COLOR SHADING (Vertical Stack) */}
                   <div className="flex flex-col gap-1.5">
                     <span className="text-[11px] font-bold text-fg uppercase tracking-wide">
-                      Color Shading Metric
+                      Colour by
                     </span>
                     <div className="flex flex-col gap-1.5">
-                      {[
-                        { id: 'elevation', label: 'Height Elevation', desc: 'Turbo Jet spectrum (-1.5m to +4m)' },
-                        { id: 'traversability', label: 'Ground Slope Incline', desc: 'Green drivable to red steep hazard' },
-                        { id: 'uncertainty', label: 'Lateral Distance (illustrative)', desc: 'Distance from the driving corridor, not a measured uncertainty' },
-                      ].map((col) => {
+                      {colorOptions.map((col) => {
                         const isSelected = colorMode === col.id;
                         return (
                           <button
                             key={col.id}
-                            onClick={() => setColorMode(col.id as ColorMapMode)}
+                            onClick={() => setColorMode(col.id)}
                             className={`p-2.5 rounded-xl text-left border transition-all flex items-center justify-between apple-press ${
                               isSelected
                                 ? 'bg-accent-subtle text-fg border-accent shadow-sm'
@@ -628,60 +686,25 @@ export const App: React.FC = () => {
               </div>
             )}
 
-            {/* Tab 3: DRDO Technical Proofs (Memory, Clearance, Regret) */}
+            {/* Tab 3: Clearance slicer. Benchmark figures live on the Evidence page. */}
             {activeTab === 'proofs' && (
               <div className="flex flex-col gap-3">
-                {/* Subtab Selector */}
-                <div className="flex gap-1 bg-subtle p-1 rounded-lg">
+                <InteractiveCrossSection data={crossSectionData} sceneId={activeScene} />
+                <div className="bg-panel border border-line rounded-xl p-4 flex flex-col gap-2 text-xs text-fg-2">
+                  <span className="font-semibold text-fg">Memory, accuracy, speed, regret</span>
+                  <p className="leading-relaxed">
+                    These are computed offline and shown on the Evidence page, each with its source file.
+                  </p>
                   <button
-                    onClick={() => setProofsSubTab('memory')}
-                    className={`flex-1 py-1.5 px-2 rounded-md text-[11px] font-semibold transition-all ${
-                      proofsSubTab === 'memory'
-                        ? 'bg-panel text-fg shadow-sm'
-                        : 'text-fg-2 hover:text-fg'
-                    }`}
+                    onClick={() => {
+                      setCurrentView('evidence');
+                      setIsSidebarOpen(false);
+                    }}
+                    className="self-start px-3 py-1.5 rounded-lg bg-accent hover:bg-accent/90 text-accent-on font-semibold"
                   >
-                    Memory
-                  </button>
-                  <button
-                    onClick={() => setProofsSubTab('clearance')}
-                    className={`flex-1 py-1.5 px-2 rounded-md text-[11px] font-semibold transition-all ${
-                      proofsSubTab === 'clearance'
-                        ? 'bg-panel text-fg shadow-sm'
-                        : 'text-fg-2 hover:text-fg'
-                    }`}
-                  >
-                    Bridge Clearance
-                  </button>
-                  <button
-                    onClick={() => setProofsSubTab('regret')}
-                    className={`flex-1 py-1.5 px-2 rounded-md text-[11px] font-semibold transition-all ${
-                      proofsSubTab === 'regret'
-                        ? 'bg-panel text-fg shadow-sm'
-                        : 'text-fg-2 hover:text-fg'
-                    }`}
-                  >
-                    Planner Regret
+                    Open Evidence &rarr;
                   </button>
                 </div>
-
-                {proofsSubTab === 'memory' && (
-                  <MemoryMeter
-                    baselines={telemetryData?.baselines ?? null}
-                    telemetry={telemetryData?.telemetry ?? null}
-                  />
-                )}
-
-                {proofsSubTab === 'clearance' && (
-                  <InteractiveCrossSection
-                    data={crossSectionData}
-                    sceneId={activeScene}
-                  />
-                )}
-
-                {proofsSubTab === 'regret' && (
-                  <RegretPanel />
-                )}
               </div>
             )}
 
@@ -733,7 +756,7 @@ export const App: React.FC = () => {
         </span>
 
         <span className="whitespace-nowrap">
-          LABELS: <strong className="text-fg">{telemetryData?.telemetry?.label_source ?? 'n/a'}</strong>
+          LABELS: <strong className="text-fg">{sceneData?.meta?.label_source ?? 'n/a'}</strong>
         </span>
       </footer>
       

@@ -72,7 +72,10 @@ export type SceneId =
   | 'real_seq08_f100';
 
 export type CameraViewMode = 'chase' | 'orbit' | 'bev' | 'cockpit' | 'cross_cut';
-export type ColorMapMode = 'elevation' | 'traversability' | 'uncertainty' | 'semantics';
+export type ColorMapMode = 'elevation' | 'traversability' | 'uncertainty' | 'semantics' | 'ring' | 'variance';
+
+/** 'pipeline' = the grid cells and raw returns the pipeline produced; 'concept' = the hand-built illustration. */
+export type RenderMode = 'pipeline' | 'concept';
 export type DEMDisplayMode = 'surface' | 'voxels' | 'points';
 
 export type StressModeId = 'nominal' | 'dropout_50' | 'monsoon_noise' | 'ghost_stress';
@@ -87,4 +90,110 @@ export interface LayerVisibility {
   foveaRings: boolean;
   sweepWave: boolean;
   headlights: boolean;
+}
+
+/** One grid cell as shown in the inspector (decoded from a snapshot or returned by /api/grid_cells). */
+export interface GridCellData {
+  ix: number;
+  iy: number;
+  ring_id: number;
+  res_m: number;
+  x_m: number;
+  y_m: number;
+  sem_id: number;
+  count: number;
+  mean_z: number;
+  variance: number;
+  min_z: number;
+  max_z: number;
+  overhang_z: number | null;
+  clearance: number | null;
+}
+
+export interface LatticeRing {
+  ring_id: number;
+  res_m: number;
+  r_inner: number;
+  r_outer: number;
+}
+
+export interface SnapshotMeta {
+  scene_id: string;
+  kind: 'synthetic' | 'real';
+  generated_at: string;
+  git_sha: string;
+  label_source: 'gt' | 'onnx' | 'heuristic';
+  points_raw: number;
+  active_cells: number;
+  cells_exported: number;
+  cells_sampled: boolean;
+  inputs_sha256: Record<string, string>;
+  lattice: LatticeRing[];
+  note: string | null;
+}
+
+/** Parallel arrays (compact on the wire). x/y/res are derived from (ix, iy, ring) with the lattice table. */
+export interface ColumnarCells {
+  total_active: number;
+  n: number;
+  sampled: boolean;
+  ix: number[];
+  iy: number[];
+  ring: number[];
+  sem: number[];
+  count: number[];
+  z: number[];
+  var: number[];
+  zmin: number[];
+  zmax: number[];
+  oh: (number | null)[];
+  cl: (number | null)[];
+}
+
+export interface ColumnarPoints {
+  total: number;
+  n: number;
+  x: number[];
+  y: number[];
+  z: number[];
+  sem: number[];
+}
+
+export interface SceneSnapshot {
+  meta: SnapshotMeta;
+  telemetry: TelemetryResponse;
+  cross_section: CrossSectionResponse;
+  cells: ColumnarCells;
+  points: ColumnarPoints;
+}
+
+export type DataSource = 'snapshot' | 'live';
+
+/** Everything the views need for the active scene, regardless of where it came from. */
+export interface SceneData {
+  source: DataSource;
+  meta: SnapshotMeta | null;
+  telemetry: TelemetryResponse | null;
+  crossSection: CrossSectionResponse | null;
+  cells: GridCellData[];
+  totalActive: number;
+  cellsSampled: boolean;
+  points: ColumnarPoints | null;
+}
+
+/** A whitelisted benchmark result file wrapped with provenance (see /api/results/{name}). */
+export interface ResultEnvelope<T = unknown> {
+  name: string;
+  source_path: string;
+  sha256: string;
+  mtime?: string;
+  data: T;
+}
+
+/** What the 3D view needs to draw the pipeline's output for the active scene. */
+export interface PipelineData {
+  cells: GridCellData[];
+  points: ColumnarPoints | null;
+  /** Ground height under the sensor, from the nearest road cells (CALCULATED from the grid). */
+  groundZ: number;
 }

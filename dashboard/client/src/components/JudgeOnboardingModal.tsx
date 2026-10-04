@@ -194,7 +194,8 @@ export const JudgeOnboardingModal: React.FC<JudgeOnboardingModalProps> = ({
               resolution ring, class, point count, mean height, variance and overhang clearance.
             </li>
             <li className="p-3 bg-panel rounded-xl border border-line shadow-sm">
-              <b className="text-fg">Side panel &rarr; Proofs</b> has the memory comparison and the interactive clearance slicer.
+              <b className="text-fg">Evidence</b> shows memory, fidelity by distance, accuracy, speed and planner regret, each read from a results
+              file and tagged measured or calculated. <b className="text-fg">Side panel &rarr; Proofs</b> has the interactive clearance slicer.
             </li>
             <li className="p-3 bg-panel rounded-xl border border-line shadow-sm">
               Every figure is tagged as <b>measured</b>, <b>calculated</b> or <b>estimated</b> where it appears, and anything not

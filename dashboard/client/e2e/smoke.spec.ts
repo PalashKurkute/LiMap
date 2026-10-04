@@ -49,7 +49,10 @@ test('every scene renders in both views without errors', async ({ page }) => {
 
     await page.getByRole('button', { name: /Data-Inspection|Map Inspector/ }).first().click();
     await page.waitForTimeout(300);
-    await expect(page.getByText('No grid cells available for this scene')).toBeVisible();
+    // Cells come from the precomputed snapshot even though there is no backend.
+    await expect(page.locator('[data-region="inspector-legend"]')).toBeVisible();
+    await expect(page.getByText('PRECOMPUTED SNAPSHOT')).toBeVisible();
+    await expect(page.getByText('No grid cells are available')).toBeHidden();
     await page.getByRole('button', { name: /3D Hook|3D Explore/ }).first().click();
   }
   expect(problems).toEqual([]);
@@ -72,9 +75,14 @@ test('drawer tabs open and no fabricated claims are shown', async ({ page }) => 
   expect(problems).toEqual([]);
 });
 
+test.describe('normal motion', () => {
+test.use({ reducedMotion: 'no-preference' });
+
 test('keyboard: Space toggles playback, arrows step, Esc closes the drawer', async ({ page }) => {
   await page.goto('/');
   await dismissWelcome(page);
+  await page.getByRole('button', { name: 'Concept view' }).click(); // the illustrative drive only exists in concept mode
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur()); // Space on a focused button activates that button
 
   const playBtn = page.getByRole('button', { name: /^(Pause|Play)$/ });
   await expect(playBtn).toHaveText(/Pause/);
@@ -92,4 +100,18 @@ test('keyboard: Space toggles playback, arrows step, Esc closes the drawer', asy
   await page.keyboard.press('Escape');
   await page.waitForTimeout(400);
   await expect(page.locator('.telemetry-drawer')).toHaveClass(/closed/);
+});
+});
+
+test.describe('reduced motion', () => {
+  test('playback starts paused and Space still starts it', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('limap.welcomeSeen', '1'));
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Concept view' }).click();
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur()); // Space on a focused button activates that button
+    const playBtn = page.getByRole('button', { name: /^(Pause|Play)$/ });
+    await expect(playBtn).toHaveText(/Play/);
+    await page.keyboard.press(' ');
+    await expect(playBtn).toHaveText(/Pause/);
+  });
 });

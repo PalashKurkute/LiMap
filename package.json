@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "npm --prefix dashboard/client run dev",
+    "server": "uvicorn dashboard.server.app:app --host 127.0.0.1 --port 8000 --reload",
     "build": "npm --prefix dashboard/client run build",
     "lint": "npm --prefix dashboard/client run lint",
     "preview": "npm --prefix dashboard/client run preview"

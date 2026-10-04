@@ -1070,6 +1070,40 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
       });
     }
 
+    // 4c. 3D bounding boxes for roadside trees and curb corridors. Hand-placed illustration: they belong to the
+    // concept group so they are hidden in pipeline mode and never read as detections of real data.
+    const treeBoxGeo = new THREE.BoxGeometry(3.2, 3.2, 4.2);
+    const treeBoxMat = new THREE.MeshBasicMaterial({ color: T0.path, wireframe: true });
+    reg((T) => treeBoxMat.color.set(T.path));
+    const treeLidGeo = new THREE.PlaneGeometry(3.2, 3.2);
+    const treeLidMat = new THREE.MeshBasicMaterial({ color: T0.path, transparent: true, opacity: 0.22, side: THREE.DoubleSide });
+    reg((T) => treeLidMat.color.set(T.path));
+
+    const treePositions = [
+      { x: 12.0, y: 7.0, z: 0.4 },
+      { x: 22.0, y: -7.2, z: 0.5 },
+      { x: 34.0, y: 7.5, z: 0.5 },
+    ];
+    treePositions.forEach((tp) => {
+      const tb = new THREE.Mesh(treeBoxGeo, treeBoxMat);
+      tb.position.set(tp.x, tp.y, tp.z);
+      conceptProps.add(tb);
+
+      const tl = new THREE.Mesh(treeLidGeo, treeLidMat);
+      tl.position.set(tp.x, tp.y, tp.z + 2.1);
+      conceptProps.add(tl);
+    });
+
+    const curbBoxGeo = new THREE.BoxGeometry(50.0, 0.5, 0.4);
+    const curbBoxMat = new THREE.MeshBasicMaterial({ color: T0.prop2, wireframe: true });
+    reg((T) => curbBoxMat.color.set(T.prop2));
+    const leftCurb = new THREE.Mesh(curbBoxGeo, curbBoxMat);
+    leftCurb.position.set(20.0, 5.2, -1.55);
+    conceptProps.add(leftCurb);
+    const rightCurb = new THREE.Mesh(curbBoxGeo, curbBoxMat);
+    rightCurb.position.set(20.0, -5.2, -1.55);
+    conceptProps.add(rightCurb);
+
     // ==========================================
     // 5. FastDEM 2.5D Elevation Column Voxels (InstancedMesh)
     // ==========================================
@@ -1452,13 +1486,25 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
       tl2.position.set(-1.9, -0.55, 0.55);
       otherCar.add(tl2);
 
-      // Crisp 2.5D Tracking Outline (Green / Cyan telemetry bounding bracket)
-      const trackBoxGeo = new THREE.BoxGeometry(4.2, 2.1, 1.4);
-      const trackBoxMat = new THREE.MeshBasicMaterial({ color: T0.track, wireframe: true, transparent: true, opacity: 0.45 });
-      reg((T) => trackBoxMat.color.set(T.track));
+      // Crisp 3D tracking outline: wireframe cuboid with a translucent top lid
+      const trackBoxGeo = new THREE.BoxGeometry(4.3, 2.1, 1.5);
+      const trackBoxMat = new THREE.MeshBasicMaterial({ color: T0.pole, wireframe: true });
+      reg((T) => trackBoxMat.color.set(T.pole));
       const trackBox = new THREE.Mesh(trackBoxGeo, trackBoxMat);
       trackBox.position.z = 0.85;
       otherCar.add(trackBox);
+
+      const topLidGeo = new THREE.PlaneGeometry(4.3, 2.1);
+      const topLidMat = new THREE.MeshBasicMaterial({
+        color: T0.pole,
+        transparent: true,
+        opacity: 0.38,
+        side: THREE.DoubleSide,
+      });
+      reg((T) => topLidMat.color.set(T.pole));
+      const topLid = new THREE.Mesh(topLidGeo, topLidMat);
+      topLid.position.z = 1.6;
+      otherCar.add(topLid);
 
       // Velocity Vector Arrow
       const velArrow = new THREE.ArrowHelper(

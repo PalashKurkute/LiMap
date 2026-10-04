@@ -190,9 +190,11 @@ def _opt(value: float) -> Optional[float]:
     return round(v, 2)
 
 
-def build_grid_cells(grid: SpatialHashGrid, limit: int = 5000) -> Dict[str, object]:
-    """Active cells with resolution tier, semantics, height, variance, clearance."""
+def build_grid_cells(grid: SpatialHashGrid, limit: int = 5000, ring_id: Optional[int] = None) -> Dict[str, object]:
+    """Active cells with resolution tier, semantics, height, variance, clearance. Optionally one resolution ring only."""
     active = grid.get_active_cells()
+    if ring_id is not None:
+        active = active[active["ring_id"] == ring_id]
     if len(active) == 0:
         return {"total_active": 0, "sampled_count": 0, "sampled": False, "heap_mb": grid.total_memory_mb, "cells": []}
 
@@ -410,9 +412,12 @@ def get_result(name: str) -> JSONResponse:
 
 
 @app.get("/api/grid_cells")
-def get_grid_cells(limit: int = Query(5000, ge=1, le=110000)) -> Dict[str, object]:
+def get_grid_cells(
+    limit: int = Query(5000, ge=1, le=110000),
+    ring_id: Optional[int] = Query(None, ge=0, le=3),
+) -> Dict[str, object]:
     """Exposes real active cells with resolution tier, semantics, height, variance, clearance."""
-    return build_grid_cells(GLOBAL_GRID, limit)
+    return build_grid_cells(GLOBAL_GRID, limit, ring_id)
 
 
 @app.post("/api/load_scene/{scene_id}")

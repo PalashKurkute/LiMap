@@ -130,6 +130,7 @@ test('evidence page follows the theme (light and dark) including after a live to
   });
   await page.goto('/');
   await page.getByRole('button', { name: 'Evidence', exact: true }).click();
+  await expect(page.locator('[data-region="evidence"]')).toBeVisible(); // the view's code loads on demand
   const bg = () => page.evaluate(() => getComputedStyle(document.querySelector('[data-region="evidence"]')!).backgroundColor);
   const light = await bg();
   await page.getByRole('button', { name: /theme \(switch to/ }).click();

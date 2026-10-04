@@ -1,42 +1,14 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { STEPS } from '../src/tour/steps';
+import { N, appState, currentId, goToStep, headerTour, next, popover, ready, seen, tour } from './tour-helpers';
 
 // The guided tour: advanced only by clicking Next, restores the app exactly when it ends, and never touches
 // anything the user saved. Runs against `vite preview` with no backend.
 
 const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), '__out__');
-const N = STEPS.length;
-
-const tour = (page: Page) => page.locator('[data-region="tour"]');
-const popover = (page: Page) => page.locator('[data-region="tour-popover"]');
-const headerTour = (page: Page) => page.locator('[data-region="header"]').getByRole('button', { name: /(Take|Resume) the tour|Resume tour/ });
-
-async function seen(page: Page) {
-  await page.addInitScript(() => localStorage.setItem('limap.welcomeSeen', '1'));
-}
-
-async function ready(page: Page) {
-  await expect(tour(page)).toHaveAttribute('data-tour-phase', 'ready', { timeout: 90_000 });
-}
-
-async function currentId(page: Page) {
-  return (await tour(page).getAttribute('data-tour-step')) as string;
-}
-
-async function next(page: Page) {
-  const before = await currentId(page);
-  await page.getByRole('button', { name: /^(Next|Finish)$/ }).click();
-  if (before === STEPS[N - 1].id) return;
-  await expect.poll(() => currentId(page), { timeout: 90_000 }).not.toBe(before);
-  await ready(page);
-}
-
-async function goToStep(page: Page, id: string) {
-  while ((await currentId(page)) !== id) await next(page);
-}
 
 const BANNED = [
   /DRDO\s+(BOUND|requirement|threshold|limit)/i,
@@ -47,25 +19,6 @@ const BANNED = [
   /\bguarantee/i,
   /SAFE TO PASS/i,
 ];
-
-/** The app state a user can see and the storage the tour must not touch. */
-async function appState(page: Page) {
-  return page.evaluate(() => {
-    const scenePressed = [...document.querySelectorAll('[role="group"][aria-label="Scenes"] button')].map((b) => b.getAttribute('aria-pressed'));
-    const colour = [...document.querySelectorAll('[role="radiogroup"][aria-label="Colour by"] [role="radio"]')].find((r) => r.getAttribute('aria-checked') === 'true')?.getAttribute('aria-label') ?? null;
-    const view = document.querySelector('nav[aria-label="Views"] [aria-current="page"]')?.textContent ?? null;
-    const storage: Record<string, string | null> = {};
-    for (const k of Object.keys(localStorage)) if (k !== 'limap.tour.v1' && k !== 'limap.welcomeSeen') storage[k] = localStorage.getItem(k);
-    return {
-      scenePressed,
-      colour,
-      view,
-      theme: document.documentElement.dataset.theme ?? null,
-      drawerOpen: document.querySelector('[data-region="drawer"]')?.classList.contains('open') ?? false,
-      storage,
-    };
-  });
-}
 
 test('the launcher is in the header on every view, and ?tour=1 starts the tour and clears the flag', async ({ page }) => {
   await seen(page);
@@ -238,4 +191,49 @@ test('the popover fits a 1280x720 window on the first steps', async ({ page }) =
     expect(pb.y + pb.height).toBeLessThanOrEqual(721);
     await next(page);
   }
+});
+
+test.describe('with animations on', () => {
+  test.use({ reducedMotion: 'no-preference' });
+
+  // Every other test runs with reduced motion. This one lets the spotlight slide and the page scroll smoothly (the
+  // Evidence steps scroll their section into view) and checks the spotlight still settles on its anchor.
+  test('the spotlight settles on its anchor through the smooth-scrolled Evidence steps', async ({ page }) => {
+    test.setTimeout(300_000);
+    const first = STEPS.findIndex((s) => s.id === 'ev-memory');
+    expect(first).toBeGreaterThan(0);
+    await page.addInitScript(
+      ([k, n]) => {
+        localStorage.setItem('limap.welcomeSeen', '1');
+        localStorage.setItem('limap.tour.v1', JSON.stringify({ lastStep: k, total: n, done: false }));
+      },
+      [first, N],
+    );
+    await page.goto('/');
+    await headerTour(page).click();
+    await page.getByRole('menuitem', { name: /Resume at step/ }).click();
+    await ready(page);
+
+    for (let i = first; i < first + 7; i++) {
+      const id = await currentId(page);
+      const step = STEPS.find((s) => s.id === id)!;
+      expect(id).toBe(STEPS[i].id);
+      await expect
+        .poll(
+          async () => {
+            const ab = await page.locator(step.anchor!).first().boundingBox();
+            const sb = await page.locator('[data-region="tour-spotlight"]').boundingBox();
+            if (!ab || !sb) return Infinity;
+            return Math.max(Math.abs(sb.x - (ab.x - 6)), Math.abs(sb.y - (ab.y - 6)));
+          },
+          { message: `${id}: spotlight settles on the anchor`, timeout: 15_000 },
+        )
+        .toBeLessThan(4);
+      const pb = (await popover(page).boundingBox())!;
+      const vp = page.viewportSize()!;
+      expect(pb.y, `${id} popover top`).toBeGreaterThanOrEqual(0);
+      expect(pb.y + pb.height, `${id} popover bottom`).toBeLessThanOrEqual(vp.height + 1);
+      await next(page);
+    }
+  });
 });

@@ -4,7 +4,21 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <title>LiMap — 2.5D Adaptive LiDAR Perception</title>
+    <!-- Applies the stored/system theme before any CSS or JS paints, so there is no flash. -->
+    <script>
+      (function () {
+        try {
+          var s = localStorage.getItem('limap.theme');
+          var t = s === 'light' || s === 'dark' ? s : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          document.documentElement.dataset.theme = t;
+          document.documentElement.style.colorScheme = t;
+        } catch (e) {
+          document.documentElement.dataset.theme = 'light';
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

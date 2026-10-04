@@ -45,14 +45,14 @@ export const InteractiveCrossSection: React.FC<InteractiveCrossSectionProps> = (
 
   if (observed.length === 0) {
     return (
-      <div className="bg-white border border-slate-300 rounded-xl p-4 shadow-sm flex flex-col gap-2">
-        <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
-          <Layers size={14} className="text-slate-700" />
-          <span className="text-xs font-bold tracking-tight text-slate-900 uppercase">
+      <div className="bg-panel border border-line-strong rounded-xl p-4 shadow-sm flex flex-col gap-2">
+        <div className="flex items-center gap-2 border-b border-line pb-2">
+          <Layers size={14} className="text-fg-2" />
+          <span className="text-xs font-bold tracking-tight text-fg uppercase">
             Interactive Cross-Section Slicer
           </span>
         </div>
-        <p className="text-xs text-slate-600 leading-relaxed">
+        <p className="text-xs text-fg-2 leading-relaxed">
           No grid cells are available along this line for <span className="font-mono">{sceneId}</span>, so no
           profile is drawn. Load a scene with the API running, or use a precomputed snapshot.
         </p>
@@ -81,20 +81,20 @@ export const InteractiveCrossSection: React.FC<InteractiveCrossSectionProps> = (
   const overhangRuns = observedRuns(profile.map((p) => (p.z_overhang !== null ? p : { ...p, observed: false })));
 
   return (
-    <div className="bg-white border border-slate-300 rounded-xl p-4 shadow-sm flex flex-col gap-3">
-      <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+    <div className="bg-panel border border-line-strong rounded-xl p-4 shadow-sm flex flex-col gap-3">
+      <div className="flex items-center justify-between border-b border-line pb-2">
         <div className="flex items-center gap-2">
-          <Layers size={14} className="text-slate-700" />
-          <span className="text-xs font-bold tracking-tight text-slate-900 uppercase">
+          <Layers size={14} className="text-fg-2" />
+          <span className="text-xs font-bold tracking-tight text-fg uppercase">
             Interactive Cross-Section Slicer
           </span>
         </div>
-        <span className="text-[11px] font-mono font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+        <span className="text-[11px] font-mono font-semibold text-fg-2 bg-subtle px-2 py-0.5 rounded">
           X = {nearest.x.toFixed(1)}m
         </span>
       </div>
 
-      <div className="relative w-full overflow-hidden bg-slate-50 border border-slate-100 rounded-lg p-1">
+      <div className="relative w-full overflow-hidden bg-subtle border border-line rounded-lg p-1">
         <svg
           viewBox={`0 0 ${width} ${height}`}
           className="w-full h-auto block select-none"
@@ -103,8 +103,8 @@ export const InteractiveCrossSection: React.FC<InteractiveCrossSectionProps> = (
         >
           {gridTicks.map((zVal) => (
             <g key={zVal}>
-              <line x1={padL} y1={scaleZ(zVal)} x2={width - padR} y2={scaleZ(zVal)} stroke="#E2E8F0" strokeWidth="1" />
-              <text x={padL - 6} y={scaleZ(zVal) + 3} fill="#94A3B8" fontSize="8" fontFamily="var(--font-mono)" textAnchor="end">
+              <line x1={padL} y1={scaleZ(zVal)} x2={width - padR} y2={scaleZ(zVal)} className="stroke-viz-grid" strokeWidth="1" />
+              <text x={padL - 6} y={scaleZ(zVal) + 3} fontSize="8" fontFamily="var(--font-mono)" textAnchor="end" className="fill-viz-axis">
                 {zVal.toFixed(1)}m
               </text>
             </g>
@@ -115,7 +115,7 @@ export const InteractiveCrossSection: React.FC<InteractiveCrossSectionProps> = (
               key={`g${i}`}
               d={pathFor(run.map((p) => ({ x: p.x, z: p.z_ground })))}
               fill="none"
-              stroke="#0F172A"
+              className="stroke-fg"
               strokeWidth="2"
             />
           ))}
@@ -125,19 +125,19 @@ export const InteractiveCrossSection: React.FC<InteractiveCrossSectionProps> = (
               key={`o${i}`}
               d={pathFor(run.map((p) => ({ x: p.x, z: p.z_overhang as number })))}
               fill="none"
-              stroke="#2563EB"
+              className="stroke-scene-path"
               strokeWidth="2.5"
             />
           ))}
 
           {isObserved(nearest) && (
             <g>
-              <line x1={scaleX(nearest.x)} y1={padT} x2={scaleX(nearest.x)} y2={height - padB} stroke="#0F172A" strokeWidth="1.5" strokeDasharray="3,2" />
-              <circle cx={scaleX(nearest.x)} cy={scaleZ(nearest.z_ground)} r="3.5" fill="#0F172A" />
+              <line x1={scaleX(nearest.x)} y1={padT} x2={scaleX(nearest.x)} y2={height - padB} className="stroke-fg" strokeWidth="1.5" strokeDasharray="3,2" />
+              <circle cx={scaleX(nearest.x)} cy={scaleZ(nearest.z_ground)} r="3.5" className="fill-fg" />
               {nearest.z_overhang !== null && (
                 <>
-                  <circle cx={scaleX(nearest.x)} cy={scaleZ(nearest.z_overhang)} r="3.5" fill="#2563EB" />
-                  <line x1={scaleX(nearest.x)} y1={scaleZ(nearest.z_ground)} x2={scaleX(nearest.x)} y2={scaleZ(nearest.z_overhang)} stroke="#2563EB" strokeWidth="1.5" />
+                  <circle cx={scaleX(nearest.x)} cy={scaleZ(nearest.z_overhang)} r="3.5" className="fill-scene-path" />
+                  <line x1={scaleX(nearest.x)} y1={scaleZ(nearest.z_ground)} x2={scaleX(nearest.x)} y2={scaleZ(nearest.z_overhang)} className="stroke-scene-path" strokeWidth="1.5" />
                 </>
               )}
             </g>
@@ -146,9 +146,9 @@ export const InteractiveCrossSection: React.FC<InteractiveCrossSectionProps> = (
       </div>
 
       <div className="flex flex-col gap-1.5 pt-1">
-        <div className="flex justify-between items-center text-[10px] font-mono text-slate-500">
+        <div className="flex justify-between items-center text-[10px] font-mono text-fg-muted">
           <span>DRAG SLICE PLANE:</span>
-          <span className="font-semibold text-slate-800">
+          <span className="font-semibold text-fg">
             {!isObserved(nearest)
               ? 'Unobserved (no cell here)'
               : nearest.clearance_m !== null
@@ -164,14 +164,14 @@ export const InteractiveCrossSection: React.FC<InteractiveCrossSectionProps> = (
           step={Math.max(spanX / 200, 0.05)}
           value={slice}
           onChange={(e) => setSliceOffset(parseFloat(e.target.value))}
-          className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900"
+          className="w-full h-1.5 bg-line rounded-lg appearance-none cursor-pointer accent-slate-900"
         />
-        <div className="flex justify-between text-[9px] font-mono text-slate-400">
+        <div className="flex justify-between text-[9px] font-mono text-fg-muted">
           <span>{xMin.toFixed(1)}m</span>
           <span>{xMax.toFixed(1)}m</span>
         </div>
         {gaps > 0 && (
-          <div className="text-[10px] font-mono text-slate-500">
+          <div className="text-[10px] font-mono text-fg-muted">
             {gaps} of {profile.length} samples fall in unobserved space and are left as gaps.
           </div>
         )}

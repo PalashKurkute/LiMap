@@ -32,12 +32,12 @@ import {
   Database,
 } from 'lucide-react';
 
-const SCENES: { id: SceneId; label: string; badge: string; desc: string; key: string }[] = [
-  { id: 'scene_a_bridge', label: 'Bridge Underpass', badge: '2.5m Clearance', desc: 'Checks overhead bridge clearance', key: '1' },
-  { id: 'scene_b_potholes', label: 'Potholes & Craters', badge: 'Road Dips', desc: 'Detects hazardous holes & ditches in road', key: '2' },
-  { id: 'scene_c_moving', label: 'Moving Traffic', badge: 'Anti-Ghost', desc: 'Filters moving cars without ghost trails', key: '3' },
-  { id: 'scene_d_poles', label: 'Thin Poles & Trees', badge: 'Obstacles', desc: 'High-detail zoom on lamp posts & trees', key: '4' },
-  { id: 'real_seq08_f00', label: 'Real City Driving', badge: 'KITTI Data', desc: 'Real LiDAR recorded on a public road', key: '5' },
+const SCENES: { id: SceneId; label: string; short: string; badge: string; desc: string; key: string }[] = [
+  { id: 'scene_a_bridge', label: 'Bridge Underpass', short: 'Bridge', badge: '2.5m Clearance', desc: 'Checks overhead bridge clearance', key: '1' },
+  { id: 'scene_b_potholes', label: 'Potholes & Craters', short: 'Potholes', badge: 'Road Dips', desc: 'Detects hazardous holes & ditches in road', key: '2' },
+  { id: 'scene_c_moving', label: 'Moving Traffic', short: 'Traffic', badge: 'Anti-Ghost', desc: 'Filters moving cars without ghost trails', key: '3' },
+  { id: 'scene_d_poles', label: 'Thin Poles & Trees', short: 'Poles', badge: 'Obstacles', desc: 'High-detail zoom on lamp posts & trees', key: '4' },
+  { id: 'real_seq08_f00', label: 'Real City Driving', short: 'Real city', badge: 'KITTI Data', desc: 'Real LiDAR recorded on a public road', key: '5' },
 ];
 
 export const App: React.FC = () => {
@@ -148,14 +148,6 @@ export const App: React.FC = () => {
     };
   }, [activeScene]);
 
-  // Dispatch window resize when sidebar opens/closes so Three.js canvas dynamically adjusts
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      window.dispatchEvent(new Event('resize'));
-    }, 280);
-    return () => clearTimeout(timer);
-  }, [isSidebarOpen]);
-
   // Global shortcuts: Space = play/pause, Left/Right = step 2 frames, Esc = close modal / drawer.
   // Ignored while focus is on an interactive element so native Space/Enter behaviour still works.
   useEffect(() => {
@@ -245,7 +237,7 @@ export const App: React.FC = () => {
           />
         ) : (
           /* Center: 100% Immersive 3D Viewport with Movable UGV */
-          <div style={{ flex: 1, height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, height: '100%', position: 'relative', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
             <ThreeViewport
               sceneId={activeScene}
               telemetry={telemetryData?.telemetry ?? null}
@@ -273,66 +265,72 @@ export const App: React.FC = () => {
               showScaleBar={showScaleBar}
             />
 
-            {/* Truth-in-Advertising Badge Overlay */}
-            <div className="absolute top-18 left-4 z-20">
-              {activeScene === 'real_seq08_f00' ? (
-                <span className="px-2.5 py-1 rounded-md bg-emerald-600/90 text-white font-mono text-[10px] font-bold shadow-md tracking-wider uppercase border border-emerald-500">
-                  REAL PIPELINE REPLAY: SemanticKITTI Seq 08
-                </span>
-              ) : (
-                <span className="px-2.5 py-1 rounded-md bg-amber-500/90 text-white font-mono text-[10px] font-bold shadow-md tracking-wider uppercase border border-amber-400">
-                  SYNTHETIC TEST SCENE (ILLUSTRATIVE)
-                </span>
-              )}
+            {/* Top-left stack: scene switcher, provenance stamp, scene card. One column, so nothing can
+                overlap at any viewport width, and the provenance stamp is always visible. */}
+            <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-2.5 pointer-events-none max-w-[calc(100%-16rem)]">
+              <div
+                role="group"
+                aria-label="Scenes"
+                className="pointer-events-auto max-w-full overflow-x-auto bg-panel/90 backdrop-blur-md border border-line rounded-full px-1.5 py-1 shadow-lg flex items-center gap-0.5 text-fg"
+              >
+                {SCENES.map((s) => {
+                  const isActive = activeScene === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => handleSelectScene(s.id)}
+                      disabled={isLoading}
+                      aria-pressed={isActive}
+                      aria-label={`${s.label}: ${s.desc} (key ${s.key})`}
+                      title={`${s.label}: ${s.desc} [${s.key}]`}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all apple-press ${
+                        isActive ? 'bg-accent text-accent-on shadow-sm' : 'text-fg-2 hover:text-fg hover:bg-subtle'
+                      }`}
+                    >
+                      <span className={`text-[10px] font-mono font-bold ${isActive ? 'text-accent-on/80' : 'text-fg-muted'}`}>
+                        {s.key}
+                      </span>
+                      <span>{s.short}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <span
+                data-region="provenance"
+                className={`pointer-events-auto px-2.5 py-1 rounded-md font-mono text-[10px] font-bold shadow-sm tracking-wider uppercase border ${
+                  activeScene.startsWith('real_')
+                    ? 'bg-good-bg text-good-fg border-good-line'
+                    : 'bg-warn-bg text-warn-fg border-warn-line'
+                }`}
+              >
+                {activeScene.startsWith('real_')
+                  ? 'Real recording · SemanticKITTI seq 08 · dataset labels'
+                  : 'Synthetic scene · illustrative'}
+              </span>
+
+              <TacticalObjectiveCard
+                sceneId={activeScene}
+                memoryMb={telemetryData?.telemetry?.total_heap_mb ?? POOL_MB}
+                baselines={telemetryData?.baselines ?? null}
+                tacticalSummary={telemetryData?.telemetry?.tactical_summary}
+                cameraMode={cameraMode}
+                onCameraModeChange={setCameraMode}
+                colorMode={colorMode}
+                onColorModeChange={setColorMode}
+              />
             </div>
 
-            {/* Tactical Scenario Mission & Verification Objective HUD */}
-            <TacticalObjectiveCard
-              sceneId={activeScene}
-              memoryMb={telemetryData?.telemetry?.total_heap_mb ?? POOL_MB}
-              baselines={telemetryData?.baselines ?? null}
-              tacticalSummary={telemetryData?.telemetry?.tactical_summary}
-              cameraMode={cameraMode}
-              onCameraModeChange={setCameraMode}
-              colorMode={colorMode}
-              onColorModeChange={setColorMode}
-            />
-
-            {/* Primary Call-To-Action: Inspect Map & Proofs Button */}
+            {/* Primary call to action */}
             <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
               <button
                 onClick={() => setCurrentView('data_inspection')}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-900 text-white text-xs font-semibold shadow-lg backdrop-blur-md transition-all border border-slate-700/80 active:scale-95"
-                title="Inspect real 2.5D cells, Welford statistics, and verified proof matrix"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent hover:bg-accent/90 text-accent-on text-xs font-semibold shadow-lg transition-all active:scale-95 whitespace-nowrap"
+                title="Inspect the actual grid cells: resolution ring, class, variance, clearance"
               >
-                <Database size={13} className="text-cyan-400" />
-                <span>Inspect Map &amp; Proofs &rarr;</span>
+                <Database size={13} />
+                <span>Open Map Inspector &rarr;</span>
               </button>
-            </div>
-
-            {/* Floating Top Quick-Scenario Bar (Apple / Linear minimal pill) */}
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-white/90 backdrop-blur-md border border-slate-200/90 rounded-full px-2 py-1.5 shadow-lg flex items-center gap-1 text-slate-800">
-              {SCENES.map((s) => {
-                const isActive = activeScene === s.id;
-                return (
-                  <button
-                    key={s.id}
-                    onClick={() => handleSelectScene(s.id)}
-                    disabled={isLoading}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all apple-press ${
-                      isActive
-                        ? 'bg-slate-900 text-white shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                    }`}
-                    title={`${s.label} (${s.desc}) [${s.key}]`}
-                  >
-                    <span className={`text-[10px] font-mono font-bold ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>
-                      [{s.key}]
-                    </span>
-                    <span>{s.label}</span>
-                  </button>
-                );
-              })}
             </div>
 
             {/* Floating Bottom-Right Replay & Timeline Widget */}
@@ -348,21 +346,21 @@ export const App: React.FC = () => {
         )}
 
         {/* Slide-out Telemetry Drawer (Apple / Swiss Light Minimalism) */}
-        <aside className={`telemetry-drawer ${isSidebarOpen ? 'open' : 'closed'}`}>
+        <aside data-region="drawer" className={`telemetry-drawer ${isSidebarOpen ? 'open' : 'closed'}`}>
           {/* Drawer Top Bar */}
-          <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-white">
+          <div className="p-4 border-b border-line flex items-center justify-between bg-panel">
             <div>
-              <div className="text-xs font-bold text-slate-900 tracking-wider uppercase">
+              <div className="text-xs font-bold text-fg tracking-wider uppercase">
                 Control Panel &amp; Telemetry
               </div>
-              <div className="text-[11px] text-slate-500">
+              <div className="text-[11px] text-fg-muted">
                 DRDO SIH26053 Perception System
               </div>
             </div>
 
             <button
               onClick={() => setIsSidebarOpen(false)}
-              className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-colors"
+              className="p-1.5 rounded-lg border border-line text-fg-muted hover:text-fg hover:bg-subtle transition-colors"
               title="Close Panel [Esc]"
             >
               <X size={16} />
@@ -370,13 +368,13 @@ export const App: React.FC = () => {
           </div>
 
           {/* Navigation Tabs (View, Vehicle, Proofs, Stress) */}
-          <div className="flex border-b border-slate-200 bg-white p-2 gap-1">
+          <div className="flex border-b border-line bg-panel p-2 gap-1">
             <button
               onClick={() => setActiveTab('displays')}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
                 activeTab === 'displays'
-                  ? 'bg-slate-900 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  ? 'bg-accent text-accent-on shadow-sm'
+                  : 'text-fg-2 hover:bg-subtle hover:text-fg'
               }`}
             >
               <Radio size={13} />
@@ -387,8 +385,8 @@ export const App: React.FC = () => {
               onClick={() => setActiveTab('telemetry')}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
                 activeTab === 'telemetry'
-                  ? 'bg-slate-900 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  ? 'bg-accent text-accent-on shadow-sm'
+                  : 'text-fg-2 hover:bg-subtle hover:text-fg'
               }`}
             >
               <Gauge size={13} />
@@ -399,8 +397,8 @@ export const App: React.FC = () => {
               onClick={() => setActiveTab('proofs')}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
                 activeTab === 'proofs'
-                  ? 'bg-slate-900 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  ? 'bg-accent text-accent-on shadow-sm'
+                  : 'text-fg-2 hover:bg-subtle hover:text-fg'
               }`}
             >
               <ShieldCheck size={13} />
@@ -411,8 +409,8 @@ export const App: React.FC = () => {
               onClick={() => setActiveTab('stress')}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
                 activeTab === 'stress'
-                  ? 'bg-slate-900 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  ? 'bg-accent text-accent-on shadow-sm'
+                  : 'text-fg-2 hover:bg-subtle hover:text-fg'
               }`}
             >
               <ShieldAlert size={13} />
@@ -421,15 +419,15 @@ export const App: React.FC = () => {
           </div>
 
           {/* Drawer Tab Content */}
-          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-slate-900 bg-slate-100">
+          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-fg bg-subtle">
             {/* Tab 1: View & Camera Controls (Clean Vertical Layout) */}
             {activeTab === 'displays' && (
               <div className="flex flex-col gap-4">
                 {/* Visual Viewport Controls Card */}
-                <div className="bg-white border border-slate-300 rounded-xl p-4 shadow-sm flex flex-col gap-4">
+                <div className="bg-panel border border-line-strong rounded-xl p-4 shadow-sm flex flex-col gap-4">
                   {/* TERRAIN RENDERING MODE (Vertical Stack) */}
                   <div className="flex flex-col gap-1.5">
-                    <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wide">
+                    <span className="text-[11px] font-bold text-fg uppercase tracking-wide">
                       Terrain Rendering
                     </span>
                     <div className="flex flex-col gap-1.5">
@@ -445,16 +443,16 @@ export const App: React.FC = () => {
                             onClick={() => setDisplayMode(grid.id as DEMDisplayMode)}
                             className={`p-2.5 rounded-xl text-left border transition-all flex items-center justify-between apple-press ${
                               isSelected
-                                ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                                ? 'bg-accent-subtle text-fg border-accent shadow-sm'
+                                : 'bg-subtle text-fg-2 border-line hover:border-line-strong'
                             }`}
                           >
                             <div className="flex flex-col">
                               <span className="text-xs font-bold">{grid.label}</span>
-                              <span className={`text-[10px] ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>{grid.desc}</span>
+                              <span className={`text-[10px] text-fg-muted`}>{grid.desc}</span>
                             </div>
-                            <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ml-2 ${isSelected ? 'border-white bg-white' : 'border-slate-400'}`}>
-                              {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-slate-900" />}
+                            <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ml-2 ${isSelected ? 'border-accent bg-panel' : 'border-line-strong'}`}>
+                              {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-accent" />}
                             </div>
                           </button>
                         );
@@ -464,7 +462,7 @@ export const App: React.FC = () => {
 
                   {/* CAMERA PERSPECTIVE (Vertical Stack) */}
                   <div className="flex flex-col gap-1.5">
-                    <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wide">
+                    <span className="text-[11px] font-bold text-fg uppercase tracking-wide">
                       Camera Perspective
                     </span>
                     <div className="flex flex-col gap-1.5">
@@ -480,16 +478,16 @@ export const App: React.FC = () => {
                             onClick={() => setCameraMode(cam.id as CameraViewMode)}
                             className={`p-2.5 rounded-xl text-left border transition-all flex items-center justify-between apple-press ${
                               isSelected
-                                ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                                ? 'bg-accent-subtle text-fg border-accent shadow-sm'
+                                : 'bg-subtle text-fg-2 border-line hover:border-line-strong'
                             }`}
                           >
                             <div className="flex flex-col">
                               <span className="text-xs font-bold">{cam.label}</span>
-                              <span className={`text-[10px] ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>{cam.desc}</span>
+                              <span className={`text-[10px] text-fg-muted`}>{cam.desc}</span>
                             </div>
-                            <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ml-2 ${isSelected ? 'border-white bg-white' : 'border-slate-400'}`}>
-                              {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-slate-900" />}
+                            <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ml-2 ${isSelected ? 'border-accent bg-panel' : 'border-line-strong'}`}>
+                              {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-accent" />}
                             </div>
                           </button>
                         );
@@ -499,7 +497,7 @@ export const App: React.FC = () => {
 
                   {/* COLOR SHADING (Vertical Stack) */}
                   <div className="flex flex-col gap-1.5">
-                    <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wide">
+                    <span className="text-[11px] font-bold text-fg uppercase tracking-wide">
                       Color Shading Metric
                     </span>
                     <div className="flex flex-col gap-1.5">
@@ -515,16 +513,16 @@ export const App: React.FC = () => {
                             onClick={() => setColorMode(col.id as ColorMapMode)}
                             className={`p-2.5 rounded-xl text-left border transition-all flex items-center justify-between apple-press ${
                               isSelected
-                                ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                                ? 'bg-accent-subtle text-fg border-accent shadow-sm'
+                                : 'bg-subtle text-fg-2 border-line hover:border-line-strong'
                             }`}
                           >
                             <div className="flex flex-col">
                               <span className="text-xs font-bold">{col.label}</span>
-                              <span className={`text-[10px] ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>{col.desc}</span>
+                              <span className={`text-[10px] text-fg-muted`}>{col.desc}</span>
                             </div>
-                            <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ml-2 ${isSelected ? 'border-white bg-white' : 'border-slate-400'}`}>
-                              {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-slate-900" />}
+                            <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ml-2 ${isSelected ? 'border-accent bg-panel' : 'border-line-strong'}`}>
+                              {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-accent" />}
                             </div>
                           </button>
                         );
@@ -556,15 +554,15 @@ export const App: React.FC = () => {
             {activeTab === 'telemetry' && (
               <div className="flex flex-col gap-4">
                 {/* UGV Kinematic HUD Card */}
-                <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col gap-3">
-                  <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                    <div className="text-xs font-bold text-slate-900 uppercase flex items-center gap-1.5">
-                      <Gauge size={14} className="text-slate-800" />
+                <div className="bg-panel border border-line rounded-xl p-4 shadow-sm flex flex-col gap-3">
+                  <div className="flex justify-between items-center border-b border-line pb-2">
+                    <div className="text-xs font-bold text-fg uppercase flex items-center gap-1.5">
+                      <Gauge size={14} className="text-fg" />
                       <span>Vehicle Telemetry (Simulated)</span>
                     </div>
                     <button
                       onClick={() => setResetSignal((prev) => prev + 1)}
-                      className="flex items-center gap-1 px-2 py-1 rounded-md border border-slate-200 text-slate-700 hover:bg-slate-50 font-mono text-[10px] font-semibold transition-colors"
+                      className="flex items-center gap-1 px-2 py-1 rounded-md border border-line text-fg-2 hover:bg-subtle font-mono text-[10px] font-semibold transition-colors"
                       title="Reset Pose to Origin [R]"
                     >
                       <RotateCcw size={11} />
@@ -573,55 +571,55 @@ export const App: React.FC = () => {
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/80">
-                      <div className="text-[10px] text-slate-500 font-mono">SPEED</div>
-                      <div className="text-lg font-bold font-mono text-slate-900">
-                        {carTelemetry.speed.toFixed(1)} <small className="text-xs font-normal text-slate-500">km/h</small>
+                    <div className="bg-subtle p-2.5 rounded-lg border border-line/80">
+                      <div className="text-[10px] text-fg-muted font-mono">SPEED</div>
+                      <div className="text-lg font-bold font-mono text-fg">
+                        {carTelemetry.speed.toFixed(1)} <small className="text-xs font-normal text-fg-muted">km/h</small>
                       </div>
                     </div>
 
-                    <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/80">
-                      <div className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
-                        <Compass size={11} className="text-slate-600" />
+                    <div className="bg-subtle p-2.5 rounded-lg border border-line/80">
+                      <div className="text-[10px] text-fg-muted font-mono flex items-center gap-1">
+                        <Compass size={11} className="text-fg-2" />
                         <span>HEADING</span>
                       </div>
-                      <div className="text-lg font-bold font-mono text-slate-900">
+                      <div className="text-lg font-bold font-mono text-fg">
                         {carTelemetry.heading.toFixed(0)}&deg;
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-slate-50 p-2 rounded-lg border border-slate-200/80 flex justify-between font-mono text-xs">
-                    <span className="text-slate-500">COORDINATES</span>
-                    <span className="text-slate-800 font-semibold">
+                  <div className="bg-subtle p-2 rounded-lg border border-line/80 flex justify-between font-mono text-xs">
+                    <span className="text-fg-muted">COORDINATES</span>
+                    <span className="text-fg font-semibold">
                       X: {carTelemetry.x.toFixed(2)}m &bull; Y: {carTelemetry.y.toFixed(2)}m &bull; Z: {carTelemetry.z.toFixed(2)}m
                     </span>
                   </div>
 
-                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-300 text-xs text-slate-700 leading-relaxed">
-                    <strong className="text-slate-900 block mb-1">Autonomous Trajectory Tracking:</strong>
+                  <div className="p-3 bg-subtle rounded-lg border border-line-strong text-xs text-fg-2 leading-relaxed">
+                    <strong className="text-fg block mb-1">Autonomous Trajectory Tracking:</strong>
                     The vehicle autonomously follows the planned collision-free 2.5D trajectory using its onboard kinematic model. Use the Mission Playback controller below to pause, rewind, or scrub frame-by-frame.
                   </div>
                 </div>
 
                 {/* Real-Time Spatial Hash Metrics Card */}
-                <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col gap-3">
-                  <div className="text-xs font-bold text-slate-900 uppercase flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                    <ShieldCheck size={14} className="text-slate-800" />
+                <div className="bg-panel border border-line rounded-xl p-4 shadow-sm flex flex-col gap-3">
+                  <div className="text-xs font-bold text-fg uppercase flex items-center gap-1.5 border-b border-line pb-2">
+                    <ShieldCheck size={14} className="text-fg" />
                     <span>Memory Footprint (Invariant)</span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 font-mono">
-                    <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/80">
-                      <div className="text-[10px] text-slate-500">TOTAL HEAP</div>
-                      <div className="text-sm font-bold text-slate-900">
+                    <div className="bg-subtle p-2.5 rounded-lg border border-line/80">
+                      <div className="text-[10px] text-fg-muted">TOTAL HEAP</div>
+                      <div className="text-sm font-bold text-fg">
                         {telemetryData ? `${telemetryData.telemetry.total_heap_mb.toFixed(4)} MB` : 'n/a'}
                       </div>
                     </div>
 
-                    <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/80">
-                      <div className="text-[10px] text-slate-500">ACTIVE CELLS</div>
-                      <div className="text-sm font-bold text-slate-900">
+                    <div className="bg-subtle p-2.5 rounded-lg border border-line/80">
+                      <div className="text-[10px] text-fg-muted">ACTIVE CELLS</div>
+                      <div className="text-sm font-bold text-fg">
                         {telemetryData ? telemetryData.telemetry.active_cells.toLocaleString() : 'n/a'}
                       </div>
                     </div>
@@ -634,13 +632,13 @@ export const App: React.FC = () => {
             {activeTab === 'proofs' && (
               <div className="flex flex-col gap-3">
                 {/* Subtab Selector */}
-                <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+                <div className="flex gap-1 bg-subtle p-1 rounded-lg">
                   <button
                     onClick={() => setProofsSubTab('memory')}
                     className={`flex-1 py-1.5 px-2 rounded-md text-[11px] font-semibold transition-all ${
                       proofsSubTab === 'memory'
-                        ? 'bg-white text-slate-900 shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
+                        ? 'bg-panel text-fg shadow-sm'
+                        : 'text-fg-2 hover:text-fg'
                     }`}
                   >
                     Memory
@@ -649,8 +647,8 @@ export const App: React.FC = () => {
                     onClick={() => setProofsSubTab('clearance')}
                     className={`flex-1 py-1.5 px-2 rounded-md text-[11px] font-semibold transition-all ${
                       proofsSubTab === 'clearance'
-                        ? 'bg-white text-slate-900 shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
+                        ? 'bg-panel text-fg shadow-sm'
+                        : 'text-fg-2 hover:text-fg'
                     }`}
                   >
                     Bridge Clearance
@@ -659,8 +657,8 @@ export const App: React.FC = () => {
                     onClick={() => setProofsSubTab('regret')}
                     className={`flex-1 py-1.5 px-2 rounded-md text-[11px] font-semibold transition-all ${
                       proofsSubTab === 'regret'
-                        ? 'bg-white text-slate-900 shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
+                        ? 'bg-panel text-fg shadow-sm'
+                        : 'text-fg-2 hover:text-fg'
                     }`}
                   >
                     Planner Regret
@@ -698,55 +696,45 @@ export const App: React.FC = () => {
         </aside>
       </div>
 
-      {/* Bottom Telemetry Status Ribbon - Apple / Swiss Minimal Light Style */}
+      {/* Status bar: every value is derived from loaded data or the API; nothing retyped. */}
       <footer
-        style={{
-          height: '32px',
-          borderTop: '1px solid #e2e8f0',
-          backgroundColor: '#ffffff',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 16px',
-          fontSize: '11px',
-          fontFamily: 'var(--font-mono)',
-          color: '#64748b',
-          zIndex: 30,
-        }}
+        data-region="statusbar"
+        className="h-8 shrink-0 border-t border-line bg-panel flex items-center justify-between gap-4 px-4 text-[11px] font-mono text-fg-muted z-30"
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <span>
-            API BACKEND: <strong style={{ color: isBackendConnected ? '#059669' : '#d97706' }}>
-              {isBackendConnected ? `ONLINE (:8000 | ${backendPing}ms)` : 'LOCAL STANDBY'}
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="whitespace-nowrap">
+            API:{' '}
+            <strong className={isBackendConnected ? 'text-good-fg' : 'text-warn-fg'}>
+              {isBackendConnected ? `online (${backendPing}ms)` : 'offline'}
             </strong>
           </span>
-          <span>&bull;</span>
-          <span>
-            ACTIVE CELLS: <strong style={{ color: '#0f172a' }}>
-              {telemetryData ? `${telemetryData.telemetry.active_cells.toLocaleString()} / ${telemetryData.telemetry.capacity.toLocaleString()}` : 'no scene data'}
+          <span aria-hidden="true">&bull;</span>
+          <span className="whitespace-nowrap">
+            ACTIVE CELLS:{' '}
+            <strong className="text-fg">
+              {telemetryData
+                ? `${telemetryData.telemetry.active_cells.toLocaleString()} / ${telemetryData.telemetry.capacity.toLocaleString()}`
+                : 'no scene data'}
             </strong>
           </span>
-          <span>&bull;</span>
-          <span>
-            POOL: <strong style={{ color: '#0f172a' }}>
-              {telemetryData ? `${telemetryData.telemetry.total_heap_mb.toFixed(4)} MB fixed` : `${POOL_MB.toFixed(4)} MB fixed (by design)`}
+          <span aria-hidden="true">&bull;</span>
+          <span className="whitespace-nowrap">
+            POOL:{' '}
+            <strong className="text-fg">
+              {telemetryData
+                ? `${telemetryData.telemetry.total_heap_mb.toFixed(4)} MB fixed`
+                : `${POOL_MB.toFixed(4)} MB fixed (by design)`}
             </strong>
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '10px', color: '#475569', backgroundColor: '#e2e8f0', padding: '2px 8px', borderRadius: '4px' }}>
-            SCOPE: CPU-only &bull; single-scan snapshots, not a live sensor stream &bull; synthetic scenes are labelled
-          </span>
-        </div>
+        <span className="hidden xl:inline shrink-0 whitespace-nowrap text-[10px] text-fg-2 bg-subtle px-2 py-0.5 rounded">
+          Scope: CPU-only &bull; single scans, not a live stream
+        </span>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <span>
-            LABELS: <strong style={{ color: '#0f172a' }}>
-              {telemetryData?.telemetry?.label_source ?? 'n/a'}
-            </strong>
-          </span>
-        </div>
+        <span className="whitespace-nowrap">
+          LABELS: <strong className="text-fg">{telemetryData?.telemetry?.label_source ?? 'n/a'}</strong>
+        </span>
       </footer>
       
       {/* Onboarding Dialog for DRDO Hackathon Evaluator */}

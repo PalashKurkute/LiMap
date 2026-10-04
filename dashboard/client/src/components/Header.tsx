@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
 import type { SceneId } from '../types/telemetry';
-import { HelpCircle, HardDrive } from 'lucide-react';
+import { HelpCircle, HardDrive, Moon, Sun } from 'lucide-react';
 import { POOL_MB } from '../lib/constants';
+import { toggleTheme, useTheme } from '../theme/theme';
 
 interface HeaderProps {
   onSelectScene: (scene: SceneId) => void;
@@ -15,6 +16,11 @@ interface HeaderProps {
   onViewChange?: (view: 'hook_3d' | 'data_inspection') => void;
 }
 
+const VIEWS: { id: 'hook_3d' | 'data_inspection'; label: string }[] = [
+  { id: 'hook_3d', label: '3D Explore' },
+  { id: 'data_inspection', label: 'Map Inspector' },
+];
+
 export const Header: React.FC<HeaderProps> = ({
   onSelectScene,
   isSidebarOpen: _isSidebarOpen,
@@ -26,92 +32,90 @@ export const Header: React.FC<HeaderProps> = ({
   currentView = 'hook_3d',
   onViewChange,
 }) => {
+  const { theme } = useTheme();
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      if (el?.closest('input, textarea, select, [contenteditable="true"]')) return;
       if (e.key === '1') onSelectScene('scene_a_bridge');
       else if (e.key === '2') onSelectScene('scene_b_potholes');
       else if (e.key === '3') onSelectScene('scene_c_moving');
       else if (e.key === '4') onSelectScene('scene_d_poles');
       else if (e.key === '5') onSelectScene('real_seq08_f00');
-      else if (e.key === 't' || e.key === 'T') onToggleSidebar();
+      else if (e.key === 'T') toggleTheme(); // Shift+T
+      else if (e.key === 't') onToggleSidebar();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onSelectScene, onToggleSidebar]);
 
   return (
-    <header className="h-13 bg-white border-b border-slate-200 px-4 flex items-center justify-between z-30 select-none">
-      {/* Left: Brand + Status */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2.5">
-          <span className="text-sm font-bold tracking-tight text-slate-900">
-            LiMap 2.5D
-          </span>
-          <span className="text-[10px] font-mono font-bold bg-slate-900 text-white px-1.5 py-0.5 rounded">
-            2.5D DEM
-          </span>
-          <span className="text-xs text-slate-400 font-normal">|</span>
-          <span className="text-xs text-slate-600 font-medium">
-            Adaptive LiDAR Perception for DRDO SIH26053
-          </span>
-        </div>
+    <header
+      data-region="header"
+      className="h-13 shrink-0 bg-panel border-b border-line px-4 flex items-center justify-between gap-3 z-30 select-none"
+    >
+      <div className="flex items-center gap-2.5 min-w-0">
+        <span className="text-sm font-bold tracking-tight text-fg whitespace-nowrap">LiMap</span>
+        <span className="text-[10px] font-mono font-bold bg-accent text-accent-on px-1.5 py-0.5 rounded">2.5D</span>
+        <span className="hidden xl:inline text-xs text-fg-muted font-medium truncate">
+          Adaptive LiDAR perception · SIH26053
+        </span>
       </div>
 
-      {/* Center: Two-Tier Architecture Switcher (Hook vs Data Inspection) */}
-      <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-mono">
-        <button
-          onClick={() => onViewChange?.('hook_3d')}
-          className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-semibold transition-all ${
-            currentView === 'hook_3d'
-              ? 'bg-white text-slate-900 shadow-xs'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <span>1. 3D Hook (Cinematic)</span>
-        </button>
-        <button
-          onClick={() => onViewChange?.('data_inspection')}
-          className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-semibold transition-all ${
-            currentView === 'data_inspection'
-              ? 'bg-slate-900 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <span>2. Data-Inspection Matrix (Real Proofs)</span>
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-        </button>
-      </div>
+      <nav aria-label="Views" className="flex items-center bg-subtle p-1 rounded-xl border border-line text-xs">
+        {VIEWS.map((v) => {
+          const active = currentView === v.id;
+          return (
+            <button
+              key={v.id}
+              onClick={() => onViewChange?.(v.id)}
+              aria-current={active ? 'page' : undefined}
+              className={`px-3 py-1 rounded-lg font-semibold whitespace-nowrap transition-all ${
+                active ? 'bg-accent text-accent-on shadow-xs' : 'text-fg-2 hover:text-fg'
+              }`}
+            >
+              {v.label}
+            </button>
+          );
+        })}
+      </nav>
 
-      {/* Right: Clean Memory Proof + Live Backend Link + Onboarding */}
-      <div className="flex items-center gap-3">
-        {/* Live Backend Connection Indicator */}
-        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono">
-          <div className={`w-2 h-2 rounded-full ${backendConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-          <span className="text-slate-600 font-medium">
+      <div className="flex items-center gap-2.5">
+        <div
+          className="flex items-center gap-1.5 px-2.5 py-1 bg-subtle border border-line rounded-lg text-xs font-mono"
+          title={backendConnected ? 'Backend API reachable' : 'Backend API not reachable'}
+        >
+          <span className={`w-2 h-2 rounded-full ${backendConnected ? 'bg-good' : 'bg-warn'}`} aria-hidden="true" />
+          <span className="text-fg-2 font-medium whitespace-nowrap">
             {backendConnected ? `API online (${backendPingMs}ms)` : 'API offline'}
           </span>
         </div>
 
-        {/* The 3.26 MB Invariant Badge */}
-        <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 border border-slate-200 rounded-lg text-xs font-mono">
-          <HardDrive size={13} className="text-slate-600" />
-          <span className="text-slate-500 font-medium">Memory:</span>
-          <strong className="text-slate-900 font-bold">{memoryMb.toFixed(4)} MB</strong>
-          <span className="text-[10px] text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-200/80">
-            Fixed pool
-          </span>
+        <div className="hidden xl:flex items-center gap-2 px-3 py-1 bg-subtle border border-line rounded-lg text-xs font-mono">
+          <HardDrive size={13} className="text-fg-2" />
+          <span className="text-fg-muted font-medium">Pool</span>
+          <strong className="text-fg font-bold tabular-nums">{memoryMb.toFixed(4)} MB</strong>
         </div>
 
+        <button
+          onClick={toggleTheme}
+          aria-pressed={theme === 'dark'}
+          aria-label={theme === 'dark' ? 'Dark theme (switch to light)' : 'Light theme (switch to dark)'}
+          title="Toggle light / dark theme (Shift+T)"
+          className="p-2 rounded-lg border border-line-strong bg-subtle text-fg-2 hover:text-fg hover:bg-line transition-colors"
+        >
+          {theme === 'dark' ? <Moon size={15} /> : <Sun size={15} />}
+        </button>
 
-        {/* Guided Walkthrough For Judge */}
         <button
           onClick={onOpenOnboarding}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-sm transition-all active:scale-95"
-          title="Open interactive architectural walkthrough for DRDO evaluators"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent/90 text-accent-on text-xs font-semibold rounded-lg shadow-sm transition-all active:scale-95 whitespace-nowrap"
+          title="Open the guided walkthrough"
         >
           <HelpCircle size={14} />
-          <span>Judge Walkthrough</span>
+          <span className="hidden lg:inline">Walkthrough</span>
         </button>
       </div>
     </header>

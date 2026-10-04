@@ -8,13 +8,13 @@ import { Target } from 'lucide-react';
  */
 export const RegretPanel: React.FC = () => {
   return (
-    <div className="flex flex-col gap-3 text-slate-900">
-      <div className="bg-white border border-slate-300 rounded-xl p-4 shadow-sm flex flex-col gap-3">
-        <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
-          <Target size={14} className="text-slate-800" />
+    <div className="flex flex-col gap-3 text-fg">
+      <div className="bg-panel border border-line-strong rounded-xl p-4 shadow-sm flex flex-col gap-3">
+        <div className="flex items-center gap-2 border-b border-line pb-2">
+          <Target size={14} className="text-fg" />
           <span className="text-xs font-bold tracking-tight uppercase">Planner divergence &amp; regret</span>
         </div>
-        <p className="text-xs text-slate-600 leading-relaxed">
+        <p className="text-xs text-fg-2 leading-relaxed">
           Regret compares a Hybrid-A* path on the FoveaGrid map against the same planner on a dense reference map. It is
           produced offline by <span className="font-mono">benchmark/regret_benchmark.py</span> on a small set of real
           frames, not per scene in this viewer, so no value is shown here.

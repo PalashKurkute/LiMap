@@ -1,25 +1,77 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
+@import "./theme/tokens.css";
 
-:root {
-  --bg-primary: #F8FAFC;
-  --bg-secondary: #FFFFFF;
-  --card-bg: #FFFFFF;
-  --card-border: #E2E8F0;
+/* Map design tokens to Tailwind utilities (bg-panel, text-fg, border-line, ...). */
+@theme inline {
+  --color-app: var(--app);
+  --color-panel: var(--panel);
+  --color-elevated: var(--elevated);
+  --color-subtle: var(--subtle);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-overlay: var(--overlay);
 
-  --text-primary: #0F172A;
-  --text-secondary: #475569;
-  --text-muted: #64748B;
-  --text-subtle: #94A3B8;
+  --color-fg: var(--fg);
+  --color-fg-2: var(--fg-2);
+  --color-fg-muted: var(--fg-muted);
 
-  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --color-accent: var(--accent);
+  --color-accent-on: var(--accent-on);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-accent-text: var(--accent-text);
+  --color-accent-line: var(--accent-line);
+  --color-focus: var(--focus);
+
+  --color-good: var(--good);
+  --color-good-fg: var(--good-fg);
+  --color-good-bg: var(--good-bg);
+  --color-good-line: var(--good-line);
+  --color-warn: var(--warn);
+  --color-warn-fg: var(--warn-fg);
+  --color-warn-bg: var(--warn-bg);
+  --color-warn-line: var(--warn-line);
+  --color-critical: var(--critical);
+  --color-critical-fg: var(--critical-fg);
+  --color-critical-bg: var(--critical-bg);
+  --color-critical-line: var(--critical-line);
+
+  --color-prov-measured: var(--prov-measured);
+  --color-prov-calculated: var(--prov-calculated);
+  --color-prov-estimate: var(--prov-estimate);
+  --color-prov-synthetic: var(--prov-synthetic);
+  --color-prov-precomputed: var(--prov-precomputed);
+
+  --color-viz-surface: var(--viz-surface);
+  --color-viz-grid: var(--viz-grid);
+  --color-viz-axis: var(--viz-axis);
+  --color-viz-ours: var(--viz-ours);
+  --color-viz-baseline: var(--viz-baseline);
+
+  --color-scene-bg: var(--scene-bg);
+  --color-scene-ring-0: var(--scene-ring-0);
+  --color-scene-ring-1: var(--scene-ring-1);
+  --color-scene-ring-2: var(--scene-ring-2);
+  --color-scene-ring-3: var(--scene-ring-3);
+  --color-scene-prop: var(--scene-prop);
+  --color-scene-prop-2: var(--scene-prop-2);
+  --color-scene-pole: var(--scene-pole);
+  --color-scene-track: var(--scene-track);
+  --color-scene-ugv: var(--scene-ugv);
+  --color-scene-path: var(--scene-path);
+
+  --font-sans: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
+:root {
+  --font-ui: var(--font-sans);
+  accent-color: var(--accent);
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
 
 body {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+  background-color: var(--app);
+  color: var(--fg);
   font-family: var(--font-ui);
   overflow: hidden;
   height: 100vh;
@@ -35,23 +87,32 @@ body {
   flex-direction: column;
 }
 
-/* Custom Scrollbars */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+::selection {
+  background: var(--accent-subtle);
+  color: var(--fg);
 }
 
-::-webkit-scrollbar-track {
-  background: #F1F5F9;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
+/* Visible keyboard focus everywhere (3:1 against surfaces in both themes). */
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
   border-radius: 4px;
 }
 
+/* Scrollbars follow the theme. */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
 ::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* Utility classes */
@@ -61,14 +122,14 @@ body {
   font-weight: 600;
 }
 
-/* Drawer styles with inline flex resizing (no overlay) */
+/* Drawer: inline flex resizing (no overlay) */
 .telemetry-drawer {
   width: 380px;
   flex-shrink: 0;
   height: 100%;
-  background: #F8FAFC;
-  border-left: 1px solid #CBD5E1;
-  box-shadow: -4px 0 20px rgba(15, 23, 42, 0.05);
+  background: var(--app);
+  border-left: 1px solid var(--line-strong);
+  box-shadow: -4px 0 20px var(--shadow-color);
   display: flex;
   flex-direction: column;
   z-index: 20;
@@ -89,37 +150,7 @@ body {
   pointer-events: auto;
 }
 
-/* High contrast card & button utilities */
-.card-clean {
-  background-color: #FFFFFF;
-  border: 1px solid #CBD5E1;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
-}
-
-.btn-clean-inactive {
-  background-color: #FFFFFF;
-  border: 1px solid #CBD5E1;
-  color: #334155;
-  font-weight: 500;
-  transition: all 0.15s ease;
-}
-
-.btn-clean-inactive:hover {
-  background-color: #F1F5F9;
-  border-color: #94A3B8;
-  color: #0F172A;
-}
-
-.btn-clean-active {
-  background-color: #0F172A;
-  border: 1px solid #0F172A;
-  color: #FFFFFF;
-  font-weight: 600;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1);
-}
-
-/* Apple-Grade Spring Animations & Transitions */
+/* Motion */
 @keyframes appleSlideIn {
   from {
     opacity: 0;
@@ -132,7 +163,8 @@ body {
 }
 
 @keyframes beamPulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.6;
     stroke-width: 1.5;
   }
@@ -142,26 +174,18 @@ body {
   }
 }
 
-@keyframes carRoll {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-0.8px);
-  }
-}
-
 .apple-slide-enter {
   animation: appleSlideIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .apple-card-hover {
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s ease;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.15s ease;
 }
 
 .apple-card-hover:hover {
   transform: translateY(-1.5px);
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 4px 16px var(--shadow-color);
 }
 
 .apple-press {
@@ -170,4 +194,25 @@ body {
 
 .apple-press:active {
   transform: scale(0.975);
+}
+
+/* Switching theme: suppress transitions for one frame so nothing visibly sweeps. */
+:root[data-theme-switching] *,
+:root[data-theme-switching] *::before,
+:root[data-theme-switching] *::after {
+  transition: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-pulse {
+    animation: none !important;
+  }
 }

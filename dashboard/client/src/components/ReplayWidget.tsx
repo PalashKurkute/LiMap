@@ -21,24 +21,24 @@ export const ReplayWidget: React.FC<ReplayWidgetProps> = ({
   return (
     <div
       style={{ width: '320px', minWidth: '320px' }}
-      className="absolute bottom-6 right-6 bg-white border border-slate-300 rounded-2xl p-4 shadow-xl flex flex-col gap-3 z-20 select-none text-slate-900"
+      data-region="replay" className="absolute bottom-6 right-6 bg-panel border border-line-strong rounded-2xl p-4 shadow-xl flex flex-col gap-3 z-20 select-none text-fg"
     >
       {/* Top Header */}
       <div className="flex items-center justify-between">
-        <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
+        <span className="text-xs font-bold uppercase tracking-wider text-fg">
           Mission Playback
         </span>
-        <span className="text-[10px] font-mono text-slate-500 font-semibold bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">
+        <span className="text-[10px] font-mono text-fg-muted font-semibold bg-subtle border border-line px-2 py-0.5 rounded">
           Autonomous Nav
         </span>
       </div>
 
       {/* Transport Controls & Speed */}
-      <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200">
+      <div className="flex items-center justify-between gap-2 pt-2 border-t border-line">
         <div className="flex items-center gap-2">
           <button
             onClick={() => onFrameSeek(0)}
-            className="p-1.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors"
+            className="p-1.5 rounded-lg border border-line-strong bg-subtle hover:bg-subtle text-fg-2 transition-colors"
             title="Rewind to start"
           >
             <RotateCcw size={13} />
@@ -46,7 +46,7 @@ export const ReplayWidget: React.FC<ReplayWidgetProps> = ({
 
           <button
             onClick={() => onIsPlayingChange(!isPlaying)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-sm transition-all active:scale-95"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent hover:bg-accent/90 text-accent-on text-xs font-semibold shadow-sm transition-all active:scale-95"
           >
             {isPlaying ? <Pause size={13} /> : <Play size={13} />}
             <span>{isPlaying ? 'Pause' : 'Play'}</span>
@@ -61,8 +61,8 @@ export const ReplayWidget: React.FC<ReplayWidgetProps> = ({
               onClick={() => onPlaybackSpeedChange(spd)}
               className={`px-2 py-0.5 rounded-md border transition-all ${
                 playbackSpeed === spd
-                  ? 'bg-slate-900 border-slate-900 text-white font-semibold'
-                  : 'bg-slate-50 border-slate-300 text-slate-700 hover:bg-slate-100'
+                  ? 'bg-accent border-line-strong text-accent-on font-semibold'
+                  : 'bg-subtle border-line-strong text-fg-2 hover:bg-subtle'
               }`}
             >
               {spd}x
@@ -73,7 +73,7 @@ export const ReplayWidget: React.FC<ReplayWidgetProps> = ({
 
       {/* Frame Scrubber */}
       <div className="flex flex-col gap-1.5 pt-1">
-        <div className="flex justify-between items-center text-[10px] font-mono text-slate-500 font-medium">
+        <div className="flex justify-between items-center text-[10px] font-mono text-fg-muted font-medium">
           <span>Frame: {String(currentFrame).padStart(3, '0')} / 120</span>
           <span>+{(currentFrame * 0.033).toFixed(2)}s</span>
         </div>
@@ -84,7 +84,7 @@ export const ReplayWidget: React.FC<ReplayWidgetProps> = ({
             max={120}
             value={currentFrame}
             onChange={(e) => onFrameSeek(Number(e.target.value))}
-            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900 block"
+            className="w-full h-1.5 bg-line rounded-lg appearance-none cursor-pointer accent-slate-900 block"
           />
         </div>
       </div>

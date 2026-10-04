@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   ArrowLeft,
   Cpu,
@@ -12,6 +12,18 @@ import {
 } from 'lucide-react';
 import type { TelemetryResponse, SceneId } from '../types/telemetry';
 import { POOL_MB } from '../lib/constants';
+import { readToken, useTheme } from '../theme/theme';
+import {
+  SEMANTIC_CLASSES,
+  semanticColor,
+  semanticName,
+  elevationCss,
+  varianceCss,
+  overhangCss,
+  gradientCss,
+  getTurboColor,
+  getVarianceColor,
+} from '../theme/colormaps';
 
 export interface GridCellData {
   ix: number;
@@ -37,80 +49,77 @@ interface DataInspectionScreenProps {
   onSelectScene?: (sceneId: SceneId) => void;
 }
 
-const SEMANTIC_CLASS_NAMES: Record<number, { name: string; color: string }> = {
-  0: { name: 'Unlabeled', color: '#94a3b8' },
-  10: { name: 'Car / Vehicle', color: '#38bdf8' },
-  11: { name: 'Bicycle', color: '#f43f5e' },
-  15: { name: 'Motorcycle', color: '#f97316' },
-  18: { name: 'Truck', color: '#0284c7' },
-  20: { name: 'Other Vehicle', color: '#0ea5e9' },
-  30: { name: 'Person', color: '#e11d48' },
-  40: { name: 'Road / Drivable', color: '#64748b' },
-  44: { name: 'Parking', color: '#94a3b8' },
-  48: { name: 'Sidewalk', color: '#cbd5e1' },
-  49: { name: 'Other Ground', color: '#94a3b8' },
-  50: { name: 'Building / Wall', color: '#e2e8f0' },
-  51: { name: 'Fence / Barrier', color: '#a855f7' },
-  70: { name: 'Vegetation', color: '#22c55e' },
-  71: { name: 'Trunk / Tree', color: '#15803d' },
-  72: { name: 'Terrain / Grass', color: '#16a34a' },
-  80: { name: 'Pole / Bollard', color: '#eab308' },
-  81: { name: 'Traffic Sign', color: '#f59e0b' },
-  252: { name: 'Moving Object (MOS)', color: '#ef4444' },
-};
+type ColorBy = 'ring' | 'semantics' | 'elevation' | 'variance' | 'overhang';
 
-const RING_CONFIGS = [
-  { id: 0, name: 'Ring 0: Fovea', range: '0–10m', res: '5cm', color: '#06b6d4', ringRes: 0.05 },
-  { id: 1, name: 'Ring 1: Tactical', range: '10–25m', res: '10cm', color: '#10b981', ringRes: 0.10 },
-  { id: 2, name: 'Ring 2: Planning', range: '25–50m', res: '25cm', color: '#f59e0b', ringRes: 0.25 },
-  { id: 3, name: 'Ring 3: Horizon', range: '50–100m', res: '50cm', color: '#8b5cf6', ringRes: 0.50 },
+const COLOR_MODES: { id: ColorBy; label: string }[] = [
+  { id: 'semantics', label: 'Class' },
+  { id: 'ring', label: 'Ring' },
+  { id: 'elevation', label: 'Elevation' },
+  { id: 'variance', label: 'Variance' },
+  { id: 'overhang', label: 'Overhang' },
 ];
+
+// Ring geometry is architectural (core/grid lattice); colours come from --scene-ring-N tokens.
+const RING_CONFIGS = [
+  { id: 0, name: 'Fovea', range: '0–10m', res: '5cm', radius: 10 },
+  { id: 1, name: 'Tactical', range: '10–25m', res: '10cm', radius: 25 },
+  { id: 2, name: 'Planning', range: '25–50m', res: '25cm', radius: 50 },
+  { id: 3, name: 'Horizon', range: '50–100m', res: '50cm', radius: 100 },
+];
+
+const CELL_LIMIT = 20000;
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 60;
+const DEFAULT_ZOOM = 6;
+const PICK_TOLERANCE_PX = 14;
+
+interface View {
+  zoom: number; // pixels per metre
+  pan: { x: number; y: number }; // CSS-pixel offset of the ego origin from the canvas centre
+}
 
 export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
   activeScene,
   telemetryData,
   onBackToHook,
 }) => {
+  const { theme } = useTheme();
   const [cells, setCells] = useState<GridCellData[]>([]);
   const [totalActive, setTotalActive] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedCell, setSelectedCell] = useState<GridCellData | null>(null);
-  const [colorBy, setColorBy] = useState<'ring' | 'semantics' | 'elevation' | 'variance' | 'overhang'>('semantics');
+  const [colorBy, setColorBy] = useState<ColorBy>('semantics');
   const [filterRing, setFilterRing] = useState<number | 'all'>('all');
-
-  // Canvas Viewport Pan & Zoom
-  const [zoom, setZoom] = useState<number>(6); // pixels per meter
-  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [view, setView] = useState<View>({ zoom: DEFAULT_ZOOM, pan: { x: 0, y: 0 } });
+  const [size, setSize] = useState({ w: 0, h: 0, dpr: 1 });
+  const [isDragging, setIsDragging] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{ x: number; y: number; panX: number; panY: number; moved: boolean } | null>(null);
 
   // Fetch real cells from /api/grid_cells
   useEffect(() => {
     let isMounted = true;
     setIsLoading(true);
+    setSelectedCell(null);
 
-    fetch('/api/grid_cells?limit=4000')
+    fetch(`/api/grid_cells?limit=${CELL_LIMIT}`)
       .then((res) => {
         if (!res.ok) throw new Error('API offline');
         return res.json();
       })
       .then((data) => {
-        if (isMounted) {
-          setCells(data.cells || []);
-          setTotalActive(data.total_active || 0);
-          setIsLoading(false);
-          if (data.cells && data.cells.length > 0) {
-            setSelectedCell(data.cells[0]);
-          }
-        }
+        if (!isMounted) return;
+        setCells(data.cells || []);
+        setTotalActive(data.total_active || 0);
+        setIsLoading(false);
       })
       .catch(() => {
-        if (isMounted) {
-          // Synthetic fallback if server offline
-          setIsLoading(false);
-        }
+        if (!isMounted) return;
+        setCells([]);
+        setTotalActive(0);
+        setIsLoading(false);
       });
 
     return () => {
@@ -118,219 +127,292 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
     };
   }, [activeScene]);
 
+  // Size the canvas to its container (DPR-aware) so drawing and hit-testing share one coordinate system.
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const update = () => setSize({ w: el.clientWidth, h: el.clientHeight, dpr: window.devicePixelRatio || 1 });
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const ringCounts = useMemo(() => {
     const counts = [0, 0, 0, 0];
     for (const c of cells) if (c.ring_id >= 0 && c.ring_id < counts.length) counts[c.ring_id]++;
     return counts;
   }, [cells]);
 
-  // Filtered cells based on ring selection
-  const displayedCells = useMemo(() => {
-    if (filterRing === 'all') return cells;
-    return cells.filter((c) => c.ring_id === filterRing);
-  }, [cells, filterRing]);
+  const displayedCells = useMemo(
+    () => (filterRing === 'all' ? cells : cells.filter((c) => c.ring_id === filterRing)),
+    [cells, filterRing],
+  );
 
-  // Draw 2.5D Top-Down Lattice Canvas
+  const classCounts = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const c of cells) m.set(c.sem_id, (m.get(c.sem_id) ?? 0) + 1);
+    return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  }, [cells]);
+
+  // ---- coordinate transforms (CSS pixels) ----
+  const originOf = useCallback(
+    (v: View) => ({ x: size.w / 2 + v.pan.x, y: size.h / 2 + v.pan.y }),
+    [size.w, size.h],
+  );
+
+  // ---- draw ----
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || size.w === 0 || size.h === 0) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const width = canvas.width;
-    const height = canvas.height;
-    const originX = width / 2 + pan.x;
-    const originY = height / 2 + pan.y;
+    const pxW = Math.round(size.w * size.dpr);
+    const pxH = Math.round(size.h * size.dpr);
+    if (canvas.width !== pxW) canvas.width = pxW;
+    if (canvas.height !== pxH) canvas.height = pxH;
+    ctx.setTransform(size.dpr, 0, 0, size.dpr, 0, 0);
 
-    // Background
-    ctx.fillStyle = '#090d16';
-    ctx.fillRect(0, 0, width, height);
+    const { zoom } = view;
+    const o = originOf(view);
 
-    // Draw Metric Grid lines (every 10 meters)
+    const bg = readToken('--scene-bg');
+    const gridColor = readToken('--scene-grid-minor');
+    const egoColor = readToken('--scene-ego');
+    const selColor = readToken('--scene-selection');
+    const labelColor = readToken('--fg-muted');
+    const ringColors = RING_CONFIGS.map((r) => readToken(`--scene-ring-${r.id}`));
+
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, size.w, size.h);
+
+    // Metric grid every 10 m
+    const step = 10 * zoom;
     ctx.lineWidth = 1;
-    ctx.strokeStyle = '#1e293b';
-    const gridStepM = 10;
-    const gridStepPx = gridStepM * zoom;
-    const startX = (originX % gridStepPx) - gridStepPx;
-    const startY = (originY % gridStepPx) - gridStepPx;
-
+    ctx.strokeStyle = gridColor;
     ctx.beginPath();
-    for (let x = startX; x < width + gridStepPx; x += gridStepPx) {
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, height);
+    for (let x = (((o.x % step) + step) % step) - step; x < size.w + step; x += step) {
+      ctx.moveTo(Math.round(x) + 0.5, 0);
+      ctx.lineTo(Math.round(x) + 0.5, size.h);
     }
-    for (let y = startY; y < height + gridStepPx; y += gridStepPx) {
-      ctx.moveTo(0, y);
-      ctx.lineTo(width, y);
+    for (let y = (((o.y % step) + step) % step) - step; y < size.h + step; y += step) {
+      ctx.moveTo(0, Math.round(y) + 0.5);
+      ctx.lineTo(size.w, Math.round(y) + 0.5);
     }
     ctx.stroke();
 
-    // Draw Fovea Concentric Boundary Rings (10m, 25m, 50m, 100m)
-    const ringRadii = [10, 25, 50, 100];
-    const ringColors = ['#06b6d4', '#10b981', '#f59e0b', '#8b5cf6'];
+    // Cells (X forward = up, Y left = left)
+    const semCache = new Map<number, string>();
+    const semFill = (id: number) => {
+      let c = semCache.get(id);
+      if (!c) {
+        c = semanticColor(id, theme);
+        semCache.set(id, c);
+      }
+      return c;
+    };
+    const overhangOn = overhangCss(true, theme);
+    const overhangOff = overhangCss(false, theme);
 
-    ringRadii.forEach((r, idx) => {
+    for (const cell of displayedCells) {
+      const cx = o.x - cell.y_m * zoom;
+      const cy = o.y - cell.x_m * zoom;
+      const px = Math.max(2, cell.res_m * zoom);
+      if (cx < -px || cy < -px || cx > size.w + px || cy > size.h + px) continue;
+
+      let fill: string;
+      switch (colorBy) {
+        case 'ring':
+          fill = ringColors[cell.ring_id] ?? labelColor;
+          break;
+        case 'elevation':
+          fill = elevationCss(cell.mean_z);
+          break;
+        case 'variance':
+          fill = varianceCss(cell.variance);
+          break;
+        case 'overhang':
+          fill = cell.overhang_z != null ? overhangOn : overhangOff;
+          break;
+        default:
+          fill = semFill(cell.sem_id);
+      }
+      ctx.fillStyle = fill;
+      ctx.fillRect(cx - px / 2, cy - px / 2, px, px);
+    }
+
+    // Range rings drawn above cells so boundaries stay visible
+    RING_CONFIGS.forEach((r, idx) => {
       ctx.beginPath();
-      ctx.arc(originX, originY, r * zoom, 0, Math.PI * 2);
+      ctx.arc(o.x, o.y, r.radius * zoom, 0, Math.PI * 2);
       ctx.strokeStyle = ringColors[idx];
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 1.25;
       ctx.setLineDash([4, 4]);
       ctx.stroke();
       ctx.setLineDash([]);
-
-      // Ring Distance Label
       ctx.fillStyle = ringColors[idx];
-      ctx.font = '10px monospace';
-      ctx.fillText(`${r}m`, originX + r * zoom + 4, originY - 4);
+      ctx.font = '10px "JetBrains Mono Variable", monospace';
+      ctx.fillText(`${r.radius}m`, o.x + r.radius * zoom + 4, o.y - 4);
     });
 
-    // Draw Active 2.5D Cells
-    displayedCells.forEach((cell) => {
-      // Coordinate transform: X forward (up on 2D map), Y left (left on 2D map)
-      const cx = originX - cell.y_m * zoom;
-      const cy = originY - cell.x_m * zoom;
-      const cellPx = Math.max(2, cell.res_m * zoom);
+    // Selection outline
+    if (selectedCell) {
+      const cx = o.x - selectedCell.y_m * view.zoom;
+      const cy = o.y - selectedCell.x_m * view.zoom;
+      const px = Math.max(2, selectedCell.res_m * view.zoom);
+      ctx.strokeStyle = selColor;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(cx - px / 2 - 2, cy - px / 2 - 2, px + 4, px + 4);
+    }
 
-      // Determine Cell Color
-      let fill = '#38bdf8';
-      if (colorBy === 'ring') {
-        fill = RING_CONFIGS[cell.ring_id]?.color || '#38bdf8';
-      } else if (colorBy === 'semantics') {
-        fill = SEMANTIC_CLASS_NAMES[cell.sem_id]?.color || '#94a3b8';
-      } else if (colorBy === 'elevation') {
-        const normZ = Math.min(1, Math.max(0, (cell.mean_z + 2.0) / 4.0));
-        fill = `hsl(${Math.round(240 - normZ * 240)}, 85%, 55%)`;
-      } else if (colorBy === 'variance') {
-        const normV = Math.min(1, Math.max(0, cell.variance / 0.05));
-        fill = `hsl(${Math.round(120 - normV * 120)}, 90%, 50%)`;
-      } else if (colorBy === 'overhang') {
-        fill = cell.overhang_z != null ? '#ec4899' : '#059669';
-      }
-
-      ctx.fillStyle = fill;
-      ctx.fillRect(cx - cellPx / 2, cy - cellPx / 2, cellPx, cellPx);
-
-      // Highlight selected or hovered cell
-      if (selectedCell && selectedCell.ix === cell.ix && selectedCell.iy === cell.iy && selectedCell.ring_id === cell.ring_id) {
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(cx - cellPx / 2 - 2, cy - cellPx / 2 - 2, cellPx + 4, cellPx + 4);
-      }
-    });
-
-    // Draw UGV Ego Marker at Origin
-    ctx.fillStyle = '#f43f5e';
+    // Ego marker + heading
+    ctx.fillStyle = egoColor;
     ctx.beginPath();
-    ctx.arc(originX, originY, 4, 0, Math.PI * 2);
+    ctx.arc(o.x, o.y, 4, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = '#ffffff';
+    ctx.strokeStyle = bg;
     ctx.lineWidth = 1.5;
     ctx.stroke();
-
-    // Ego Heading Pointer
     ctx.beginPath();
-    ctx.moveTo(originX, originY - 4);
-    ctx.lineTo(originX, originY - 14);
-    ctx.strokeStyle = '#f43f5e';
+    ctx.moveTo(o.x, o.y - 4);
+    ctx.lineTo(o.x, o.y - 14);
+    ctx.strokeStyle = egoColor;
     ctx.lineWidth = 2;
     ctx.stroke();
-  }, [displayedCells, pan, zoom, colorBy, selectedCell]);
+  }, [displayedCells, view, colorBy, selectedCell, size, theme, originOf]);
 
-  // Handle Canvas Click to Select Cell
-  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  // ---- picking ----
+  const pickAt = useCallback(
+    (sx: number, sy: number): GridCellData | null => {
+      const o = originOf(view);
+      const wy = (o.x - sx) / view.zoom;
+      const wx = (o.y - sy) / view.zoom;
+      let best: GridCellData | null = null;
+      let bestD = Infinity;
+      for (const c of displayedCells) {
+        const d = Math.hypot(c.x_m - wx, c.y_m - wy);
+        const tol = Math.max((c.res_m * 1.5) / 2, PICK_TOLERANCE_PX / view.zoom);
+        if (d <= tol && d < bestD) {
+          bestD = d;
+          best = c;
+        }
+      }
+      return best;
+    },
+    [displayedCells, view, originOf],
+  );
+
+  const localPoint = (e: { clientX: number; clientY: number }) => {
+    const rect = canvasRef.current!.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
+  const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragRef.current = { x: e.clientX, y: e.clientY, panX: view.pan.x, panY: view.pan.y, moved: false };
+    setIsDragging(true);
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const dx = e.clientX - d.x;
+    const dy = e.clientY - d.y;
+    if (Math.abs(dx) + Math.abs(dy) > 3) d.moved = true;
+    if (d.moved) setView((v) => ({ ...v, pan: { x: d.panX + dx, y: d.panY + dy } }));
+  };
+
+  const onPointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const d = dragRef.current;
+    dragRef.current = null;
+    setIsDragging(false);
+    if (d && !d.moved) {
+      const p = localPoint(e);
+      setSelectedCell(pickAt(p.x, p.y));
+    }
+  };
+
+  // Wheel zoom anchored at the cursor (non-passive so the page never scrolls).
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+      setView((v) => {
+        const nz = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.zoom * Math.exp(-e.deltaY * 0.0015)));
+        const k = nz / v.zoom;
+        const ox = rect.width / 2 + v.pan.x;
+        const oy = rect.height / 2 + v.pan.y;
+        return { zoom: nz, pan: { x: cx - (cx - ox) * k - rect.width / 2, y: cy - (cy - oy) * k - rect.height / 2 } };
+      });
+    };
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', onWheel);
+  }, []);
 
-    const originX = canvas.width / 2 + pan.x;
-    const originY = canvas.height / 2 + pan.y;
+  const zoomBy = (factor: number) =>
+    setView((v) => ({ ...v, zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.zoom * factor)) }));
+  const resetView = () => setView({ zoom: DEFAULT_ZOOM, pan: { x: 0, y: 0 } });
 
-    const clickedYm = -(clickX - originX) / zoom;
-    const clickedXm = -(clickY - originY) / zoom;
-
-    // Find closest cell
-    let closest: GridCellData | null = null;
-    let minDist = 2.0; // within 2 meters tolerance
-
-    displayedCells.forEach((c) => {
-      const dist = Math.hypot(c.x_m - clickedXm, c.y_m - clickedYm);
-      if (dist < minDist) {
-        minDist = dist;
-        closest = c;
-      }
-    });
-
-    if (closest) {
-      setSelectedCell(closest);
-    }
+  const onKeyDown = (e: React.KeyboardEvent<HTMLCanvasElement>) => {
+    const STEP = 40;
+    if (e.key === 'ArrowLeft') setView((v) => ({ ...v, pan: { ...v.pan, x: v.pan.x + STEP } }));
+    else if (e.key === 'ArrowRight') setView((v) => ({ ...v, pan: { ...v.pan, x: v.pan.x - STEP } }));
+    else if (e.key === 'ArrowUp') setView((v) => ({ ...v, pan: { ...v.pan, y: v.pan.y + STEP } }));
+    else if (e.key === 'ArrowDown') setView((v) => ({ ...v, pan: { ...v.pan, y: v.pan.y - STEP } }));
+    else if (e.key === '+' || e.key === '=') zoomBy(1.25);
+    else if (e.key === '-') zoomBy(1 / 1.25);
+    else if (e.key === '0') resetView();
+    else return;
+    e.preventDefault();
   };
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    setIsDragging(true);
-    setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
-  };
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (isDragging) {
-      setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
-    }
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
+  const isReal = activeScene.startsWith('real_');
+  const sem = selectedCell ? semanticColor(selectedCell.sem_id, theme) : '';
 
   return (
-    <div className="w-full h-full flex flex-col bg-slate-950 text-slate-100 select-none overflow-hidden font-sans">
-      {/* 1. Header Toolbar */}
-      <header className="h-14 border-b border-slate-800 bg-slate-900/90 px-4 flex items-center justify-between z-30 shrink-0">
-        <div className="flex items-center gap-3">
+    <div data-region="inspector-screen" className="w-full h-full flex flex-col bg-app text-fg select-none overflow-hidden font-sans">
+      {/* Toolbar */}
+      <header className="min-h-14 border-b border-line bg-panel px-4 py-2 flex flex-wrap items-center justify-between gap-2 z-30 shrink-0">
+        <div className="flex items-center gap-3 flex-wrap">
           <button
             onClick={onBackToHook}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-subtle hover:bg-line text-fg border border-line-strong text-xs font-semibold transition-colors"
           >
             <ArrowLeft size={14} />
-            <span>3D Cinematic View</span>
+            <span>Back to 3D</span>
           </button>
-
-          <div className="h-4 w-px bg-slate-700 mx-1" />
-
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-sm text-white tracking-tight">LiMap Map Inspector</span>
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-              CELL INSPECTOR
-            </span>
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono text-cyan-400 border border-cyan-800 bg-cyan-950/40">
-              {totalActive ? `${totalActive.toLocaleString()} Cells Loaded` : 'Real 2.5D Lattice'}
-            </span>
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono text-slate-400 border border-slate-700">
-              {activeScene === 'real_seq08_f00' ? 'REAL: SemanticKITTI Seq 08' : 'STAGED SCENARIO'}
-            </span>
-          </div>
+          <span className="font-bold text-sm text-fg tracking-tight">Map Inspector</span>
+          <span className="px-2 py-0.5 rounded text-[10px] font-mono text-accent-text border border-accent-line bg-accent-subtle">
+            {totalActive ? `${totalActive.toLocaleString()} cells` : 'no cells'}
+          </span>
+          <span
+            className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
+              isReal ? 'text-good-fg bg-good-bg border-good-line' : 'text-warn-fg bg-warn-bg border-warn-line'
+            }`}
+          >
+            {isReal ? 'REAL: SemanticKITTI Seq 08' : 'SYNTHETIC SCENE'}
+          </span>
         </div>
 
-        {/* View Shading Controls */}
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-mono text-slate-400 flex items-center gap-1">
+        <div className="flex items-center gap-1.5 flex-wrap" role="group" aria-label="Colour cells by">
+          <span className="text-[11px] font-mono text-fg-muted flex items-center gap-1">
             <Filter size={12} />
-            <span>Colorize:</span>
+            <span>Colour by</span>
           </span>
-          {[
-            { id: 'semantics', label: 'Semantic Class' },
-            { id: 'ring', label: 'Resolution Tier' },
-            { id: 'elevation', label: 'Elevation (Z)' },
-            { id: 'variance', label: 'Welford Variance' },
-            { id: 'overhang', label: 'Dual Elevation' },
-          ].map((mode) => (
+          {COLOR_MODES.map((mode) => (
             <button
               key={mode.id}
-              onClick={() => setColorBy(mode.id as any)}
+              onClick={() => setColorBy(mode.id)}
+              aria-pressed={colorBy === mode.id}
               className={`px-2.5 py-1 rounded-md text-[11px] font-mono font-semibold transition-all ${
                 colorBy === mode.id
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
+                  ? 'bg-accent text-accent-on shadow-xs'
+                  : 'bg-subtle text-fg-2 hover:bg-line border border-line-strong'
               }`}
             >
               {mode.label}
@@ -339,43 +421,46 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
         </div>
       </header>
 
-      {/* 2. Main Content Split View (Canvas + Side Inspection Panel) */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Canvas Center Stage */}
-        <div className="flex-1 relative flex items-center justify-center bg-slate-950 overflow-hidden">
+        {/* Canvas stage */}
+        <div ref={stageRef} className="flex-1 relative bg-scene-bg overflow-hidden" data-region="inspector-canvas">
           <canvas
             ref={canvasRef}
-            width={1200}
-            height={800}
-            onClick={handleCanvasClick}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            className="w-full h-full cursor-crosshair"
+            tabIndex={0}
+            role="img"
+            aria-label={`Top-down map of ${displayedCells.length} grid cells coloured by ${colorBy}. Arrow keys pan, plus and minus zoom.`}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onKeyDown={onKeyDown}
+            style={{ width: size.w, height: size.h, touchAction: 'none' }}
+            className={`block ${isDragging ? 'cursor-grabbing' : 'cursor-crosshair'}`}
           />
 
-          {/* Canvas Floating Overlay Controls */}
+          {/* Ring filter */}
           <div className="absolute top-4 left-4 flex flex-col gap-2 z-20">
-            <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-2.5 backdrop-blur-md flex flex-col gap-1.5 shadow-lg text-xs font-mono">
-              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                <Crosshair size={12} className="text-cyan-400" />
-                <span>Ring Resolution Filter</span>
+            <div className="bg-panel/90 border border-line rounded-xl p-2.5 backdrop-blur-md flex flex-col gap-1.5 shadow-lg text-xs font-mono">
+              <div className="text-[10px] text-fg-muted font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                <Crosshair size={12} className="text-accent-text" />
+                <span>Ring resolution filter</span>
               </div>
-              <div className="flex gap-1">
+              <div className="flex gap-1 flex-wrap">
                 <button
                   onClick={() => setFilterRing('all')}
+                  aria-pressed={filterRing === 'all'}
                   className={`px-2 py-0.5 rounded text-[10px] ${
-                    filterRing === 'all' ? 'bg-cyan-600 text-white font-bold' : 'bg-slate-800 text-slate-400'
+                    filterRing === 'all' ? 'bg-accent text-accent-on font-bold' : 'bg-subtle text-fg-muted'
                   }`}
                 >
-                  All (100m)
+                  All
                 </button>
                 {RING_CONFIGS.map((r) => (
                   <button
                     key={r.id}
                     onClick={() => setFilterRing(r.id)}
+                    aria-pressed={filterRing === r.id}
                     className={`px-2 py-0.5 rounded text-[10px] font-mono ${
-                      filterRing === r.id ? 'bg-cyan-600 text-white font-bold' : 'bg-slate-800 text-slate-400'
+                      filterRing === r.id ? 'bg-accent text-accent-on font-bold' : 'bg-subtle text-fg-muted'
                     }`}
                   >
                     R{r.id} ({r.res})
@@ -385,194 +470,196 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
             </div>
           </div>
 
-          {/* Zoom / Reset Controls */}
-          <div className="absolute bottom-4 left-4 flex items-center gap-1 bg-slate-900/90 border border-slate-800 rounded-lg p-1 z-20 shadow-md">
-            <button
-              onClick={() => setZoom((z) => Math.min(25, z * 1.25))}
-              className="p-1.5 rounded hover:bg-slate-800 text-slate-300"
-              title="Zoom In"
-            >
+          {/* Zoom controls */}
+          <div className="absolute bottom-4 left-4 flex items-center gap-1 bg-panel/90 border border-line rounded-lg p-1 z-20 shadow-md">
+            <button onClick={() => zoomBy(1.25)} className="p-1.5 rounded hover:bg-subtle text-fg-2" aria-label="Zoom in" title="Zoom in (+)">
               <ZoomIn size={14} />
             </button>
-            <button
-              onClick={() => setZoom((z) => Math.max(1, z / 1.25))}
-              className="p-1.5 rounded hover:bg-slate-800 text-slate-300"
-              title="Zoom Out"
-            >
+            <button onClick={() => zoomBy(1 / 1.25)} className="p-1.5 rounded hover:bg-subtle text-fg-2" aria-label="Zoom out" title="Zoom out (-)">
               <ZoomOut size={14} />
             </button>
-            <button
-              onClick={() => {
-                setPan({ x: 0, y: 0 });
-                setZoom(6);
-              }}
-              className="p-1.5 rounded hover:bg-slate-800 text-slate-300"
-              title="Reset View"
-            >
+            <button onClick={resetView} className="p-1.5 rounded hover:bg-subtle text-fg-2" aria-label="Reset view" title="Reset view (0)">
               <RotateCcw size={14} />
             </button>
-            <span className="text-[10px] font-mono text-slate-400 px-2">{zoom.toFixed(1)}x</span>
+            <span className="text-[10px] font-mono text-fg-muted px-2 tabular-nums">{view.zoom.toFixed(1)} px/m</span>
           </div>
 
-          {/* Empty state: no cells came back (API offline or grid empty). Never draw a fake map. */}
+          {/* Legend */}
+          {cells.length > 0 && (
+            <div
+              data-region="inspector-legend"
+              className="absolute bottom-4 right-4 z-20 bg-panel/90 border border-line rounded-xl p-2.5 backdrop-blur-md shadow-md text-[10px] font-mono text-fg-2 max-w-56"
+            >
+              {colorBy === 'semantics' && (
+                <ul className="flex flex-col gap-1">
+                  {classCounts.map(([id, n]) => (
+                    <li key={id} className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: semanticColor(id, theme) }} />
+                      <span className="truncate">{semanticName(id)}</span>
+                      <span className="ml-auto text-fg-muted tabular-nums">{n.toLocaleString()}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {colorBy === 'ring' && (
+                <ul className="flex flex-col gap-1">
+                  {RING_CONFIGS.map((r) => (
+                    <li key={r.id} className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: `var(--scene-ring-${r.id})` }} />
+                      <span>
+                        R{r.id} {r.name} · {r.res}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {colorBy === 'elevation' && (
+                <div className="flex flex-col gap-1">
+                  <div className="h-2 rounded" style={{ background: gradientCss(getTurboColor) }} />
+                  <div className="flex justify-between text-fg-muted">
+                    <span>−2 m</span>
+                    <span>mean z</span>
+                    <span>+2 m</span>
+                  </div>
+                </div>
+              )}
+              {colorBy === 'variance' && (
+                <div className="flex flex-col gap-1">
+                  <div className="h-2 rounded" style={{ background: gradientCss(getVarianceColor) }} />
+                  <div className="flex justify-between text-fg-muted">
+                    <span>0</span>
+                    <span>Welford variance</span>
+                    <span>≥0.05 m²</span>
+                  </div>
+                </div>
+              )}
+              {colorBy === 'overhang' && (
+                <ul className="flex flex-col gap-1">
+                  <li className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: overhangCss(true, theme) }} />
+                    <span>Overhang recorded</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: overhangCss(false, theme) }} />
+                    <span>Open above</span>
+                  </li>
+                </ul>
+              )}
+            </div>
+          )}
+
           {!isLoading && cells.length === 0 && (
-            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-              <div className="max-w-sm text-center text-xs font-mono text-slate-400 bg-slate-900/90 border border-slate-800 rounded-xl p-4">
+            <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+              <div className="max-w-sm text-center text-xs font-mono text-fg-muted bg-panel/90 border border-line rounded-xl p-4">
                 No grid cells available for this scene. Start the API with scene data loaded to inspect real cells.
               </div>
             </div>
           )}
 
-          {/* Loading Indicator */}
           {isLoading && (
-            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center z-30">
-              <div className="flex items-center gap-2.5 text-xs font-mono text-cyan-400">
+            <div className="absolute inset-0 bg-app/80 backdrop-blur-xs flex items-center justify-center z-30">
+              <div className="flex items-center gap-2.5 text-xs font-mono text-accent-text">
                 <Activity size={16} className="animate-spin" />
-                <span>Streaming 32-Byte Structured Cells from Backend...</span>
+                <span>Loading grid cells…</span>
               </div>
             </div>
           )}
         </div>
 
-        {/* Right Cell Inspector & Verification Proof Sidebar */}
-        <aside className="w-96 border-l border-slate-800 bg-slate-900/95 overflow-y-auto flex flex-col divide-y divide-slate-800 text-xs z-20 shrink-0">
-          {/* Section 1: Selected Cell Verifiable Inspector */}
+        {/* Inspector sidebar */}
+        <aside
+          data-region="inspector-sidebar"
+          className="w-80 xl:w-96 border-l border-line bg-panel overflow-y-auto flex flex-col divide-y divide-line text-xs z-20 shrink-0"
+        >
           <div className="p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-200 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-                <Database size={13} className="text-cyan-400" />
-                <span>Cell Inspection Matrix</span>
+              <span className="font-bold text-fg uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                <Database size={13} className="text-accent-text" />
+                <span>Cell inspector</span>
               </span>
-              <span className="text-[10px] font-mono text-slate-400">
+              <span className="text-[10px] font-mono text-fg-muted">
                 {selectedCell ? `ix: ${selectedCell.ix}, iy: ${selectedCell.iy}` : 'Select a cell'}
               </span>
             </div>
 
             {selectedCell ? (
-              <div className="flex flex-col gap-2 bg-slate-950/60 border border-slate-800 rounded-xl p-3">
-                {/* Metric Coordinates */}
-                <div className="flex justify-between items-center pb-2 border-b border-slate-800/80">
-                  <span className="text-slate-400">World Coordinate (X, Y):</span>
-                  <span className="font-mono font-bold text-cyan-300">
-                    ({selectedCell.x_m}m, {selectedCell.y_m}m)
-                  </span>
-                </div>
-
-                {/* Resolution Tier */}
+              <div className="flex flex-col gap-2 bg-subtle border border-line rounded-xl p-3">
+                <Row label="World (X, Y)" value={`(${selectedCell.x_m} m, ${selectedCell.y_m} m)`} valueClass="text-accent-text" />
+                <Row label="Resolution ring" value={`Ring ${selectedCell.ring_id} (${Math.round(selectedCell.res_m * 100)} cm cell)`} />
                 <div className="flex justify-between items-center py-1">
-                  <span className="text-slate-400">Resolution Ring:</span>
-                  <span className="font-mono font-bold text-slate-200">
-                    Ring {selectedCell.ring_id} ({selectedCell.res_m * 100}cm cell)
-                  </span>
-                </div>
-
-                {/* Semantic Class */}
-                <div className="flex justify-between items-center py-1">
-                  <span className="text-slate-400">Dominant Semantic Class:</span>
+                  <span className="text-fg-muted">Dominant class</span>
                   <span
-                    className="font-bold px-2 py-0.5 rounded text-[10px]"
-                    style={{
-                      backgroundColor: `${SEMANTIC_CLASS_NAMES[selectedCell.sem_id]?.color || '#94a3b8'}25`,
-                      color: SEMANTIC_CLASS_NAMES[selectedCell.sem_id]?.color || '#94a3b8',
-                      border: `1px solid ${SEMANTIC_CLASS_NAMES[selectedCell.sem_id]?.color || '#94a3b8'}40`,
-                    }}
+                    className="font-bold px-2 py-0.5 rounded text-[10px] border"
+                    style={{ color: sem, borderColor: sem, backgroundColor: `color-mix(in srgb, ${sem} 14%, transparent)` }}
                   >
-                    {SEMANTIC_CLASS_NAMES[selectedCell.sem_id]?.name || `Class ${selectedCell.sem_id}`}
+                    {SEMANTIC_CLASSES[selectedCell.sem_id]?.name ?? `Class ${selectedCell.sem_id}`}
                   </span>
                 </div>
-
-                {/* Point Count */}
-                <div className="flex justify-between items-center py-1">
-                  <span className="text-slate-400">LiDAR Return Count:</span>
-                  <span className="font-mono font-bold text-slate-200">{selectedCell.count} points</span>
+                <Row label="LiDAR returns" value={`${selectedCell.count} points`} />
+                <Row label="Welford mean Z" value={`${selectedCell.mean_z} m`} />
+                <Row label="Welford variance" value={`${selectedCell.variance} m²`} />
+                <Row label="Z span" value={`[${selectedCell.min_z} m → ${selectedCell.max_z} m]`} />
+                <div className="pt-2 border-t border-line">
+                  <Row
+                    label="Overhang clearance"
+                    value={selectedCell.clearance != null ? `${selectedCell.clearance} m` : 'none recorded'}
+                  />
                 </div>
-
-                {/* Running Mean Elevation */}
-                <div className="flex justify-between items-center py-1">
-                  <span className="text-slate-400">Welford Mean Z:</span>
-                  <span className="font-mono font-bold text-emerald-400">{selectedCell.mean_z} m</span>
-                </div>
-
-                {/* Variance */}
-                <div className="flex justify-between items-center py-1">
-                  <span className="text-slate-400">Welford Variance (M2):</span>
-                  <span className="font-mono font-bold text-amber-400">{selectedCell.variance} m²</span>
-                </div>
-
-                {/* Min / Max Range */}
-                <div className="flex justify-between items-center py-1">
-                  <span className="text-slate-400">Z Elevation Span:</span>
-                  <span className="font-mono text-slate-300">
-                    [{selectedCell.min_z}m &rarr; {selectedCell.max_z}m]
-                  </span>
-                </div>
-
-                {/* Dual-Elevation Clearance */}
-                <div className="flex justify-between items-center pt-2 border-t border-slate-800/80">
-                  <span className="text-slate-400">Overhang Clearance:</span>
-                  <span className="font-mono font-bold text-rose-400">
-                    {selectedCell.clearance != null ? `${selectedCell.clearance}m Clearance` : 'Open Sky (None)'}
-                  </span>
-                </div>
-
-                <div className="mt-1 p-2 rounded bg-slate-900 border border-slate-800 text-[10px] font-mono text-slate-400">
-                  <strong>Memory Footprint:</strong> Exactly 32 bytes flat cache-line aligned struct in preallocated pool.
+                {selectedCell.count >= 255 && (
+                  <div className="p-2 rounded bg-warn-bg border border-warn-line text-[10px] font-mono text-warn-fg">
+                    The per-cell count saturates at 255 (uint8), so variance in this cell is overstated.
+                  </div>
+                )}
+                <div className="mt-1 p-2 rounded bg-panel border border-line text-[10px] font-mono text-fg-muted">
+                  Each cell is a 32-byte struct in a preallocated pool.
                 </div>
               </div>
             ) : (
-              <div className="p-6 text-center text-slate-500 font-mono">
-                Click any cell on the 2.5D map to inspect its real LiDAR points and Welford statistics.
+              <div className="p-6 text-center text-fg-muted font-mono">
+                Click any cell on the map to inspect its resolution ring, class and Welford statistics.
               </div>
             )}
           </div>
 
-          {/* Section 2: Statistics derived from the loaded scene (no retyped literals) */}
           <div className="p-4 flex flex-col gap-3">
-            <span className="font-bold text-slate-200 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-              <Cpu size={13} className="text-emerald-400" />
+            <span className="font-bold text-fg uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+              <Cpu size={13} className="text-accent-text" />
               <span>Scene statistics</span>
             </span>
 
-            <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-3 flex flex-col gap-1.5 text-[11px] font-mono">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Occupied cells:</span>
-                <span className="text-slate-200">
-                  {telemetryData
+            <div className="bg-subtle border border-line rounded-lg p-3 flex flex-col gap-1.5 text-[11px] font-mono">
+              <Row
+                label="Occupied cells"
+                value={
+                  telemetryData
                     ? `${telemetryData.telemetry.active_cells.toLocaleString()} of ${telemetryData.telemetry.capacity.toLocaleString()}`
                     : totalActive
                       ? totalActive.toLocaleString()
-                      : 'n/a'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Pool size (fixed by design):</span>
-                <span className="text-slate-200">
-                  {(telemetryData?.telemetry.total_heap_mb ?? POOL_MB).toFixed(4)} MB
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Cells shown:</span>
-                <span className="text-slate-200">{cells.length.toLocaleString()}</span>
-              </div>
+                      : 'n/a'
+                }
+              />
+              <Row label="Pool (fixed by design)" value={`${(telemetryData?.telemetry.total_heap_mb ?? POOL_MB).toFixed(4)} MB`} />
+              <Row label="Cells shown" value={cells.length.toLocaleString()} />
             </div>
 
             {cells.length > 0 && (
-              <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-3 flex flex-col gap-1.5 text-[11px] font-mono">
-                <span className="font-bold text-slate-300">Cells per resolution ring</span>
+              <div className="bg-subtle border border-line rounded-lg p-3 flex flex-col gap-1.5 text-[11px] font-mono">
+                <span className="font-bold text-fg-2">Cells per resolution ring</span>
                 {RING_CONFIGS.map((r) => (
-                  <div key={r.id} className="flex justify-between text-slate-400">
-                    <span>
+                  <div key={r.id} className="flex justify-between text-fg-muted">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: `var(--scene-ring-${r.id})` }} />
                       R{r.id} ({r.res}, {r.range})
                     </span>
-                    <span className="text-slate-200">{ringCounts[r.id].toLocaleString()}</span>
+                    <span className="text-fg tabular-nums">{ringCounts[r.id].toLocaleString()}</span>
                   </div>
                 ))}
               </div>
             )}
 
-            <div className="text-[10px] font-mono text-slate-500 leading-relaxed">
+            <div className="text-[10px] font-mono text-fg-muted leading-relaxed">
               Benchmark results (accuracy, latency, fidelity by distance, regret) are produced offline from
-              <span className="text-slate-300"> benchmark/*.json</span> and are not shown on this screen.
+              <span className="text-fg-2"> benchmark/*.json</span> and are not shown on this screen.
             </div>
           </div>
         </aside>
@@ -580,3 +667,10 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
     </div>
   );
 };
+
+const Row: React.FC<{ label: string; value: string; valueClass?: string }> = ({ label, value, valueClass }) => (
+  <div className="flex justify-between items-center gap-3 py-0.5">
+    <span className="text-fg-muted">{label}</span>
+    <span className={`font-mono font-bold tabular-nums text-right ${valueClass ?? 'text-fg'}`}>{value}</span>
+  </div>
+);

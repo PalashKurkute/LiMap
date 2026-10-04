@@ -9,6 +9,10 @@ import type {
   LayerVisibility,
   StressModeId,
 } from '../types/telemetry';
+import { getTurboColor, getTraversabilityColor, pointColorForClass, gradientCss } from '../theme/colormaps';
+import { readSceneTokens, type SceneTokens } from '../theme/sceneTheme';
+import { useTheme } from '../theme/theme';
+import { disposeObject } from '../lib/disposeObject';
 
 interface ThreeViewportProps {
   sceneId: SceneId;
@@ -41,47 +45,6 @@ interface ThreeViewportProps {
 
 
 
-// FastDEM Turbo/Jet Elevation Colormap: maps normalized z in [0, 1] to RGB
-function getTurboColor(normZ: number): { r: number; g: number; b: number } {
-  const t = Math.min(Math.max(normZ, 0.0), 1.0);
-  if (t < 0.15) {
-    // Deep Blue to Indigo (-2.2m Pothole to -1.9m)
-    const f = t / 0.15;
-    return { r: 0.15 * (1 - f) + 0.1 * f, g: 0.1 * (1 - f) + 0.35 * f, b: 0.75 * (1 - f) + 1.0 * f };
-  } else if (t < 0.35) {
-    // Blue to Cyan (-1.9m to -1.73m Road Surface)
-    const f = (t - 0.15) / 0.20;
-    return { r: 0.1 * (1 - f) + 0.0 * f, g: 0.35 * (1 - f) + 0.9 * f, b: 1.0 * (1 - f) + 0.95 * f };
-  } else if (t < 0.60) {
-    // Cyan to Emerald (-1.73m to -1.0m Traversable Ground)
-    const f = (t - 0.35) / 0.25;
-    return { r: 0.0, g: 0.9 * (1 - f) + 0.92 * f, b: 0.95 * (1 - f) + 0.3 * f };
-  } else if (t < 0.82) {
-    // Emerald to Amber/Yellow (-1.0m to +0.8m Incline / Moderate Obstacle)
-    const f = (t - 0.60) / 0.22;
-    return { r: 0.0 * (1 - f) + 1.0 * f, g: 0.92 * (1 - f) + 0.75 * f, b: 0.3 * (1 - f) + 0.0 * f };
-  } else {
-    // Yellow to Crimson (+0.8m to +2.5m High Obstacle / Vehicle / Bridge Deck)
-    const f = (t - 0.82) / 0.18;
-    return { r: 1.0, g: 0.75 * (1 - f) + 0.09 * f, b: 0.0 * (1 - f) + 0.27 * f };
-  }
-}
-
-// Traversability Colormap based on local terrain slope (degrees)
-function getTraversabilityColor(slopeDeg: number): { r: number; g: number; b: number } {
-  if (slopeDeg < 5.0) {
-    // Safe Flat Road (Emerald)
-    return { r: 0.0, g: 0.9, b: 0.46 };
-  } else if (slopeDeg < 12.0) {
-    // Moderate Incline / Caution (Amber Yellow)
-    const f = (slopeDeg - 5.0) / 7.0;
-    return { r: 0.0 * (1 - f) + 1.0 * f, g: 0.9 * (1 - f) + 0.75 * f, b: 0.46 * (1 - f) + 0.0 * f };
-  } else {
-    // Untraversable / Lethal Step (Crimson)
-    return { r: 1.0, g: 0.09, b: 0.27 };
-  }
-}
-
 export const ThreeViewport: React.FC<ThreeViewportProps> = ({
   sceneId,
   telemetry: _telemetry,
@@ -104,6 +67,12 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
   showScaleBar = true,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
+  const { theme } = useTheme();
+  const themeRef = useRef(theme);
+  themeRef.current = theme;
+  // Closures registered while building the scene; re-run on theme change so colours update in place.
+  const themablesRef = useRef<((t: SceneTokens) => void)[]>([]);
+  const realSemsRef = useRef<number[] | null>(null);
   const lastReportedFrameRef = useRef<number>(propCurrentFrame ?? 0);
 
   const activeLayers: LayerVisibility = layerVisibility ?? {
@@ -269,7 +238,26 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
     }
   }, [displayMode, isWireframe, showCloudOverlay, showSweepWave, activeLayers]);
 
-  // Adversarial Sensor Stress Mode Reaction (SIH26053 §9.2)
+  // Re-colour the existing scene when the theme changes (no rebuild, camera and playback preserved).
+  useEffect(() => {
+    const T = readSceneTokens(theme);
+    themablesRef.current.forEach((fn) => fn(T));
+    const pts = cloudPointsRef.current;
+    const sems = realSemsRef.current;
+    if (pts && sems && pts.geometry.attributes.color && pts.geometry.attributes.position) {
+      const pos = pts.geometry.attributes.position.array as Float32Array;
+      const col = pts.geometry.attributes.color.array as Float32Array;
+      for (let i = 0; i < sems.length; i++) {
+        const c = pointColorForClass(sems[i], pos[i * 3 + 2], theme);
+        col[i * 3] = c.r;
+        col[i * 3 + 1] = c.g;
+        col[i * 3 + 2] = c.b;
+      }
+      pts.geometry.attributes.color.needsUpdate = true;
+    }
+  }, [theme]);
+
+  // Sensor dropout preview (visual only): hides half of the drawn points.
   useEffect(() => {
     if (!cloudPointsRef.current) return;
     const geom = cloudPointsRef.current.geometry;
@@ -434,19 +422,35 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
     carInit.speed = 0.0;
     carInit.steerAngle = 0.0;
 
+    const T0 = readSceneTokens(themeRef.current);
+    themablesRef.current = [];
+    const reg = (fn: (t: SceneTokens) => void) => {
+      fn(T0);
+      themablesRef.current.push(fn);
+    };
+    const shade = (c: string, k: number) => new THREE.Color(c).multiplyScalar(k);
+
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf8fafc);
+    const bgColor = new THREE.Color();
+    scene.background = bgColor;
+    reg((T) => bgColor.set(T.bg));
 
     // Directional & Ambient Lighting for FastDEM Relief Shading
-    const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.2);
+    const dirLight1 = new THREE.DirectionalLight('white', 1.2);
+    reg((T) => {
+      dirLight1.intensity = T.key;
+    });
     dirLight1.position.set(-20, -30, 40);
     scene.add(dirLight1);
 
-    const dirLight2 = new THREE.DirectionalLight(0x94a3b8, 0.4);
+    const dirLight2 = new THREE.DirectionalLight('lightgray', 0.4);
     dirLight2.position.set(30, 20, 20);
     scene.add(dirLight2);
 
-    const ambLight = new THREE.AmbientLight(0xffffff, 0.9);
+    const ambLight = new THREE.AmbientLight('white', 0.9);
+    reg((T) => {
+      ambLight.intensity = T.ambient;
+    });
     scene.add(ambLight);
 
     const camera = new THREE.PerspectiveCamera(
@@ -461,35 +465,42 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setSize(container.clientWidth, container.clientHeight, false);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // Absolutely positioned and CSS-sized so the canvas never forces the layout wider than its container.
+    renderer.domElement.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block';
     container.appendChild(renderer.domElement);
 
     // Subtle Ground Reference Grid (Clean light mode slate)
-    const gridHelper = new THREE.GridHelper(100, 50, 0x94a3b8, 0xe2e8f0);
-    gridHelper.rotation.x = Math.PI / 2;
-    gridHelper.position.z = -1.73;
-    scene.add(gridHelper);
+    // GridHelper bakes its colours into vertex colours, so it is rebuilt when the theme changes.
+    let gridHelper: THREE.GridHelper | null = null;
+    reg((T) => {
+      if (gridHelper) {
+        scene.remove(gridHelper);
+        disposeObject(gridHelper);
+      }
+      gridHelper = new THREE.GridHelper(100, 50, T.gridMajor, T.gridMinor);
+      gridHelper.rotation.x = Math.PI / 2;
+      gridHelper.position.z = -1.73;
+      scene.add(gridHelper);
+    });
 
     // 1. Fovea Nested Lattice Ring Boundaries
     const ringsGroup = new THREE.Group();
     ringsGroupRef.current = ringsGroup;
     scene.add(ringsGroup);
 
-    const ringConfigs = [
-      { radius: 10.0, color: 0x64748b, opacity: 0.35, name: '10m Range' },
-      { radius: 25.0, color: 0x94a3b8, opacity: 0.28, name: '25m Range' },
-      { radius: 50.0, color: 0xcbd5e1, opacity: 0.20, name: '50m Range' },
-    ];
-
-    ringConfigs.forEach((cfg) => {
-      const ringGeo = new THREE.RingGeometry(cfg.radius - 0.04, cfg.radius + 0.04, 128);
+    // Range rings follow the four lattice rings (10 / 25 / 50 / 100 m); colours come from --scene-ring-N.
+    const ringRadii = [10.0, 25.0, 50.0, 100.0];
+    ringRadii.forEach((radius, idx) => {
+      const ringGeo = new THREE.RingGeometry(radius - 0.05, radius + 0.05, 160);
       const ringMat = new THREE.MeshBasicMaterial({
-        color: cfg.color,
+        color: T0.ring[idx],
         side: THREE.DoubleSide,
         transparent: true,
-        opacity: cfg.opacity,
+        opacity: 0.6,
       });
+      reg((T) => ringMat.color.set(T.ring[idx]));
       const ringMesh = new THREE.Mesh(ringGeo, ringMat);
       ringMesh.position.z = -1.72;
       ringsGroup.add(ringMesh);
@@ -503,10 +514,11 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
     // Chassis Lower Hull (Clean slate finish)
     const chassisGeo = new THREE.BoxGeometry(2.3, 1.25, 0.42);
     const chassisMat = new THREE.MeshStandardMaterial({
-      color: 0x1e293b,
+      color: T0.ugv,
       metalness: 0.6,
       roughness: 0.35,
     });
+    reg((T) => chassisMat.color.set(T.ugv));
     const chassisMesh = new THREE.Mesh(chassisGeo, chassisMat);
     chassisMesh.position.z = 0.0;
     carGroup.add(chassisMesh);
@@ -514,19 +526,21 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
     // Cabin / Sensor Enclosure (Tinted dark glass)
     const cabinGeo = new THREE.BoxGeometry(1.2, 0.95, 0.36);
     const cabinMat = new THREE.MeshStandardMaterial({
-      color: 0x0f172a,
+      color: shade(T0.ugv, 0.55),
       metalness: 0.7,
       roughness: 0.2,
       transparent: true,
       opacity: 0.85,
     });
+    reg((T) => cabinMat.color.copy(shade(T.ugv, 0.55)));
     const cabinMesh = new THREE.Mesh(cabinGeo, cabinMat);
     cabinMesh.position.set(-0.2, 0, 0.35);
     carGroup.add(cabinMesh);
 
     // Cabin Subtle Trim
     const trimGeo = new THREE.BoxGeometry(1.22, 0.97, 0.04);
-    const trimMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.5, roughness: 0.4 });
+    const trimMat = new THREE.MeshStandardMaterial({ color: T0.ugvTrim, metalness: 0.5, roughness: 0.4 });
+    reg((T) => trimMat.color.set(T.ugvTrim));
     const trimMesh = new THREE.Mesh(trimGeo, trimMat);
     trimMesh.position.set(-0.2, 0, 0.52);
     carGroup.add(trimMesh);
@@ -534,8 +548,12 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
     // Four Wheels with Rubber Treads & Matte Silver Rims
     const wheelTireGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.22, 16);
     const wheelRimGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.24, 16);
-    const tireMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.9 });
-    const rimMat = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.6, roughness: 0.3 });
+    const tireMat = new THREE.MeshStandardMaterial({ color: shade(T0.ugv, 0.45), roughness: 0.9 });
+    const rimMat = new THREE.MeshStandardMaterial({ color: T0.ugvTrim, metalness: 0.6, roughness: 0.3 });
+    reg((T) => {
+      tireMat.color.copy(shade(T.ugv, 0.45));
+      rimMat.color.set(T.ugvTrim);
+    });
 
     const makeWheel = () => {
       const wGroup = new THREE.Group();
@@ -572,7 +590,7 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
 
     // Front Twin Headlights + Neutral Spotlight Cones
     const hlGeo = new THREE.BoxGeometry(0.08, 0.18, 0.1);
-    const hlMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
+    const hlMat = new THREE.MeshBasicMaterial({ color: 'white' });
     const hlLeft = new THREE.Mesh(hlGeo, hlMat);
     hlLeft.position.set(1.15, 0.42, 0.05);
     carGroup.add(hlLeft);
@@ -581,7 +599,7 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
     hlRight.position.set(1.15, -0.42, 0.05);
     carGroup.add(hlRight);
 
-    const spotLight1 = new THREE.SpotLight(0xffffff, 2.0, 30, Math.PI / 5, 0.4, 1.2);
+    const spotLight1 = new THREE.SpotLight('white', 2.0, 30, Math.PI / 5, 0.4, 1.2);
     spotLight1.position.set(1.2, 0.42, 0.1);
     const spotTarget = new THREE.Object3D();
     spotTarget.position.set(12, 0.42, -1.0);
@@ -593,7 +611,7 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
 
     // Rear Taillights (Muted Crimson)
     const tlGeo = new THREE.BoxGeometry(0.08, 0.18, 0.08);
-    const tlMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+    const tlMat = new THREE.MeshBasicMaterial({ color: 'crimson' });
     const tlLeft = new THREE.Mesh(tlGeo, tlMat);
     tlLeft.position.set(-1.15, 0.42, 0.05);
     carGroup.add(tlLeft);
@@ -604,20 +622,22 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
 
     // Roof Spinning LiDAR Sensor Turret Puck
     const lidarBaseGeo = new THREE.CylinderGeometry(0.14, 0.16, 0.18, 16);
-    const lidarBaseMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.7, roughness: 0.3 });
+    const lidarBaseMat = new THREE.MeshStandardMaterial({ color: shade(T0.ugvTrim, 0.8), metalness: 0.7, roughness: 0.3 });
+    reg((T) => lidarBaseMat.color.copy(shade(T.ugvTrim, 0.8)));
     const lidarBase = new THREE.Mesh(lidarBaseGeo, lidarBaseMat);
     lidarBase.position.set(-0.2, 0, 0.62);
     carGroup.add(lidarBase);
 
     const lidarPuckGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.14, 16);
-    const lidarPuckMat = new THREE.MeshStandardMaterial({ color: 0x2563eb, metalness: 0.6, roughness: 0.3 });
+    const lidarPuckMat = new THREE.MeshStandardMaterial({ color: T0.ugvAccent, metalness: 0.6, roughness: 0.3 });
+    reg((T) => lidarPuckMat.color.set(T.ugvAccent));
     const lidarPuck = new THREE.Mesh(lidarPuckGeo, lidarPuckMat);
     lidarPuck.position.set(-0.2, 0, 0.76);
     carGroup.add(lidarPuck);
     lidarTurretRef.current = lidarPuck;
 
     const laserStripGeo = new THREE.BoxGeometry(0.04, 0.25, 0.04);
-    const laserStripMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+    const laserStripMat = new THREE.MeshBasicMaterial({ color: 'cyan' });
     const laserStrip = new THREE.Mesh(laserStripGeo, laserStripMat);
     laserStrip.position.set(0.08, 0, 0);
     lidarPuck.add(laserStrip);
@@ -810,10 +830,11 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
     if (sceneId === 'scene_a_bridge') {
       const bridgeGeo = new THREE.BoxGeometry(10.0, 18.0, 0.45);
       const bridgeMat = new THREE.MeshStandardMaterial({
-        color: 0x334155,
+        color: T0.prop,
         roughness: 0.7,
         metalness: 0.2,
       });
+      reg((T) => bridgeMat.color.set(T.prop));
       const bridgeMesh = new THREE.Mesh(bridgeGeo, bridgeMat);
       bridgeMesh.position.set(20.0, 0.0, 0.8);
       bridgeDeckMeshRef.current = bridgeMesh;
@@ -821,7 +842,8 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
 
       // Support columns on left and right sides
       const colGeo = new THREE.BoxGeometry(0.8, 0.8, 2.5);
-      const colMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 });
+      const colMat = new THREE.MeshStandardMaterial({ color: T0.prop2, roughness: 0.8 });
+      reg((T) => colMat.color.set(T.prop2));
       const leftCol = new THREE.Mesh(colGeo, colMat);
       leftCol.position.set(20.0, 7.5, -0.45);
       scene.add(leftCol);
@@ -839,9 +861,10 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
         { x: 38.0, y: -0.4 },
       ];
       const poleGeo = new THREE.CylinderGeometry(0.12, 0.12, 2.2, 16);
-      const poleMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.35, metalness: 0.2 });
+      const poleMat = new THREE.MeshStandardMaterial({ color: T0.pole, roughness: 0.35, metalness: 0.2 });
+      reg((T) => poleMat.color.set(T.pole));
       const stripeGeo = new THREE.CylinderGeometry(0.125, 0.125, 0.35, 16);
-      const stripeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      const stripeMat = new THREE.MeshBasicMaterial({ color: 'white' });
 
       obstaclePoles.forEach((p) => {
         const pm = new THREE.Mesh(poleGeo, poleMat);
@@ -1042,6 +1065,7 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
     scene.add(cloudPoints);
 
     // If Real City Driving scene, load genuine SemanticKITTI Velodyne scans
+    realSemsRef.current = null;
     if (sceneId === 'real_seq08_f00') {
       fetch('/kitti_sample_08.json')
         .then((res) => res.json())
@@ -1059,24 +1083,8 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
             posArr[i * 3 + 2] = kz;
 
             const sem = semList[i] ?? 0;
-            let r = 0.45, g = 0.5, b = 0.55;
-            if (sem === 10) { // Car
-              r = 0.15; g = 0.65; b = 0.95;
-            } else if (sem === 40) { // Road
-              r = 0.40; g = 0.45; b = 0.55;
-            } else if (sem === 44 || sem === 48) { // Parking / Sidewalk
-              r = 0.55; g = 0.50; b = 0.65;
-            } else if (sem === 50) { // Building
-              r = 0.85; g = 0.35; b = 0.25;
-            } else if (sem === 70 || sem === 71) { // Vegetation
-              r = 0.20; g = 0.72; b = 0.35;
-            } else if (sem === 80) { // Pole
-              r = 0.95; g = 0.80; b = 0.20;
-            } else {
-              const normZ = Math.min(Math.max((kz - (-3.0)) / (1.7 - (-3.0)), 0), 1);
-              const c = getTurboColor(normZ);
-              r = c.r; g = c.g; b = c.b;
-            }
+            const c = pointColorForClass(sem, kz, themeRef.current);
+            const r = c.r, g = c.g, b = c.b;
             colArr[i * 3] = r;
             colArr[i * 3 + 1] = g;
             colArr[i * 3 + 2] = b;
@@ -1085,6 +1093,7 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
           ptGeo.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
           ptGeo.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
           ptGeo.computeBoundingSphere();
+          realSemsRef.current = Array.from({ length: n }, (_, i) => semList[i] ?? 0);
         })
         .catch((err) => console.warn('Failed loading KITTI sample pointcloud', err));
     }
@@ -1094,11 +1103,12 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
     // ==========================================
     const sweepRingGeo = new THREE.RingGeometry(0.1, 1.8, 64);
     const sweepRingMat = new THREE.MeshBasicMaterial({
-      color: 0x3b82f6,
+      color: T0.path,
       side: THREE.DoubleSide,
       transparent: true,
       opacity: 0.22,
     });
+    reg((T) => sweepRingMat.color.set(T.path));
     const sweepRingMesh = new THREE.Mesh(sweepRingGeo, sweepRingMat);
     sweepRingMesh.position.z = -1.70;
     sweepRingMeshRef.current = sweepRingMesh;
@@ -1175,10 +1185,11 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
 
     const trajGeo = new THREE.TubeGeometry(trajCurve, 64, 0.09, 8, false);
     const trajMat = new THREE.MeshBasicMaterial({
-      color: 0x2563eb,
+      color: T0.path,
       transparent: true,
       opacity: 0.9,
     });
+    reg((T) => trajMat.color.set(T.path));
     const trajMesh = new THREE.Mesh(trajGeo, trajMat);
     trajectoryGroup.add(trajMesh);
 
@@ -1197,21 +1208,24 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
 
       // Solid aerodynamic car body
       const bodyGeo = new THREE.BoxGeometry(3.8, 1.8, 0.75);
-      const bodyMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.35, metalness: 0.4 });
+      const bodyMat = new THREE.MeshStandardMaterial({ color: T0.prop, roughness: 0.35, metalness: 0.4 });
+      reg((T) => bodyMat.color.set(T.prop));
       const body = new THREE.Mesh(bodyGeo, bodyMat);
       body.position.z = 0.55;
       otherCar.add(body);
 
       // Cabin / windshield
       const cabinGeo = new THREE.BoxGeometry(2.1, 1.5, 0.6);
-      const cabinMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.2, metalness: 0.8 });
+      const cabinMat = new THREE.MeshStandardMaterial({ color: shade(T0.prop, 0.6), roughness: 0.2, metalness: 0.8 });
+      reg((T) => cabinMat.color.copy(shade(T.prop, 0.6)));
       const cabin = new THREE.Mesh(cabinGeo, cabinMat);
       cabin.position.set(-0.2, 0, 1.15);
       otherCar.add(cabin);
 
       // 4 Solid Wheels
       const wheelGeo = new THREE.CylinderGeometry(0.34, 0.34, 0.2, 16);
-      const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.8 });
+      const wheelMat = new THREE.MeshStandardMaterial({ color: shade(T0.prop, 0.4), roughness: 0.8 });
+      reg((T) => wheelMat.color.copy(shade(T.prop, 0.4)));
       const wheelOffsets = [
         [-1.1, 0.95],
         [-1.1, -0.95],
@@ -1227,7 +1241,8 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
 
       // Headlights & Taillights
       const hlGeo = new THREE.BoxGeometry(0.08, 0.35, 0.1);
-      const hlMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+      const hlMat = new THREE.MeshBasicMaterial({ color: T0.path });
+      reg((T) => hlMat.color.set(T.path));
       const hlLeft = new THREE.Mesh(hlGeo, hlMat);
       hlLeft.position.set(1.9, 0.55, 0.55);
       otherCar.add(hlLeft);
@@ -1236,7 +1251,7 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
       otherCar.add(hlRight);
 
       // Taillights
-      const tlMat2 = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+      const tlMat2 = new THREE.MeshBasicMaterial({ color: 'crimson' });
       const tl1 = new THREE.Mesh(hlGeo, tlMat2);
       tl1.position.set(-1.9, 0.55, 0.55);
       otherCar.add(tl1);
@@ -1246,7 +1261,8 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
 
       // Crisp 2.5D Tracking Outline (Green / Cyan telemetry bounding bracket)
       const trackBoxGeo = new THREE.BoxGeometry(4.2, 2.1, 1.4);
-      const trackBoxMat = new THREE.MeshBasicMaterial({ color: 0x10b981, wireframe: true, transparent: true, opacity: 0.45 });
+      const trackBoxMat = new THREE.MeshBasicMaterial({ color: T0.track, wireframe: true, transparent: true, opacity: 0.45 });
+      reg((T) => trackBoxMat.color.set(T.track));
       const trackBox = new THREE.Mesh(trackBoxGeo, trackBoxMat);
       trackBox.position.z = 0.85;
       otherCar.add(trackBox);
@@ -1256,20 +1272,22 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
         new THREE.Vector3(1, 0, 0),
         new THREE.Vector3(0, 0, 1.5),
         3.2,
-        0x10b981,
+        T0.track,
         0.7,
         0.35
       );
+      reg((T) => velArrow.setColor(T.track));
       otherCar.add(velArrow);
 
       // Dynamic "MOS: ERASE GHOST TRAIL" Ground Decal
       const decalGeo = new THREE.PlaneGeometry(4.4, 2.4);
       const decalMat = new THREE.MeshBasicMaterial({
-        color: 0x10b981,
+        color: T0.track,
         transparent: true,
         opacity: 0.15,
         side: THREE.DoubleSide,
       });
+      reg((T) => decalMat.color.set(T.track));
       const decal = new THREE.Mesh(decalGeo, decalMat);
       decal.position.z = 0.04;
       otherCar.add(decal);
@@ -1282,11 +1300,12 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
     // ==========================================
     const reticleGeo = new THREE.RingGeometry(0.35, 0.45, 32);
     const reticleMat = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
+      color: T0.reticle,
       side: THREE.DoubleSide,
       transparent: true,
       opacity: 0.9,
     });
+    reg((T) => reticleMat.color.set(T.reticle));
     const hoverReticle = new THREE.Mesh(reticleGeo, reticleMat);
     hoverReticle.visible = false;
     hoverCrosshairRef.current = hoverReticle;
@@ -1557,12 +1576,13 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
     animate();
 
     const handleResize = () => {
-      if (!container) return;
+      if (!container || container.clientWidth === 0 || container.clientHeight === 0) return;
       camera.aspect = container.clientWidth / container.clientHeight;
       camera.updateProjectionMatrix();
-      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setSize(container.clientWidth, container.clientHeight, false);
     };
-    window.addEventListener('resize', handleResize);
+    const resizeObserver = new ResizeObserver(handleResize);
+    resizeObserver.observe(container);
 
     return () => {
       cancelAnimationFrame(animationId);
@@ -1570,7 +1590,8 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
       container.removeEventListener('wheel', handleWheel);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
-      window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
+      disposeObject(scene);
       renderer.dispose();
       if (domElement.parentElement) {
         domElement.parentElement.removeChild(domElement);
@@ -1652,41 +1673,18 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
   }, [resetSignal]);
 
   return (
-    <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }} ref={mountRef}>
+    <div data-region="viewport-canvas" style={{ flex: 1, position: 'relative', overflow: 'hidden' }} ref={mountRef}>
 
 
-      {/* Optional Elevation Scale Bar */}
+      {/* Optional elevation scale bar (turbo ramp matches the Height colour mode) */}
       {showScaleBar && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '24px',
-            left: '24px',
-            padding: '8px 12px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '5px',
-            border: '1px solid #e2e8f0',
-            background: 'rgba(255, 255, 255, 0.95)',
-            boxShadow: '0 4px 16px rgba(15, 23, 42, 0.08)',
-            borderRadius: '8px',
-            pointerEvents: 'none',
-            zIndex: 10,
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', width: '130px', fontSize: '10px', fontFamily: 'var(--font-mono)', color: '#64748b' }}>
+        <div className="absolute bottom-6 left-6 z-10 pointer-events-none flex flex-col gap-1.5 px-3 py-2 rounded-lg border border-line bg-panel/95 shadow-md">
+          <div className="flex justify-between w-32 text-[10px] font-mono text-fg-muted">
             <span>-2.0m</span>
             <span>0.0m</span>
             <span>+3.0m</span>
           </div>
-          <div
-            style={{
-              width: '130px',
-              height: '6px',
-              borderRadius: '3px',
-              background: 'linear-gradient(to right, #334155, #64748b, #94a3b8, #0f172a)',
-            }}
-          />
+          <div className="w-32 h-1.5 rounded-full" style={{ background: gradientCss(getTurboColor) }} />
         </div>
       )}
     </div>

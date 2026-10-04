@@ -1,0 +1,160 @@
+/*
+ * Design tokens - the ONLY place raw colour values live (besides theme/colormaps.ts for data colours).
+ * Light is the default; dark applies when <html data-theme="dark">.
+ * Values are plain hex/rgba so getComputedStyle() returns strings Three.js and Canvas2D can parse.
+ * Text tokens were contrast-checked (>= 4.5:1 on panel and subtle) in both themes.
+ */
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --app: #f8fafc;
+  --panel: #ffffff;
+  --elevated: #ffffff;
+  --subtle: #f1f5f9;
+  --line: #e2e8f0;
+  --line-strong: #cbd5e1;
+  --overlay: rgba(15, 23, 42, 0.45);
+  --shadow-color: rgba(15, 23, 42, 0.14);
+
+  /* Text */
+  --fg: #0f172a;
+  --fg-2: #334155;
+  --fg-muted: #586579;
+
+  /* Accent (one restrained hue) */
+  --accent: #0e7490;
+  --accent-on: #ffffff;
+  --accent-subtle: #e0f2f7;
+  --accent-text: #0e7490;
+  --accent-line: #a5d8e6;
+  --focus: #0e7490;
+
+  /* Status (reserved: always paired with an icon + label) */
+  --good: #0ca30c;
+  --good-fg: #006300;
+  --good-bg: #e7f6e7;
+  --good-line: #b5ddb5;
+  --warn: #fab219;
+  --warn-fg: #7a4e00;
+  --warn-bg: #fff4d6;
+  --warn-line: #f0d48a;
+  --critical: #d03b3b;
+  --critical-fg: #a82626;
+  --critical-bg: #fdecec;
+  --critical-line: #f0b4b4;
+
+  /* Provenance badges */
+  --prov-measured: #2a78d6;
+  --prov-calculated: #4a3aa7;
+  --prov-estimate: #eb6834;
+  --prov-synthetic: #b27400;
+  --prov-precomputed: #128a60;
+
+  /* Charts */
+  --viz-surface: #ffffff;
+  --viz-grid: #e2e8f0;
+  --viz-axis: #94a3b8;
+  --viz-ours: #0e7490;
+  --viz-baseline: #94a3b8;
+
+  /* 3D scene + map canvas */
+  --scene-bg: #eef2f6;
+  --scene-grid-major: #94a3b8;
+  --scene-grid-minor: #d5dde7;
+  --scene-ring-0: #0e8fa8;
+  --scene-ring-1: #0a9b6a;
+  --scene-ring-2: #c98500;
+  --scene-ring-3: #6e5bd6;
+  --scene-reticle: #0f172a;
+  --scene-selection: #0f172a;
+  --scene-path: #2563eb;
+  --scene-ugv: #1e293b;
+  --scene-ugv-trim: #475569;
+  --scene-ugv-accent: #2563eb;
+  --scene-prop: #334155;
+  --scene-prop-2: #475569;
+  --scene-pole: #f59e0b;
+  --scene-track: #10b981;
+  --scene-ego: #e11d48;
+  --scene-ambient: 0.9;
+  --scene-key: 1.2;
+
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
+  --scrollbar-track: #f1f5f9;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --app: #0b0f17;
+  --panel: #111827;
+  --elevated: #161f30;
+  --subtle: #1a2232;
+  --line: #243042;
+  --line-strong: #4a5d7a;
+  --overlay: rgba(0, 0, 0, 0.62);
+  --shadow-color: rgba(0, 0, 0, 0.55);
+
+  --fg: #e5e7eb;
+  --fg-2: #b6bfcc;
+  --fg-muted: #8b97a8;
+
+  --accent: #22d3ee;
+  --accent-on: #06222b;
+  --accent-subtle: #0f2e38;
+  --accent-text: #67e0f3;
+  --accent-line: #1c5a69;
+  --focus: #67e0f3;
+
+  --good: #0ca30c;
+  --good-fg: #34d058;
+  --good-bg: #0f2a17;
+  --good-line: #1f5a30;
+  --warn: #fab219;
+  --warn-fg: #f7c242;
+  --warn-bg: #2d2410;
+  --warn-line: #5c4813;
+  --critical: #d03b3b;
+  --critical-fg: #f28b8b;
+  --critical-bg: #2d1414;
+  --critical-line: #6b2a2a;
+
+  --prov-measured: #3987e5;
+  --prov-calculated: #9085e9;
+  --prov-estimate: #d95926;
+  --prov-synthetic: #e0a020;
+  --prov-precomputed: #199e70;
+
+  --viz-surface: #111827;
+  --viz-grid: #243042;
+  --viz-axis: #5b6b80;
+  --viz-ours: #22d3ee;
+  --viz-baseline: #5b6b80;
+
+  --scene-bg: #0b0f17;
+  --scene-grid-major: #2a3a52;
+  --scene-grid-minor: #1b2638;
+  --scene-ring-0: #22d3ee;
+  --scene-ring-1: #34d399;
+  --scene-ring-2: #fbbf24;
+  --scene-ring-3: #a78bfa;
+  --scene-reticle: #ffffff;
+  --scene-selection: #ffffff;
+  --scene-path: #38bdf8;
+  --scene-ugv: #94a3b8;
+  --scene-ugv-trim: #cbd5e1;
+  --scene-ugv-accent: #38bdf8;
+  --scene-prop: #64748b;
+  --scene-prop-2: #94a3b8;
+  --scene-pole: #fbbf24;
+  --scene-track: #34d399;
+  --scene-ego: #fb7185;
+  --scene-ambient: 0.55;
+  --scene-key: 0.9;
+
+  --scrollbar-thumb: #34445c;
+  --scrollbar-thumb-hover: #4a5d7a;
+  --scrollbar-track: #0b0f17;
+}

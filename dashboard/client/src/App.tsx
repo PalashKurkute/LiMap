@@ -20,6 +20,7 @@ import { JudgeOnboardingModal } from './components/JudgeOnboardingModal';
 import { InteractiveCrossSection } from './components/InteractiveCrossSection';
 import { TacticalObjectiveCard } from './components/TacticalObjectiveCard';
 import { DataInspectionScreen } from './components/DataInspectionScreen';
+import { POOL_MB } from './lib/constants';
 import {
   X,
   Gauge,
@@ -46,7 +47,21 @@ export const App: React.FC = () => {
   const [crossSectionData, setCrossSectionData] = useState<CrossSectionResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
-  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(true);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('limap.welcomeSeen') !== '1';
+    } catch {
+      return true;
+    }
+  });
+  const closeOnboarding = () => {
+    setIsOnboardingOpen(false);
+    try {
+      localStorage.setItem('limap.welcomeSeen', '1');
+    } catch {
+      /* storage unavailable (private window): the guide will simply show again */
+    }
+  };
   const [activeTab, setActiveTab] = useState<'displays' | 'telemetry' | 'proofs' | 'stress'>('displays');
   const [proofsSubTab, setProofsSubTab] = useState<'memory' | 'clearance' | 'regret'>('memory');
 
@@ -141,6 +156,33 @@ export const App: React.FC = () => {
     return () => clearTimeout(timer);
   }, [isSidebarOpen]);
 
+  // Global shortcuts: Space = play/pause, Left/Right = step 2 frames, Esc = close modal / drawer.
+  // Ignored while focus is on an interactive element so native Space/Enter behaviour still works.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      const interactive = !!el?.closest('input, textarea, select, button, a, [contenteditable="true"]');
+
+      if (e.key === 'Escape') {
+        if (isOnboardingOpen) closeOnboarding();
+        else if (isSidebarOpen) setIsSidebarOpen(false);
+        return;
+      }
+      if (interactive || isOnboardingOpen || currentView !== 'hook_3d') return;
+      if (e.key === ' ') {
+        e.preventDefault();
+        setIsPlaying((p) => !p);
+      } else if (e.key === 'ArrowRight') {
+        setCurrentFrame((f) => Math.min(120, f + 2));
+      } else if (e.key === 'ArrowLeft') {
+        setCurrentFrame((f) => Math.max(0, f - 2));
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOnboardingOpen, isSidebarOpen, currentView]);
+
   // Handle scene switching via backend REST trigger
   const handleSelectScene = async (scene: SceneId) => {
     setActiveScene(scene);
@@ -179,7 +221,7 @@ export const App: React.FC = () => {
         onOpenOnboarding={() => setIsOnboardingOpen(true)}
         backendConnected={isBackendConnected}
         backendPingMs={backendPing}
-        memoryMb={telemetryData?.telemetry?.total_heap_mb ?? 3.2616}
+        memoryMb={telemetryData?.telemetry?.total_heap_mb ?? POOL_MB}
         currentView={currentView}
         onViewChange={setCurrentView}
       />
@@ -247,7 +289,8 @@ export const App: React.FC = () => {
             {/* Tactical Scenario Mission & Verification Objective HUD */}
             <TacticalObjectiveCard
               sceneId={activeScene}
-              memoryMb={telemetryData?.telemetry?.total_heap_mb ?? 3.2616}
+              memoryMb={telemetryData?.telemetry?.total_heap_mb ?? POOL_MB}
+              baselines={telemetryData?.baselines ?? null}
               tacticalSummary={telemetryData?.telemetry?.tactical_summary}
               cameraMode={cameraMode}
               onCameraModeChange={setCameraMode}
@@ -463,7 +506,7 @@ export const App: React.FC = () => {
                       {[
                         { id: 'elevation', label: 'Height Elevation', desc: 'Turbo Jet spectrum (-1.5m to +4m)' },
                         { id: 'traversability', label: 'Ground Slope Incline', desc: 'Green drivable to red steep hazard' },
-                        { id: 'uncertainty', label: 'Bayesian Confidence', desc: 'Multi-beam return density' },
+                        { id: 'uncertainty', label: 'Lateral Distance (illustrative)', desc: 'Distance from the driving corridor, not a measured uncertainty' },
                       ].map((col) => {
                         const isSelected = colorMode === col.id;
                         return (
@@ -572,14 +615,14 @@ export const App: React.FC = () => {
                     <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/80">
                       <div className="text-[10px] text-slate-500">TOTAL HEAP</div>
                       <div className="text-sm font-bold text-slate-900">
-                        {telemetryData ? `${telemetryData.telemetry.total_heap_mb.toFixed(4)} MB` : '3.2616 MB'}
+                        {telemetryData ? `${telemetryData.telemetry.total_heap_mb.toFixed(4)} MB` : 'n/a'}
                       </div>
                     </div>
 
                     <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200/80">
                       <div className="text-[10px] text-slate-500">ACTIVE CELLS</div>
                       <div className="text-sm font-bold text-slate-900">
-                        {telemetryData ? telemetryData.telemetry.active_cells.toLocaleString() : '47,307'}
+                        {telemetryData ? telemetryData.telemetry.active_cells.toLocaleString() : 'n/a'}
                       </div>
                     </div>
                   </div>
@@ -600,7 +643,7 @@ export const App: React.FC = () => {
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    Memory Bound
+                    Memory
                   </button>
                   <button
                     onClick={() => setProofsSubTab('clearance')}
@@ -679,37 +722,29 @@ export const App: React.FC = () => {
           </span>
           <span>&bull;</span>
           <span>
-            THROTTLED CELLS: <strong style={{ color: '#0f172a' }}>
-              {telemetryData?.telemetry?.active_cells ? telemetryData.telemetry.active_cells.toLocaleString() : '58,348'} / 106,875
+            ACTIVE CELLS: <strong style={{ color: '#0f172a' }}>
+              {telemetryData ? `${telemetryData.telemetry.active_cells.toLocaleString()} / ${telemetryData.telemetry.capacity.toLocaleString()}` : 'no scene data'}
             </strong>
           </span>
           <span>&bull;</span>
           <span>
-            INGESTION: <strong style={{ color: '#0f172a' }}>
-              123K pts &rarr; {telemetryData?.telemetry?.total_heap_mb?.toFixed(4) ?? '3.2616'} MB (99.89% throttled)
+            POOL: <strong style={{ color: '#0f172a' }}>
+              {telemetryData ? `${telemetryData.telemetry.total_heap_mb.toFixed(4)} MB fixed` : `${POOL_MB.toFixed(4)} MB fixed (by design)`}
             </strong>
-          </span>
-          <span>&bull;</span>
-          <span>
-            SEAM GAPS: <strong style={{ color: '#0f172a' }}>0.00% (PROVED)</strong>
           </span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '10px', color: '#475569', backgroundColor: '#e2e8f0', padding: '2px 8px', borderRadius: '4px' }}>
-            SCOPE: CPU-Only &bull; SemanticKITTI Seq 08 &bull; Staged Hazards vs Real Replay
+            SCOPE: CPU-only &bull; single-scan snapshots, not a live sensor stream &bull; synthetic scenes are labelled
           </span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <span>
-            DRDO BOUND: <strong style={{ color: '#0f172a' }}>
-              {telemetryData?.telemetry?.total_heap_mb?.toFixed(4) ?? '3.2616'} MB &lt; 3.50 MB
+            LABELS: <strong style={{ color: '#0f172a' }}>
+              {telemetryData?.telemetry?.label_source ?? 'n/a'}
             </strong>
-          </span>
-          <span>&bull;</span>
-          <span>
-            CYCLE LATENCY: <strong style={{ color: '#0f172a' }}>Profiling (Pending)</strong>
           </span>
         </div>
       </footer>
@@ -717,7 +752,7 @@ export const App: React.FC = () => {
       {/* Onboarding Dialog for DRDO Hackathon Evaluator */}
       <JudgeOnboardingModal
         isOpen={isOnboardingOpen}
-        onClose={() => setIsOnboardingOpen(false)}
+        onClose={closeOnboarding}
         onSelectScene={handleSelectScene}
         onSelectStressMode={setStressMode}
         onOpenInspection={() => setCurrentView('data_inspection')}

@@ -26,7 +26,7 @@ Identify the visual patterns from world-class engineering interfaces:
 ### Step 2 — Visual Hierarchy & Information Priority
 Ensure that safety-critical perception data takes visual precedence:
 * **Level 1 (Dominant):** The Dual 3D Viewport (Raw Point Cloud vs Multi-Layer FoveaGrid).
-* **Level 2 (High):** The "Memory Paradox" Live Bar (Real-time comparison: 3.2 GB $\to$ 128 MB $\to$ 3.42 MB) and System FPS / Cycle Latency.
+* **Level 2 (High):** The "Memory Paradox" Bar (values read from the API baselines, never retyped; capacities are CALCULATED) and measured FPS / latency taken from `benchmark/latency_profile_results.json`, always shown next to the end-to-end-with-segmentation figure.
 * **Level 3 (Supporting):** Active Hazards Table (Potholes, Low Overhangs, Dynamic Trackers) and Distance-Binned mIoU.
 * **Level 4 (Auxiliary):** Sensor configuration toggles, lattice resolution selector, camera angle presets.
 
@@ -65,9 +65,10 @@ No arbitrary hex codes. Strict semantic color palette:
 ### Step 8 — The "Memory Paradox" Live Bar
 The centerpiece proof for hackathon judges:
 * Tri-bar comparative layout:
-  1. Dense 3D Voxel ($3,200\text{ MB}$) — Red bar, full width.
-  2. Uniform 2.5D Elevation ($128\text{ MB}$) — Orange bar, intermediate width.
-  3. FoveaGrid 2.5D ($3.42\text{ MB}$) — Neon Emerald bar, highlighted with a glowing badge: **"97.3% Compression | 0.0% Critical Regret"**.
+  1. Dense 3D Voxel (value from the baselines) — grey baseline bar, longest.
+  2. Uniform 2.5D Elevation (value from the baselines) — grey baseline bar, intermediate.
+  3. FoveaGrid pool (value from the baselines) — accent bar, labelled with the CALCULATED capacity ratio next to the MEASURED occupied-cell ratio.
+* Use a log scale so the pool is visible. Never display a regret, recall or compression claim that is not in a results file, and tag each figure MEASURED / CALCULATED / ESTIMATE.
 
 ### Step 9 — Failure-State & Sensor Dropout Visuals
 * When simulated sensor dropout or beam occlusion occurs, affected grid cells show a translucent diagonal-striped pattern indicating "High Uncertainty / Degraded Evidence".

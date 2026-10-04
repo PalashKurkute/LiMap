@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import type { SceneId, CameraViewMode, ColorMapMode, TelemetryData } from '../types/telemetry';
+import type { SceneId, CameraViewMode, ColorMapMode, TelemetryData, BaselineMetrics } from '../types/telemetry';
+import { POOL_MB } from '../lib/constants';
 import {
   ChevronDown,
   ChevronUp,
@@ -10,6 +11,7 @@ import {
 interface TacticalObjectiveCardProps {
   sceneId: SceneId;
   memoryMb?: number;
+  baselines?: BaselineMetrics | null;
   tacticalSummary?: TelemetryData['tactical_summary'];
   cameraMode?: CameraViewMode;
   onCameraModeChange?: (mode: CameraViewMode) => void;
@@ -19,7 +21,8 @@ interface TacticalObjectiveCardProps {
 
 export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
   sceneId,
-  memoryMb = 3.2616,
+  memoryMb = POOL_MB,
+  baselines,
   tacticalSummary,
   cameraMode = 'orbit',
   onCameraModeChange,
@@ -59,8 +62,8 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-baseline">
                 <span className="text-xs font-bold text-slate-900">Proof: Bridge Clearance</span>
-                <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                  SAFE TO PASS
+                <span className="text-[10px] font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-300">
+                  {tacticalSummary?.min_clearance_m != null ? `MIN CLEARANCE ${tacticalSummary.min_clearance_m} m` : 'NO CLEARANCE DATA'}
                 </span>
               </div>
 
@@ -101,8 +104,8 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-baseline">
                 <span className="text-xs font-bold text-slate-900">Proof: Negative Obstacles</span>
-                <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                  3/3 DETECTED
+                <span className="text-[10px] font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-300">
+                  {tacticalSummary?.max_variance_m2 != null ? `MAX VARIANCE ${tacticalSummary.max_variance_m2} m²` : 'NO VARIANCE DATA'}
                 </span>
               </div>
 
@@ -116,8 +119,8 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
                     stroke="#f43f5e"
                     strokeWidth="2.2"
                   />
-                  <path d="M 60 20 Q 70 48 80 54 Q 90 48 Q 100 20 Z" fill="rgba(244, 63, 94, 0.25)" />
-                  <path d="M 135 20 Q 145 44 152 48 Q 160 44 Q 170 20 Z" fill="rgba(244, 63, 94, 0.25)" />
+                  <path d="M 60 20 Q 70 48 80 54 Q 90 48 100 20 Z" fill="rgba(244, 63, 94, 0.25)" />
+                  <path d="M 135 20 Q 145 44 152 48 Q 160 44 170 20 Z" fill="rgba(244, 63, 94, 0.25)" />
                 </svg>
               </div>
 
@@ -143,8 +146,8 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-baseline">
                 <span className="text-xs font-bold text-slate-900">Proof: Moving Object Filter</span>
-                <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                  1,899 GHOST CARVED (P3/P4)
+                <span className="text-[10px] font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-300">
+                  {tacticalSummary?.mos_active ? 'DYNAMIC CELLS PRESENT' : 'NO DYNAMIC CELLS'}
                 </span>
               </div>
 
@@ -178,8 +181,8 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-baseline">
                 <span className="text-xs font-bold text-slate-900">Proof: Variable Resolution</span>
-                <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                  ZERO SEAM GAPS
+                <span className="text-[10px] font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-300">
+                  {tacticalSummary?.core_res_m != null ? `${tacticalSummary.core_res_m * 100} cm CORE CELLS` : 'NO RESOLUTION DATA'}
                 </span>
               </div>
 
@@ -215,28 +218,16 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-baseline">
                 <span className="text-xs font-bold text-slate-900">Proof: Deterministic Memory</span>
-                <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                  99.89% LESS RAM
+                <span className="text-[10px] font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-300">
+                  {baselines ? `${baselines.reduction_vs_3d} CAPACITY` : 'NO BASELINE DATA'}
                 </span>
               </div>
 
-              <div className="h-20 bg-slate-900 rounded-lg p-2.5 relative flex flex-col justify-around border border-slate-800">
-                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                  <div className="w-full h-full bg-rose-500 rounded-full" />
-                </div>
-                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                  <div className="w-[4%] min-w-1 h-full bg-amber-400 rounded-full" />
-                </div>
-                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                  <div className="w-[1.2%] min-w-1 h-full bg-emerald-400 rounded-full" />
-                </div>
-              </div>
-
-              {/* Simple Data Comparison */}
+              {/* Simple Data Comparison (capacity figures are calculated, see Proofs > Memory) */}
               <div className="grid grid-cols-2 gap-1.5 text-[11px] font-mono">
                 <div className="bg-rose-50 text-rose-800 p-1.5 rounded border border-rose-200 flex flex-col">
-                  <span className="text-[9px] uppercase text-rose-500 font-bold">Dense 3D Voxel</span>
-                  <span className="font-bold">~3,051 MB RAM</span>
+                  <span className="text-[9px] uppercase text-rose-500 font-bold">Dense 3D Voxel (calc.)</span>
+                  <span className="font-bold">{baselines ? `${baselines.dense_3d_voxel_mb.toFixed(1)} MB` : 'n/a'}</span>
                 </div>
                 <div className="bg-emerald-50 text-emerald-800 p-1.5 rounded border border-emerald-200 flex flex-col">
                   <span className="text-[9px] uppercase text-emerald-600 font-bold">2.5D LiMap</span>
@@ -285,7 +276,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
                 {[
                   { id: 'elevation', label: 'Height' },
                   { id: 'traversability', label: 'Slope' },
-                  { id: 'uncertainty', label: 'Density' },
+                  { id: 'uncertainty', label: 'Lateral' },
                 ].map((s) => (
                   <button
                     key={s.id}
@@ -312,7 +303,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
                 <span className="text-emerald-700 font-bold">Slope: Green (Flat) &rarr; Red (Hazard)</span>
               )}
               {colorMode === 'uncertainty' && (
-                <span className="text-purple-700 font-bold">Density: Green (Core) &rarr; Violet (Edge)</span>
+                <span className="text-purple-700 font-bold">Lateral distance (illustrative): Green (centre) &rarr; Violet (edge)</span>
               )}
             </div>
           </div>

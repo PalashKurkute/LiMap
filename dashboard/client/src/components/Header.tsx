@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import type { SceneId } from '../types/telemetry';
 import { HelpCircle, HardDrive } from 'lucide-react';
+import { POOL_MB } from '../lib/constants';
 
 interface HeaderProps {
   onSelectScene: (scene: SceneId) => void;
@@ -21,7 +22,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenOnboarding,
   backendConnected = false,
   backendPingMs = 0,
-  memoryMb = 3.2616,
+  memoryMb = POOL_MB,
   currentView = 'hook_3d',
   onViewChange,
 }) => {
@@ -88,7 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono">
           <div className={`w-2 h-2 rounded-full ${backendConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
           <span className="text-slate-600 font-medium">
-            {backendConnected ? `API:8000 LIVE (${backendPingMs}ms)` : 'API: STANDBY'}
+            {backendConnected ? `API online (${backendPingMs}ms)` : 'API offline'}
           </span>
         </div>
 
@@ -98,7 +99,7 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="text-slate-500 font-medium">Memory:</span>
           <strong className="text-slate-900 font-bold">{memoryMb.toFixed(4)} MB</strong>
           <span className="text-[10px] text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-200/80">
-            O(1) Bound
+            Fixed pool
           </span>
         </div>
 

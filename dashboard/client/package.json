@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc -b",
+    "check:honesty": "node scripts/check-honesty.mjs",
+    "check": "npm run typecheck && npm run lint && npm run build && npm run check:honesty",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@types/three": "^0.186.0",

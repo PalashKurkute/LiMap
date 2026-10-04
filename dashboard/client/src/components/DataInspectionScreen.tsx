@@ -6,12 +6,12 @@ import {
   Activity,
   Crosshair,
   Filter,
-  CheckCircle2,
   ZoomIn,
   ZoomOut,
   RotateCcw,
 } from 'lucide-react';
 import type { TelemetryResponse, SceneId } from '../types/telemetry';
+import { POOL_MB } from '../lib/constants';
 
 export interface GridCellData {
   ix: number;
@@ -117,6 +117,12 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
       isMounted = false;
     };
   }, [activeScene]);
+
+  const ringCounts = useMemo(() => {
+    const counts = [0, 0, 0, 0];
+    for (const c of cells) if (c.ring_id >= 0 && c.ring_id < counts.length) counts[c.ring_id]++;
+    return counts;
+  }, [cells]);
 
   // Filtered cells based on ring selection
   const displayedCells = useMemo(() => {
@@ -292,9 +298,9 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
           <div className="h-4 w-px bg-slate-700 mx-1" />
 
           <div className="flex items-center gap-2">
-            <span className="font-bold text-sm text-white tracking-tight">LiMap Data-Inspection Matrix</span>
+            <span className="font-bold text-sm text-white tracking-tight">LiMap Map Inspector</span>
             <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-              AUDIT PROOF ARTIFACT
+              CELL INSPECTOR
             </span>
             <span className="px-2 py-0.5 rounded text-[10px] font-mono text-cyan-400 border border-cyan-800 bg-cyan-950/40">
               {totalActive ? `${totalActive.toLocaleString()} Cells Loaded` : 'Real 2.5D Lattice'}
@@ -408,6 +414,15 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
             <span className="text-[10px] font-mono text-slate-400 px-2">{zoom.toFixed(1)}x</span>
           </div>
 
+          {/* Empty state: no cells came back (API offline or grid empty). Never draw a fake map. */}
+          {!isLoading && cells.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+              <div className="max-w-sm text-center text-xs font-mono text-slate-400 bg-slate-900/90 border border-slate-800 rounded-xl p-4">
+                No grid cells available for this scene. Start the API with scene data loaded to inspect real cells.
+              </div>
+            </div>
+          )}
+
           {/* Loading Indicator */}
           {isLoading && (
             <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center z-30">
@@ -511,68 +526,53 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
             )}
           </div>
 
-          {/* Section 2: Mathematical Proofs & Audited Constants */}
+          {/* Section 2: Statistics derived from the loaded scene (no retyped literals) */}
           <div className="p-4 flex flex-col gap-3">
             <span className="font-bold text-slate-200 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
               <Cpu size={13} className="text-emerald-400" />
-              <span>Audited System Invariants</span>
+              <span>Scene statistics</span>
             </span>
 
-            {/* Invariant 1: Memory */}
-            <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-3 flex flex-col gap-2">
-              <div className="flex justify-between items-baseline">
-                <span className="text-slate-400">Deterministic RAM:</span>
-                <span className="font-mono font-bold text-emerald-400">
-                  {telemetryData?.telemetry?.total_heap_mb?.toFixed(4) ?? '3.2616'} MB
-                </span>
-              </div>
-              <div className="text-[10px] text-slate-400 leading-normal">
-                Preallocated pool of <strong>106,875</strong> cells &times; 32B = 3.2616 MB (&lt; 3.50 MB DRDO bound).
-              </div>
-            </div>
-
-            {/* Invariant 2: Baseline Comparison */}
             <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-3 flex flex-col gap-1.5 text-[11px] font-mono">
               <div className="flex justify-between">
-                <span className="text-slate-500">Dense 3D Voxel (3cm):</span>
-                <span className="text-slate-300">3,051.8 MB (935.7x)</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Uniform 2.5D (5cm):</span>
-                <span className="text-slate-300">122.1 MB (37.4x)</span>
-              </div>
-              <div className="flex justify-between text-emerald-400 font-bold pt-1 border-t border-slate-800">
-                <span>LiMap 2.5D:</span>
-                <span>3.2616 MB (PROVED)</span>
-              </div>
-            </div>
-
-            {/* Invariant 3: Seam Gaps */}
-            <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-3 flex items-start gap-2 text-[11px] font-mono">
-              <CheckCircle2 size={14} className="text-emerald-400 shrink-0 mt-0.5" />
-              <div>
-                <strong className="text-slate-200 block">Integer-Scale Seam Continuity:</strong>
-                <span className="text-slate-400 text-[10px]">
-                  Zero seam cracks at 10m, 25m, 50m boundaries verified via `test_phase1_invariants.py`.
+                <span className="text-slate-500">Occupied cells:</span>
+                <span className="text-slate-200">
+                  {telemetryData
+                    ? `${telemetryData.telemetry.active_cells.toLocaleString()} of ${telemetryData.telemetry.capacity.toLocaleString()}`
+                    : totalActive
+                      ? totalActive.toLocaleString()
+                      : 'n/a'}
                 </span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Pool size (fixed by design):</span>
+                <span className="text-slate-200">
+                  {(telemetryData?.telemetry.total_heap_mb ?? POOL_MB).toFixed(4)} MB
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Cells shown:</span>
+                <span className="text-slate-200">{cells.length.toLocaleString()}</span>
+              </div>
             </div>
 
-            {/* Invariant 4: Real Dynamic Object (MOS) Metrics from P3/P4 */}
-            <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-3 flex flex-col gap-1.5 text-[11px] font-mono">
-              <span className="font-bold text-slate-300">P3/P4 Dynamic Perception Proofs:</span>
-              <div className="flex justify-between text-slate-400">
-                <span>Ghost Cells Carved:</span>
-                <span className="text-emerald-400 font-bold">1,899 cells</span>
+            {cells.length > 0 && (
+              <div className="bg-slate-950/60 border border-slate-800 rounded-lg p-3 flex flex-col gap-1.5 text-[11px] font-mono">
+                <span className="font-bold text-slate-300">Cells per resolution ring</span>
+                {RING_CONFIGS.map((r) => (
+                  <div key={r.id} className="flex justify-between text-slate-400">
+                    <span>
+                      R{r.id} ({r.res}, {r.range})
+                    </span>
+                    <span className="text-slate-200">{ringCounts[r.id].toLocaleString()}</span>
+                  </div>
+                ))}
               </div>
-              <div className="flex justify-between text-slate-400">
-                <span>Kalman Tracks Formed:</span>
-                <span className="text-cyan-400 font-bold">9,335 tracks</span>
-              </div>
-              <div className="flex justify-between text-slate-400">
-                <span>Dynamic Point Ratio:</span>
-                <span className="text-slate-200 font-bold">41.81% (Seq 08)</span>
-              </div>
+            )}
+
+            <div className="text-[10px] font-mono text-slate-500 leading-relaxed">
+              Benchmark results (accuracy, latency, fidelity by distance, regret) are produced offline from
+              <span className="text-slate-300"> benchmark/*.json</span> and are not shown on this screen.
             </div>
           </div>
         </aside>

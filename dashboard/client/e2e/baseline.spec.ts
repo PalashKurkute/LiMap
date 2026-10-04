@@ -24,7 +24,7 @@ test('capture pre-overhaul baseline', async ({ page }) => {
 
   await page.goto('/');
   // Dismiss the auto-opening onboarding modal
-  await page.getByTitle('Close Guide').click();
+  await page.getByRole('button', { name: 'Close guide' }).click();
 
   for (const s of SCENES) {
     await page.keyboard.press(s.key);

@@ -9,7 +9,7 @@
 Every line of code and architectural decision is held to the highest standard of engineering rigor:
 * **Zero Bluffing:** No fabricated accuracy numbers or pseudo-benchmarks. Every metric is computed against real ground truth.
 * **Deterministic Memory:** Preallocated, cache-aligned spatial structures with provable bounds ($<3.5\text{ MB}$).
-* **Defensible Differentiators:** Dual-elevation overhang tracking, multi-factor foveation, Welford Bayesian variance, and planner-regret verification.
+* **Defensible Differentiators:** Dual-elevation overhang tracking, speed/yaw-based foveation presets (multi-factor foveation is planned), Welford running variance, and planner-regret verification.
 
 ---
 
@@ -38,7 +38,7 @@ The Claude Council is an autonomous, cross-disciplinary deliberative board compr
 *Standards:*
 - Dark-mode first, sleek aerospace/defense telemetry aesthetics (Linear, Raycast, Vercel standard).
 - Smooth 60 FPS WebGL / deck.gl rendering of 3D point clouds and 2.5D multi-layer grids.
-- Real-time animated memory delta visualization (3.2 GB $\to$ 128 MB $\to$ 3.42 MB).
+- Memory comparison drawn from the API baselines (dense 3D voxel, uniform 2.5D, FoveaGrid pool) on a log scale. Values are read from data, never retyped.
 - Interactive cross-section inspection for overhang clearance and pothole depth.
 - No generic, unstyled components or default browser styling.
 

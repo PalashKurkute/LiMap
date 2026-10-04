@@ -364,7 +364,7 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
               }
             }
           } else if (colorMode === 'uncertainty') {
-            // Bayesian Density / Confidence: Emerald green in core path, Cyan in transition, Purple in outer fringe
+            // Lateral distance (illustrative): Emerald green in core path, Cyan in transition, Purple in outer fringe
             const distFromCenter = Math.abs(py);
             if (distFromCenter < 3.5) { cr = 0.05; cg = 0.92; cb = 0.52; }
             else if (distFromCenter < 7.5) { cr = 0.15; cg = 0.72; cb = 0.95; }
@@ -766,7 +766,7 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
           const col = getTraversabilityColor(slopeDeg);
           r = col.r; g = col.g; b = col.b;
         } else if (colorMode === 'uncertainty') {
-          // Bayesian variance heatmap: 0.001 (cool teal) to 0.08 (hot magenta/orange)
+          // Welford variance heatmap: 0.001 (cool teal) to 0.08 (hot magenta/orange)
           const normV = Math.min(variance / 0.06, 1.0);
           r = 0.05 * (1 - normV) + 1.0 * normV;
           g = 0.7 * (1 - normV) + 0.1 * normV;
@@ -1591,6 +1591,7 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
 
   const handleFrameSeek = (frame: number) => {
     setCurrentFrame(frame);
+    lastReportedFrameRef.current = frame;
     const progress = Math.max(0, Math.min(1.0, frame / 120));
     playbackProgressRef.current = progress;
     if (trajCurveRef.current) {

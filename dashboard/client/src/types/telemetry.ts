@@ -13,7 +13,7 @@ export interface BaselineMetrics {
   foveagrid_25d_mb: number;
   reduction_vs_3d: string;
   reduction_vs_uniform_25d: string;
-  under_drdo_bound: boolean;
+  within_pool_budget: boolean;
   per_ring_breakdown: RingBreakdown[];
 }
 
@@ -23,7 +23,9 @@ export interface TelemetryData {
   load_factor: number;
   allocated_cell_mb: number;
   total_heap_mb: number;
-  under_drdo_bound: boolean;
+  within_pool_budget: boolean;
+  /** Present in newer API responses; absent from older ones. */
+  label_source?: 'gt' | 'onnx' | 'heuristic';
   tactical_summary?: {
     min_clearance_m: number | null;
     max_variance_m2: number;
@@ -41,11 +43,14 @@ export interface CrossSectionPoint {
   distance_m: number;
   x: number;
   y: number;
-  z_ground: number;
+  /** false when no grid cell covers this sample (no elevation is invented). */
+  observed: boolean;
+  ring_id: number | null;
+  z_ground: number | null;
   z_overhang: number | null;
   clearance_m: number | null;
-  variance: number;
-  sem_id: number;
+  variance: number | null;
+  sem_id: number | null;
 }
 
 export interface CrossSectionResponse {

@@ -487,5 +487,37 @@ See `dashboard/client/README.md` for structure, data flow and test map, and `das
   matrix, pipeline and data specs.
 
 ### Not done
-- A full code-split of the bundle, a reducer-based `App.tsx`, keeping the 3D view mounted across views, a command palette.
+- A reducer-based `App.tsx`, keeping the 3D view mounted across views, a command palette (see the entry below for what was added afterwards).
 - Real SemanticKITTI frames and the segmentation model are still not in the repository, so the real scene is a sparse sample.
+
+---
+
+## Demo readiness follow-ups: code-splitting and the shortcut sheet (branch `main`)
+
+**Status:** COMPLETE. Verified by `npm run build` (both guards), `shortcuts.spec.ts`, `evidence.spec.ts`, `smoke.spec.ts`,
+`data.spec.ts`, `features.spec.ts` and the new motion-on tour test; the full suite is re-run before each push.
+
+- **Code-splitting.** The 3D view (three.js), Map Inspector and Evidence page load on demand (`src/components/lazyViews.tsx`, `viewLoaders.ts`)
+  and the latter two are prefetched when the browser is idle. The main chunk went from 942 kB to 284 kB (gzip 256 kB to
+  87 kB) in the build output; the 3D view's chunk is 587 kB, nearly all three.js. `chunkSizeWarningLimit` is set just above
+  it so the warning returns if a chunk grows. The height colour range moved to `src/data/pipeline.ts` so the legend no
+  longer imports three.js.
+- **`?` shortcut sheet.** A dialog listing only keys the app handles; opened with `?` or from the Controls panel; owns the
+  keyboard through the key scope; inert during the tour.
+- **Motion-on tour test.** Every other spec runs with reduced motion; this one lets the spotlight slide and the page
+  scroll smoothly and checks the spotlight settles on its anchor through the Evidence steps.
+- **A view that fails to load no longer blanks the app.** Each lazy view sits in `ViewBoundary`: a missing chunk (a stale
+  tab after a new deploy, a dropped connection) shows a message and a Reload button while the header, scene picker and
+  other views keep working. The idle prefetch swallows its own failures. `resilience.spec.ts` blocks each chunk and checks
+  this; with the boundary disabled both of its tests fail.
+- **The tour cannot take the app down either.** If the tour's own chunk fails to load, the launcher now shows a message and
+  a Reload button instead of blanking the app (`TourLoadBoundary` in `TourLauncher.tsx`; errors while the tour runs were
+  already caught by the tour's own boundary). `tour-recovery.spec.ts` covers that (button and `?tour=1`), a step whose
+  data never arrives (variant files blocked: the step shows after its 15 s wait and the tour carries on and exits
+  cleanly) and Finish restoring the app and its unsaved theme change, which the original plan listed and the first
+  spec did not cover. Each test fails when the behaviour it guards is removed.
+- `evidence.spec.ts` waits for the lazily loaded view before querying it.
+
+### Not done
+- A reducer-based `App.tsx`, keeping the 3D view mounted across views, a command palette. The first two are refactors with
+  no visible benefit for the demo and a real regression risk; the palette would duplicate the `?` sheet and the header.

@@ -32,6 +32,8 @@ beyond its short popover**: narration is yours.
 | Left arrow | previous step |
 | Esc, or the X in the popover | leave the tour (the app is restored) |
 
+Press `?` (outside the tour) for the full list of app shortcuts.
+
 Nothing advances by itself, so you control pacing. Each step first sets the app up (switching scene, view or panel) and
 shows "Getting ready..." until the 3D view or map has finished drawing; click Next once it reads normally.
 

@@ -42,7 +42,9 @@ Design rules, enforced by `e2e/tour.spec.ts`:
   without saving it (`setThemePreference(t, { persist: false })`).
 - **Contained.** It takes the keyboard with `pushScope('tour')` (`src/lib/keyScope.ts`) and releases it in the effect
   cleanup, so app shortcuts return even if a step throws. A render error inside the tour is caught by its own error
-  boundary, which exits the tour and restores the app.
+  boundary, which exits the tour and restores the app. If the tour's code cannot be downloaded at all (a stale tab after a
+  new deploy, a dropped connection), the launcher shows a message with a Reload button and the app carries on. A step
+  whose data never arrives waits up to 15 seconds and is then shown anyway.
 - **Deterministic start.** Every tour begins from the bridge scene, 3D view, pipeline output, orbit camera, height
   colouring, drawer closed and default inspector state.
 
@@ -80,8 +82,16 @@ Steps are data in `src/tour/steps.ts`:
 - **Readiness signals** (`src/state/readiness.ts`): `scene-data`, `viewport-built`, `inspector-drawn`, `evidence-loaded`
   and `variant` are set when each thing has finished and mirrored to `<html data-ready="...">`. The tour and the tests
   wait on these instead of sleeping. Emitting one costs nothing and nothing in the app depends on it.
-- **Key scopes** (`src/lib/keyScope.ts`): app shortcuts (1-5, T, Shift+T, R, Space, arrows, B) only fire when no scope
-  has been pushed.
+- **Key scopes** (`src/lib/keyScope.ts`): app shortcuts (1-5, T, Shift+T, R, Space, arrows, B, ?) only fire when no scope
+  has been pushed. The tour and the shortcut sheet (`src/components/ShortcutsSheet.tsx`, opened with `?` or from the
+  Controls panel) each push one while they are open.
+- **Lazy views** (`src/components/lazyViews.tsx`, `viewLoaders.ts`): the 3D view (with three.js), the Map Inspector and the Evidence page are
+  separate chunks behind `Suspense`; the other two are prefetched once the browser is idle. Nothing outside those
+  modules may import from them statically (that would pull three.js back into the main chunk), which is why the height
+  colour range lives in `src/data/pipeline.ts`. Each view sits in a `ViewBoundary` (`src/components/ViewBoundary.tsx`): if its
+  chunk cannot be fetched (a stale tab after a new deploy, a dropped connection) or it throws while rendering, that view
+  shows a message with a Reload button, and the header, scene picker and other views keep working. The idle prefetch
+  ignores its own failures.
 - **Isometric projection** (`src/features/inspector/projection.ts`): world X forward, Y left, Z up. Top-down is
   `sx = ox - y*k`, `sy = oy - x*k`. Isometric (pitch 0.82 rad, yaw -0.32 rad) is
   `rotX = x*cosY - y*sinY`, `rotY = x*sinY + y*cosY`, `sx = ox - 1.05*k*rotY`,
@@ -143,9 +153,12 @@ BASE_URL=https://<preview> npx playwright test e2e/smoke.spec.ts e2e/data.spec.t
 | `data.spec.ts` | Snapshot-first loading; missing snapshots, a 503 API and a hung API all degrade honestly; live upgrade works. |
 | `evidence.spec.ts` | On-screen numbers equal the committed result files; provenance tags; failures are shown as failures. |
 | `pipeline.spec.ts` | The 3D view draws pipeline output, legends follow colour modes, concept view is labelled, theme re-colours cells. |
+| `resilience.spec.ts` | A view whose code fails to load (the request is aborted) shows a message with a Reload button; the idle prefetch raises no uncaught error; the header, scene picker and other views keep working. |
+| `shortcuts.spec.ts` | The `?` sheet opens by key and from the Controls panel, holds focus, leaves everything behind it inert, returns focus, lists only keys the app handles, and stays out of the tour. |
 | `smoke.spec.ts` / `matrix.spec.ts` | Every scene × view × theme loads with no console errors; the first-visit callout shows once. |
 | `features.spec.ts` | Isometric projection maths and picking in both projections; the cursor readout; each foveation preset's outline and statistics against the exported JSON on disk; the uniform comparison's figures and keyboard-operable divider; inspector state survives leaving the view. |
-| `tour.spec.ts` | Every tour step shows its anchor with the spotlight on it and the popover on screen; nothing advances by itself; Esc, Finish and Back; the app and its saved settings are exactly as before; shortcuts are inert during the tour; resume after a reload; honest copy. |
+| `tour.spec.ts` | Every tour step shows its anchor with the spotlight on it and the popover on screen; nothing advances by itself; Esc, Finish and Back; the app and its saved settings are exactly as before; shortcuts are inert during the tour; resume after a reload; honest copy; with animations on, the spotlight settles on its anchor through the smooth-scrolled Evidence steps. |
+| `tour-recovery.spec.ts` | The tour's code failing to load (button and `?tour=1`) shows a message and leaves the app working; a step whose variant data never arrives still shows and the tour carries on and leaves cleanly; Finish restores the app and its saved theme exactly. Shared helpers live in `tour-helpers.ts`. |
 
 `e2e/PARITY.md` lists every feature that existed before the overhaul and where it lives now. `e2e/__baseline__/` holds
 screenshots of the app before the overhaul.
@@ -177,6 +190,5 @@ public/data/    precomputed snapshots (generated, committed)
 - The 3D view is rebuilt when you return to it from the inspector (it unmounts); keeping it mounted would keep the camera.
 - `App.tsx` still holds its state as separate `useState` calls; a reducer and a split into explore / drawer / status-bar
   components was designed but not needed for the tour.
-- The Evidence view and the inspector are not code-split (one JS chunk).
-- A command palette and a `?` shortcut sheet were not built.
+- A command palette was not built.
 - Upstream UI work that was not wired in (a simulated traffic view and others) is kept in `parked-upstream/`.

@@ -79,7 +79,7 @@ test('deployed API without scene data (503) keeps the snapshot', async ({ page }
   await expect(page.locator('[data-region="data-source"]')).toContainText('Snapshot');
   await page.waitForTimeout(800);
   await expect(page.locator('[data-region="data-source"]')).toContainText('Snapshot'); // still, after the API answered
-  await expect(page.getByText('API online')).toBeVisible();
+  await expect(page.locator('[data-region="statusbar"]')).toContainText(/online \(\d+ms\)/);
 });
 
 test('live API with data upgrades the view in place', async ({ page }) => {

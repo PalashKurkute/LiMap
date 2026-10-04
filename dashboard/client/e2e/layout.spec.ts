@@ -66,13 +66,12 @@ for (const size of SIZES) {
           mode: '[role="group"][aria-label="What the 3D view shows"]',
           provenance: '[data-region="provenance"]',
           card: '[data-region="scene-card"]',
-          cta: 'button:has-text("Open Map Inspector")',
           replay: '[data-region="replay"]',
           legend: '[data-region="viewport-legend"]',
           statusbar: '[data-region="statusbar"]',
         });
         const names = found.map((b) => b.name);
-        for (const n of ['header', 'scenes', 'mode', 'provenance', 'card', 'cta', 'replay', 'legend', 'statusbar']) expect(names).toContain(n);
+        for (const n of ['header', 'scenes', 'mode', 'provenance', 'card', 'replay', 'legend', 'statusbar']) expect(names).toContain(n);
 
         for (let i = 0; i < found.length; i++) {
           for (let j = i + 1; j < found.length; j++) {
@@ -124,12 +123,26 @@ for (const size of SIZES) {
       }
     });
 
-    test('welcome dialog fits the viewport', async ({ page }) => {
+    test('first-visit tour callout fits the viewport and covers none of the 3D overlays', async ({ page }) => {
       await page.goto('/');
-      const b = await page.getByRole('dialog').boundingBox();
-      expect(b).not.toBeNull();
-      expect(b!.y).toBeGreaterThanOrEqual(0);
-      expect(b!.y + b!.height).toBeLessThanOrEqual(size.height);
+      await page.waitForTimeout(600);
+      const found = await boxes(page, {
+        nudge: '[data-region="tour-nudge"]',
+        header: '[data-region="header"]',
+        scenes: '[role="group"][aria-label="Scenes"]',
+        mode: '[role="group"][aria-label="What the 3D view shows"]',
+        card: '[data-region="scene-card"]',
+        replay: '[data-region="replay"]',
+        legend: '[data-region="viewport-legend"]',
+      });
+      const by = (n: string) => found.find((b) => b.name === n)!;
+      const nudge = by('nudge');
+      expect(nudge).toBeTruthy();
+      expect(nudge.x + nudge.w).toBeLessThanOrEqual(size.width + 1);
+      expect(nudge.y + nudge.h).toBeLessThanOrEqual(size.height + 1);
+      for (const other of ['header', 'scenes', 'mode', 'card', 'replay', 'legend']) {
+        expect(overlaps(nudge, by(other)), `callout overlaps ${other}`).toBe(false);
+      }
       expect(await overflowing(page)).toEqual([]);
     });
   });

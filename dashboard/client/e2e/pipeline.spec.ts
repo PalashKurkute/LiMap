@@ -48,15 +48,15 @@ test('colour modes change the legend', async ({ page }) => {
   const modes: [string, string][] = [
     ['Class', 'Class'],
     ['Ring', 'Resolution ring'],
-    ['Var.', 'Welford variance'],
+    ['Variance', 'Welford variance'],
     ['Height', 'Height above ground'],
   ];
   for (const [button, title] of modes) {
-    await page.getByRole('button', { name: button, exact: true }).click();
+    await page.getByRole('radio', { name: button, exact: true }).click();
     await expect(legend).toContainText(title);
   }
   // Ring colouring lists all four lattice rings.
-  await page.getByRole('button', { name: 'Ring', exact: true }).click();
+  await page.getByRole('radio', { name: 'Ring', exact: true }).click();
   for (const r of ['R0 · 5 cm', 'R1 · 10 cm', 'R2 · 25 cm', 'R3 · 50 cm']) await expect(legend).toContainText(r);
 });
 
@@ -67,12 +67,12 @@ test('concept view is clearly labelled, restores the illustrative replay, and ca
   await expect(page.getByRole('button', { name: /^(Pause|Play)$/ })).toBeVisible();
   await expect(page.locator('[data-region="viewport-legend"]')).toContainText('Height');
   // colour options differ per mode
-  await expect(page.getByRole('button', { name: 'Slope', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Class', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('radio', { name: 'Slope', exact: true })).toBeVisible();
+  await expect(page.getByRole('radio', { name: 'Class', exact: true })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Pipeline output' }).click();
   await expect(page.locator('[data-region="replay"]')).toContainText('Single scan');
-  await expect(page.getByRole('button', { name: 'Class', exact: true })).toBeVisible();
+  await expect(page.getByRole('radio', { name: 'Class', exact: true })).toBeVisible();
 });
 
 test('real scene: no concept toggle, and it is stamped as a real recording', async ({ page }) => {
@@ -94,6 +94,7 @@ test('every synthetic scene draws its own pipeline output', async ({ page }) => 
 });
 
 test('theme toggle re-colours the drawn cells in place (no reload)', async ({ page }) => {
+  test.setTimeout(300_000); // three full-canvas screenshots of software-rendered WebGL take ~2 min in the test browser
   await open(page, 'light');
   await page.waitForTimeout(1500);
   const shot = async () => PNG.sync.read(await page.locator('[data-region="viewport-canvas"] canvas').screenshot());
@@ -114,7 +115,7 @@ test('theme toggle re-colours the drawn cells in place (no reload)', async ({ pa
 test('dropout preview is available and reversible in pipeline mode', async ({ page }) => {
   await open(page);
   await page.keyboard.press('t');
-  await page.getByRole('button', { name: 'Stress', exact: true }).click();
+  await page.getByRole('tab', { name: 'Stress', exact: true }).click();
   await page.getByRole('radio', { name: /Half the points hidden/ }).click();
   await expect(page.getByRole('radio', { name: /Half the points hidden/ })).toHaveAttribute('aria-checked', 'true');
   await page.getByRole('radio', { name: /All returns drawn/ }).click();

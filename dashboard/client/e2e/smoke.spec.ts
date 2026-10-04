@@ -22,18 +22,19 @@ function watch(page: Page) {
 }
 
 async function dismissWelcome(page: Page) {
-  const close = page.getByRole('button', { name: 'Close guide' });
-  if (await close.isVisible().catch(() => false)) await close.click();
+  const nudge = page.locator('[data-region="tour-nudge"]');
+  if (await nudge.isVisible().catch(() => false)) await nudge.getByRole('button', { name: 'Not now' }).click();
 }
 
-test('welcome shows once, then stays closed', async ({ page }) => {
+test('the first visit offers the tour once, then stays out of the way', async ({ page }) => {
   const problems = watch(page);
   await page.goto('/');
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog')).toBeHidden();
+  const nudge = page.locator('[data-region="tour-nudge"]');
+  await expect(nudge).toBeVisible();
+  await nudge.getByRole('button', { name: 'Not now' }).click();
+  await expect(nudge).toBeHidden();
   await page.reload();
-  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(nudge).toBeHidden();
   expect(problems).toEqual([]);
 });
 
@@ -64,8 +65,8 @@ test('drawer tabs open and no fabricated claims are shown', async ({ page }) => 
   await dismissWelcome(page);
   await page.keyboard.press('t');
 
-  for (const tab of ['View', 'Vehicle', 'Proofs', 'Stress']) {
-    await page.getByRole('button', { name: tab, exact: true }).click();
+  for (const tab of ['Layers', 'Vehicle', 'Section', 'Stress']) {
+    await page.getByRole('tab', { name: tab, exact: true }).click();
     await page.waitForTimeout(150);
   }
   const text = await page.locator('body').innerText();
@@ -96,7 +97,7 @@ test('keyboard: Space toggles playback, arrows step, Esc closes the drawer', asy
   expect(await frameLabel.innerText()).not.toBe(before);
 
   await page.keyboard.press('t');
-  await expect(page.getByText('Control Panel & Telemetry')).toBeVisible();
+  await expect(page.locator('[data-region="drawer"]').getByText('Controls', { exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await page.waitForTimeout(400);
   await expect(page.locator('.telemetry-drawer')).toHaveClass(/closed/);

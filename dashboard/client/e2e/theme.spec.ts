@@ -111,8 +111,8 @@ for (const theme of ['light', 'dark'] as Theme[]) {
     await expect(page.locator('.telemetry-drawer')).toHaveClass(/open/);
     await expect.poll(async () => (await page.locator('[data-region="drawer"]').boundingBox())?.width ?? 0).toBeGreaterThan(300);
     await expectRegions(page, theme, ['drawer']);
-    for (const tab of ['Vehicle', 'Proofs', 'Stress']) {
-      await page.getByRole('button', { name: tab, exact: true }).click();
+    for (const tab of ['Vehicle', 'Section', 'Stress']) {
+      await page.getByRole('tab', { name: tab, exact: true }).click();
       expect(await offendingSurfaces(page, theme), `drawer tab ${tab}`).toEqual([]);
     }
   });
@@ -125,10 +125,14 @@ for (const theme of ['light', 'dark'] as Theme[]) {
     await expectCanvasBackground(page, '[data-region="inspector-canvas"] canvas');
   });
 
-  test(`${theme}: welcome dialog follows the theme`, async ({ page }) => {
+  test(`${theme}: tour callout and tour popover follow the theme`, async ({ page }) => {
     await boot(page, theme, true);
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await expectRegions(page, theme, ['dialog']);
+    await expect(page.locator('[data-region="tour-nudge"]')).toBeVisible();
+    await expectRegions(page, theme, ['tour-nudge']);
+    await page.locator('[data-region="tour-nudge"]').getByRole('button', { name: 'Take the tour' }).click();
+    await expect(page.locator('[data-region="tour"]')).toHaveAttribute('data-tour-phase', 'ready', { timeout: 90_000 });
+    await expectRegions(page, theme, ['tour-popover']);
+    expect(await offendingSurfaces(page, theme), 'tour surfaces').toEqual([]);
   });
 }
 

@@ -44,24 +44,24 @@ for (const theme of ['light', 'dark'] as const) {
 
     await page.keyboard.press('t');
     await page.waitForTimeout(400);
-    for (const tab of ['View', 'Vehicle', 'Proofs', 'Stress']) {
-      await page.getByRole('button', { name: tab, exact: true }).click();
+    for (const tab of ['Layers', 'Vehicle', 'Section', 'Stress']) {
+      await page.getByRole('tab', { name: tab, exact: true }).click();
       await page.waitForTimeout(200);
       await page.screenshot({ path: path.join(OUT, `${theme}__drawer_${tab.toLowerCase()}.png`) });
     }
     expect(problems).toEqual([]);
   });
 
-  test(`matrix ${theme}: welcome dialog steps`, async ({ page }) => {
+  test(`matrix ${theme}: first-visit callout and the first tour step`, async ({ page }) => {
     fs.mkdirSync(OUT, { recursive: true });
     const problems = watch(page);
     await page.addInitScript((t) => localStorage.setItem('limap.theme', t), theme);
     await page.goto('/');
-    for (let i = 1; i <= 4; i++) {
-      await page.waitForTimeout(250);
-      await page.screenshot({ path: path.join(OUT, `${theme}__welcome_${i}.png`) });
-      if (i < 4) await page.getByRole('button', { name: 'Next' }).click();
-    }
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: path.join(OUT, `${theme}__tour_nudge.png`) });
+    await page.locator('[data-region="tour-nudge"]').getByRole('button', { name: 'Take the tour' }).click();
+    await expect(page.locator('[data-region="tour"]')).toHaveAttribute('data-tour-phase', 'ready', { timeout: 90_000 });
+    await page.screenshot({ path: path.join(OUT, `${theme}__tour_step1.png`) });
     expect(problems).toEqual([]);
   });
 }

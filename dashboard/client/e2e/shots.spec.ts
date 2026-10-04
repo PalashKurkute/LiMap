@@ -19,8 +19,8 @@ for (const theme of ['light', 'dark'] as const) {
     await page.waitForTimeout(2500);
     await page.screenshot({ path: path.join(OUT, `${theme}__pipe_bridge_height.png`) });
 
-    for (const mode of ['Class', 'Ring', 'Var.']) {
-      await page.getByRole('button', { name: mode, exact: true }).click();
+    for (const mode of ['Class', 'Ring', 'Variance']) {
+      await page.getByRole('radio', { name: mode, exact: true }).click();
       await page.waitForTimeout(500);
       await page.screenshot({ path: path.join(OUT, `${theme}__pipe_bridge_${mode.replace('.', '')}.png`) });
     }

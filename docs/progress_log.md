@@ -433,3 +433,23 @@ Evaluation run on real **SemanticKITTI Sequence 08** (50 frames, 5,988,201 point
   * Ring 2 Planning (25–50m): Mean Var = $0.31234\text{ m}^2$ (StdDev = $55.89\text{ cm}$)
   * Ring 3 Horizon (50–100m): Mean Var = $0.58706\text{ m}^2$ (StdDev = $76.62\text{ cm}$)
 * **Memory Invariant:** 32-byte `CELL_DTYPE` unchanged, heap bounded at **3.2616 MB**.
+
+---
+
+## UI Overhaul — Dashboard (light/dark, honest data, pipeline view, Evidence)
+
+**Status:** COMPLETE (branch `ui/demo-ready`)  
+**Verified by:** `npm run build` (token + honesty guards), `npx playwright test` in `dashboard/client`, `pytest dashboard/server/tests`, `scripts/export_dashboard_data.py --check`
+
+### What changed
+* **Honesty:** removed retired claims and retyped benchmark literals from the UI (a build-time guard now scans source and bundle). `RegretPanel`/`MemoryMeter` literals replaced by an **Evidence** page that reads `benchmark/*.json` with sha256 provenance and MEASURED / CALCULATED / DATASET tags.
+* **Deployed link works without a backend:** `scripts/export_dashboard_data.py` runs the real pipeline offline and commits static snapshots to `dashboard/client/public/data/`; the API is an optional live upgrade.
+* **3D view shows pipeline output:** the grid cells and raw returns for each scan (default), with the hand-built scene kept as a labelled **Concept view**.
+* **Light/dark theme** that reaches every surface including the Three.js scene and the map canvas, enforced by `scripts/check-tokens.mjs` and pixel-sampling e2e tests.
+* **Backend fixes:** `/api/grid_cells` no longer reports the 999.0 sentinel as an overhang; `/api/cross_section` marks unobserved samples instead of inventing road; labels stay aligned with points when the sanitizer drops points; new whitelisted `GET /api/results/{name}`; HTTP 404/503 for scene errors.
+
+See `dashboard/client/README.md` for structure, data flow and test map, and `dashboard/client/e2e/PARITY.md` for where every pre-overhaul feature now lives.
+
+### Not done (documented limits)
+* Predicted-vs-ground-truth labels and moving-object replay on real frames need the SalsaNext model and SemanticKITTI velodyne frames, which are not in the repository.
+* `ThreeViewport.tsx` remains one large effect; per-layer modules, OrbitControls and render-on-demand are the main follow-up.

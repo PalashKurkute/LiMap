@@ -63,3 +63,6 @@ models/
 *.swo
 .DS_Store
 Thumbs.db
+
+# The dashboard client keeps its helpers in src/lib/ (the Python lib/ rule above must not swallow them)
+!dashboard/client/src/lib/

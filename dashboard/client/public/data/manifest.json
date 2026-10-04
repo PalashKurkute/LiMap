@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-04T12:55:45+00:00",
-  "git_sha": "525f9a8",
+  "generated_at": "2026-10-04T18:06:12+00:00",
+  "git_sha": "1284ae1",
   "scenes": {
     "scene_a_bridge": {
       "file": "scenes/scene_a_bridge.json",
@@ -78,6 +78,143 @@
       "file": "results/edge_profile.json",
       "sha256": "8583873a2149fa28d6190e168f1b67cbfa6c3e4342a711799045d829af97a101",
       "source_path": "benchmark/edge_hardware_profile.json"
+    }
+  },
+  "variants": {
+    "scene_a_bridge": {
+      "fovea_city_cruise": {
+        "file": "variants/scene_a_bridge/fovea_city_cruise.json",
+        "bytes": 956046,
+        "active_cells": 46222
+      },
+      "fovea_highway_extended": {
+        "file": "variants/scene_a_bridge/fovea_highway_extended.json",
+        "bytes": 954884,
+        "active_cells": 44300
+      },
+      "fovea_turning_left": {
+        "file": "variants/scene_a_bridge/fovea_turning_left.json",
+        "bytes": 955744,
+        "active_cells": 46251
+      },
+      "fovea_turning_right": {
+        "file": "variants/scene_a_bridge/fovea_turning_right.json",
+        "bytes": 956242,
+        "active_cells": 46273
+      },
+      "uniform_5cm": {
+        "file": "variants/scene_a_bridge/uniform_5cm.json",
+        "bytes": 953984,
+        "active_cells": 58428
+      }
+    },
+    "scene_b_potholes": {
+      "fovea_city_cruise": {
+        "file": "variants/scene_b_potholes/fovea_city_cruise.json",
+        "bytes": 956377,
+        "active_cells": 43854
+      },
+      "fovea_highway_extended": {
+        "file": "variants/scene_b_potholes/fovea_highway_extended.json",
+        "bytes": 955544,
+        "active_cells": 42027
+      },
+      "fovea_turning_left": {
+        "file": "variants/scene_b_potholes/fovea_turning_left.json",
+        "bytes": 956394,
+        "active_cells": 43851
+      },
+      "fovea_turning_right": {
+        "file": "variants/scene_b_potholes/fovea_turning_right.json",
+        "bytes": 956809,
+        "active_cells": 43868
+      },
+      "uniform_5cm": {
+        "file": "variants/scene_b_potholes/uniform_5cm.json",
+        "bytes": 955827,
+        "active_cells": 55612
+      }
+    },
+    "scene_c_moving": {
+      "fovea_city_cruise": {
+        "file": "variants/scene_c_moving/fovea_city_cruise.json",
+        "bytes": 957162,
+        "active_cells": 44818
+      },
+      "fovea_highway_extended": {
+        "file": "variants/scene_c_moving/fovea_highway_extended.json",
+        "bytes": 956453,
+        "active_cells": 42744
+      },
+      "fovea_turning_left": {
+        "file": "variants/scene_c_moving/fovea_turning_left.json",
+        "bytes": 956935,
+        "active_cells": 44820
+      },
+      "fovea_turning_right": {
+        "file": "variants/scene_c_moving/fovea_turning_right.json",
+        "bytes": 957337,
+        "active_cells": 44813
+      },
+      "uniform_5cm": {
+        "file": "variants/scene_c_moving/uniform_5cm.json",
+        "bytes": 956030,
+        "active_cells": 56014
+      }
+    },
+    "scene_d_poles": {
+      "fovea_city_cruise": {
+        "file": "variants/scene_d_poles/fovea_city_cruise.json",
+        "bytes": 955108,
+        "active_cells": 43631
+      },
+      "fovea_highway_extended": {
+        "file": "variants/scene_d_poles/fovea_highway_extended.json",
+        "bytes": 954068,
+        "active_cells": 41924
+      },
+      "fovea_turning_left": {
+        "file": "variants/scene_d_poles/fovea_turning_left.json",
+        "bytes": 954924,
+        "active_cells": 43602
+      },
+      "fovea_turning_right": {
+        "file": "variants/scene_d_poles/fovea_turning_right.json",
+        "bytes": 955518,
+        "active_cells": 43654
+      },
+      "uniform_5cm": {
+        "file": "variants/scene_d_poles/uniform_5cm.json",
+        "bytes": 956300,
+        "active_cells": 56500
+      }
+    },
+    "real_seq08_f00": {
+      "fovea_city_cruise": {
+        "file": "variants/real_seq08_f00/fovea_city_cruise.json",
+        "bytes": 222973,
+        "active_cells": 4799
+      },
+      "fovea_highway_extended": {
+        "file": "variants/real_seq08_f00/fovea_highway_extended.json",
+        "bytes": 221625,
+        "active_cells": 4777
+      },
+      "fovea_turning_left": {
+        "file": "variants/real_seq08_f00/fovea_turning_left.json",
+        "bytes": 223042,
+        "active_cells": 4802
+      },
+      "fovea_turning_right": {
+        "file": "variants/real_seq08_f00/fovea_turning_right.json",
+        "bytes": 223052,
+        "active_cells": 4801
+      },
+      "uniform_5cm": {
+        "file": "variants/real_seq08_f00/uniform_5cm.json",
+        "bytes": 227865,
+        "active_cells": 4881
+      }
     }
   }
 }

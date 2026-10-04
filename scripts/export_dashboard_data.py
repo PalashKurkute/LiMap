@@ -268,6 +268,7 @@ def main() -> int:
             a, b = json.loads(p.read_text()), json.loads(committed.read_text())
             for blob in (a, b):
                 blob["meta"].pop("generated_at", None)
+                blob["meta"].pop("git_sha", None)  # provenance moves with every commit
             if a != b:
                 stale.append(f"scenes/{p.name}")
         if stale:

@@ -39,8 +39,9 @@ test('clicking a cell in the map inspector selects it and shows its statistics',
   // 12 m ahead of the ego marker at the default zoom: inside the dense ring-0/ring-1 ground cells.
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2 - 12 * 6);
   await expect(page.getByText(/ix: -?\d+, iy: -?\d+/)).toBeVisible();
-  await expect(page.getByText('Resolution ring', { exact: true })).toBeVisible();
-  await expect(page.getByText('Welford variance', { exact: true })).toBeVisible();
+  const sidebar = page.locator('[data-region="inspector-sidebar"]');
+  await expect(sidebar.getByText('Resolution ring', { exact: true })).toBeVisible();
+  await expect(sidebar.getByText('Welford variance', { exact: true })).toBeVisible();
 });
 
 test('every scene has a snapshot with cells (including the real scene)', async ({ page }) => {

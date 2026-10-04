@@ -83,6 +83,7 @@ test('real scene: no concept toggle, and it is stamped as a real recording', asy
 });
 
 test('every synthetic scene draws its own pipeline output', async ({ page }) => {
+  test.setTimeout(300_000); // software-rendered WebGL in the test browser
   await open(page);
   for (const key of ['1', '2', '3', '4']) {
     await page.keyboard.press(key);

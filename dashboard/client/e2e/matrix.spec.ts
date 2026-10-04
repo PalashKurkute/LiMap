@@ -22,6 +22,7 @@ function watch(page: Page) {
 
 for (const theme of ['light', 'dark'] as const) {
   test(`matrix ${theme}: all scenes x (3D, inspector, drawer)`, async ({ page }) => {
+    test.setTimeout(300_000); // software-rendered WebGL in the test browser
     fs.mkdirSync(OUT, { recursive: true });
     const problems = watch(page);
     await page.addInitScript((t) => {

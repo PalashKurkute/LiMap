@@ -108,7 +108,8 @@ for (const theme of ['light', 'dark'] as Theme[]) {
     await expectCanvasBackground(page, '[data-region="viewport-canvas"] canvas');
 
     await page.keyboard.press('t');
-    await page.waitForTimeout(450);
+    await expect(page.locator('.telemetry-drawer')).toHaveClass(/open/);
+    await expect.poll(async () => (await page.locator('[data-region="drawer"]').boundingBox())?.width ?? 0).toBeGreaterThan(300);
     await expectRegions(page, theme, ['drawer']);
     for (const tab of ['Vehicle', 'Proofs', 'Stress']) {
       await page.getByRole('button', { name: tab, exact: true }).click();

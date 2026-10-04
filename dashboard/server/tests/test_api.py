@@ -122,3 +122,32 @@ def test_health_reports_scene_availability():
     assert body["status"] == "ONLINE"
     assert set(body["scenes"]) == set(server.SCENE_FILES)
     assert body["label_engine"] in {"onnx", "heuristic"}
+
+
+def test_labels_stay_aligned_when_sanitizer_drops_points(tmp_path, monkeypatch):
+    """Regression: labels used to be loaded unfiltered after points were sanitized, shifting every class."""
+    import numpy as np
+
+    pts = np.array(
+        [
+            [5.0, 0.0, -1.7, 0.1],      # kept, label 40
+            [np.nan, 0.0, 0.0, 0.1],    # dropped (non-finite)
+            [0.1, 0.0, 0.0, 0.1],       # dropped (inside min range / ego reflection)
+            [10.0, 1.0, -1.7, 0.1],     # kept, label 50
+            [500.0, 0.0, 0.0, 0.1],     # dropped (beyond max range)
+            [15.0, -2.0, 0.5, 0.1],     # kept, label 80
+        ],
+        dtype=np.float32,
+    )
+    labels = np.array([40, 11, 12, 50, 13, 80], dtype=np.uint32)  # distinct id per point
+    (tmp_path / "t.bin").write_bytes(pts.tobytes())
+    (tmp_path / "t.label").write_bytes(labels.tobytes())
+
+    monkeypatch.setattr(server, "REPO_ROOT", tmp_path)
+    monkeypatch.setitem(server.SCENE_FILES, "tmp_scene", ("t.bin", "t.label"))
+
+    out_pts, out_sem, source = server.load_scene_arrays("tmp_scene")
+    assert source == "gt"
+    assert len(out_pts) == len(out_sem) == 3
+    assert out_sem.tolist() == [40, 50, 80]
+    assert out_pts[:, 0].tolist() == [5.0, 10.0, 15.0]

@@ -108,23 +108,32 @@ def resolve_scene_files(scene_id: str) -> Tuple[Path, Path]:
     return REPO_ROOT / bin_rel, REPO_ROOT / lbl_rel
 
 
-def load_scene_into(grid: SpatialHashGrid, scene_id: str, engine: Optional[SemanticSegmentationEngine] = None) -> Dict[str, object]:
-    """Loads a scene into `grid` (reset first). Shared by /api/load_scene and the snapshot exporter."""
+def load_scene_arrays(
+    scene_id: str, engine: Optional[SemanticSegmentationEngine] = None
+) -> Tuple[np.ndarray, np.ndarray, str]:
+    """Reads a scene from disk: sanitized points, per-point semantic ids, and where the labels came from.
+
+    Labels are filtered by the same mask as the points, so the two arrays always stay aligned.
+    """
     bin_file, lbl_file = resolve_scene_files(scene_id)
     if not bin_file.is_file():
         raise SceneError(503, "SCENE_DATA_MISSING", f"Scene binary not found: {bin_file.relative_to(REPO_ROOT)}")
 
     raw_pts = load_kitti_bin(str(bin_file))
-    pts, _ = sanitize_point_cloud(raw_pts, min_range=0.5, max_range=120.0)
-
     if lbl_file.is_file():
-        sem = load_kitti_label(str(lbl_file))[0]
-        label_source = "gt"
-    else:
-        engine = engine or SEMANTIC_ENGINE
-        sem = engine.infer(pts)
-        label_source = "onnx" if getattr(engine, "session", None) is not None else "heuristic"
+        raw_sem = load_kitti_label(str(lbl_file))[0]
+        pts, sem = sanitize_point_cloud(raw_pts, min_range=0.5, max_range=120.0, labels=raw_sem)
+        return pts, sem, "gt"
 
+    pts, _ = sanitize_point_cloud(raw_pts, min_range=0.5, max_range=120.0)
+    engine = engine or SEMANTIC_ENGINE
+    sem = engine.infer(pts)
+    return pts, sem, "onnx" if getattr(engine, "session", None) is not None else "heuristic"
+
+
+def load_scene_into(grid: SpatialHashGrid, scene_id: str, engine: Optional[SemanticSegmentationEngine] = None) -> Dict[str, object]:
+    """Loads a scene into `grid` (reset first). Shared by /api/load_scene and the snapshot exporter."""
+    pts, sem, label_source = load_scene_arrays(scene_id, engine)
     grid.reset()
     grid.insert_points(pts, semantic_labels=sem)
     return {

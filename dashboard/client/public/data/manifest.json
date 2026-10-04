@@ -1,0 +1,83 @@
+{
+  "generated_at": "2026-10-04T12:55:45+00:00",
+  "git_sha": "525f9a8",
+  "scenes": {
+    "scene_a_bridge": {
+      "file": "scenes/scene_a_bridge.json",
+      "bytes": 2427623,
+      "kind": "synthetic",
+      "label_source": "gt",
+      "active_cells": 47307,
+      "cells_exported": 40000,
+      "points_exported": 25000
+    },
+    "scene_b_potholes": {
+      "file": "scenes/scene_b_potholes.json",
+      "bytes": 2430083,
+      "kind": "synthetic",
+      "label_source": "gt",
+      "active_cells": 44921,
+      "cells_exported": 40000,
+      "points_exported": 25000
+    },
+    "scene_c_moving": {
+      "file": "scenes/scene_c_moving.json",
+      "bytes": 2430646,
+      "kind": "synthetic",
+      "label_source": "gt",
+      "active_cells": 45998,
+      "cells_exported": 40000,
+      "points_exported": 25000
+    },
+    "scene_d_poles": {
+      "file": "scenes/scene_d_poles.json",
+      "bytes": 2428685,
+      "kind": "synthetic",
+      "label_source": "gt",
+      "active_cells": 44700,
+      "cells_exported": 40000,
+      "points_exported": 25000
+    },
+    "real_seq08_f00": {
+      "file": "scenes/real_seq08_f00.json",
+      "bytes": 335703,
+      "kind": "real",
+      "label_source": "gt",
+      "active_cells": 4800,
+      "cells_exported": 4800,
+      "points_exported": 5000
+    }
+  },
+  "results": {
+    "fidelity": {
+      "file": "results/fidelity.json",
+      "sha256": "c8f44a20a2acccbb24605b389054d503feaf0da98d48b9a96893a18de4c381be",
+      "source_path": "benchmark/fidelity_study_results.json"
+    },
+    "latency": {
+      "file": "results/latency.json",
+      "sha256": "b11ea6841a6b9d3f95919f028a015c6dffff934ec356dd579542bf74f434265c",
+      "source_path": "benchmark/latency_profile_results.json"
+    },
+    "miou": {
+      "file": "results/miou.json",
+      "sha256": "fddadcc488bd9edf2351d80c89a8d8e031e36a7316bcd813dbcb313c5ba8f7b1",
+      "source_path": "benchmark/real_miou_results.json"
+    },
+    "mos": {
+      "file": "results/mos.json",
+      "sha256": "3a52061b897bbcaff6225bc1e3c6871c8d6e30851617ab707d9aedb295f35fb6",
+      "source_path": "benchmark/real_dynamic_mos_results.json"
+    },
+    "regret": {
+      "file": "results/regret.json",
+      "sha256": "b3f49a863f48ad796a9f57a0520b94afcbd2c71c7d65b60c8cbdd4c5b756cabb",
+      "source_path": "benchmark/real_regret_results.json"
+    },
+    "edge_profile": {
+      "file": "results/edge_profile.json",
+      "sha256": "8583873a2149fa28d6190e168f1b67cbfa6c3e4342a711799045d829af97a101",
+      "source_path": "benchmark/edge_hardware_profile.json"
+    }
+  }
+}

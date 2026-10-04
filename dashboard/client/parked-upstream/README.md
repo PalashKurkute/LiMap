@@ -10,8 +10,11 @@ Nothing here was deleted; the original commits are in git history.
 | `components/MatrixWalkthroughModal.tsx` | 4-step guide for the Data Matrix page | ~70 raw colour literals. |
 | `pages/HomePage.tsx`, `pages/DataInspectionPage.tsx` | Page split of App.tsx | Never imported by anything upstream (dead code). |
 
-Also not carried over from upstream's `DataInspectionScreen`: hard-coded "CAR #1 / CAR #2 / TRUCK #3 / TREE" 3D boxes drawn
-on every scene (they ignore the data), the 2D/3D isometric toggle and the cell-size slider.
+Upstream's `DataInspectionScreen` extras: the **isometric view, cursor readout, map-guides toggle and per-scene hints were
+ported** into the Map Inspector (see `src/features/inspector/`), with theme tokens, data-derived hints and hit-testing in both
+projections. **Not carried over:** the hard-coded "CAR #1 / CAR #2 / TRUCK #3 / TREE / CURB" 3D boxes drawn on every scene
+whatever the data said, the cell-size slider (it only enlarged the drawn dots), and `MatrixWalkthroughModal`, which the
+guided tour (`src/tour/`) replaces.
 
 To bring a piece back: re-theme it with the semantic tokens (`bg-panel`, `text-fg`, `--scene-*`), import it from `src/`,
 label anything simulated, and make `npm run build` pass.

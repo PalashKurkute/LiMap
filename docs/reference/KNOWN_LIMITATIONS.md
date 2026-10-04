@@ -120,3 +120,19 @@ python scripts/generate_synthetic.py
 
 This ensures zero `FileNotFoundError` across offline tests and synthetic benchmarks.
 
+---
+
+## 9. Dashboard: foveation presets and the uniform comparison
+
+- **Presets are single-scan re-runs, not drives.** The Map Inspector's city, highway and turn views run one scan through
+  the grid with the controller's input for that preset (`docs/DATA_VARIANTS.md`). They show where the fine zone sits; they
+  do not show behaviour over time. Hazard- or uncertainty-driven foveation is planned, not built.
+- **Turning presets: reach differs slightly from the configured value.** The controller configures a forward reach of
+  12.0 m, which is the reach through the fovea centre (y = 1.5 m). Along the vehicle axis the fine zone reaches about
+  11.89 m. The dashboard shows the computed reach (CALCULATED) and the configured value in a tooltip.
+- **Drawn cells are a sample.** Each variant file stores at most 20,000 evenly spaced cells to keep the repository small,
+  so the preset and comparison views look sparser than the full grid. Every count shown is exact (counted before
+  sampling) and the view says when it is drawing a sample.
+- **The uniform reference uses a larger evaluation pool.** It is built like `benchmark/fidelity_study.py` (a 500,000-cell
+  pool). The memory shown for it is the calculated capacity of a full uniform 5 cm grid, not that pool.
+- **The real scene is a 5,000-point sample** in this repository, so its presets and comparison hold few cells.

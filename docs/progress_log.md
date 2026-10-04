@@ -453,3 +453,39 @@ See `dashboard/client/README.md` for structure, data flow and test map, and `das
 ### Not done (documented limits)
 * Predicted-vs-ground-truth labels and moving-object replay on real frames need the SalsaNext model and SemanticKITTI velodyne frames, which are not in the repository.
 * `ThreeViewport.tsx` remains one large effect; per-layer modules, OrbitControls and render-on-demand are the main follow-up.
+
+---
+
+## Demo readiness: tour, inspector features, UI cleanup (branch `main`)
+
+**Status:** COMPLETE except items under "Not done". Verified by `npm run build` (token and honesty guards),
+`pytest dashboard/server/tests` (62 tests), `scripts/export_dashboard_data.py --check`, and the Playwright specs named below.
+
+### What changed
+- **Landed the dashboard overhaul on `main`** after merging `origin/main`. Fixed a build break found on the way:
+  `dashboard/client/src/lib/` had never been committed because the Python `lib/` rule in `.gitignore` swallowed it, so a
+  fresh clone or Vercel could not build. A fresh-clone build is now part of the push routine.
+- **Merge decisions.** Upstream's simulated traffic view, matrix walkthrough and unused page files are parked in
+  `dashboard/client/parked-upstream/` (outside `src/`, so the token guard and build ignore them); its hard-coded
+  CAR/TRUCK/TREE boxes were not carried over because they ignored the data.
+- **Variant snapshots** (`scripts/export_dashboard_data.py`, `docs/DATA_VARIANTS.md`): every scene re-run for four foveation
+  presets and a uniform 5 cm reference; 25 files, about 20 MB, loaded lazily.
+- **Map Inspector**: isometric view, cursor readout, guides, per-scene hints, foveation presets with a fovea outline, and a
+  uniform-vs-FoveaGrid swipe comparison.
+- **Take the tour**: lazy-loaded, click-Next only, restores the app on every exit, 38 steps (`dashboard/client/README.md`,
+  `docs/DEMO_RECORDING.md`).
+- **UI cleanup**: visible Controls button; camera and colour pickers in one place; duplicate chips and button removed;
+  plain wording; drawer as a real tablist; the real scene no longer gets stuck in concept view; shortcuts no longer fire
+  behind dialogs; `R` implemented; honesty fixes in drawer copy (the hand-built path and vehicle were described as planner
+  output and Kalman prediction); the token guard now also catches `accent-*` colour utilities.
+- **Guards**: `check-honesty.mjs` bans "collision-free", "Kalman motion prediction" and "guarantee", and rejects typed
+  numbers with units in `src/tour/` and `src/features/inspector/`.
+
+### Tests
+- `dashboard/server/tests/test_export_variants.py`: 41 tests on the exporter (62 server tests in total).
+- `e2e/features.spec.ts` (isometric, presets, comparison), `e2e/tour.spec.ts` (tour), plus updated smoke, layout, theme,
+  matrix, pipeline and data specs.
+
+### Not done
+- A full code-split of the bundle, a reducer-based `App.tsx`, keeping the 3D view mounted across views, a command palette.
+- Real SemanticKITTI frames and the segmentation model are still not in the repository, so the real scene is a sparse sample.

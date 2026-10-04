@@ -77,7 +77,7 @@ export const STEPS: TourStep[] = [
     id: 'scenes',
     anchor: '[data-tour="scenes"]',
     title: 'Pick a scene',
-    body: () => 'Four synthetic test scenes and one real SemanticKITTI scan. The number keys switch between them.',
+    body: () => 'Four synthetic test scenes and one real SemanticKITTI scan. The number keys switch between them, and ? lists every shortcut.',
     interactive: true,
     enter: ({ actions }) => ensure(actions, { ...bridge, view: 'hook_3d', viewMode: 'pipeline', drawer: null }),
   },

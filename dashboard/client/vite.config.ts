@@ -5,6 +5,11 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [tailwindcss(), react()],
+  build: {
+    // The 3D view's chunk is mostly three.js (~590 kB minified) and cannot be split further. The limit sits just above it
+    // so the warning returns if that chunk, or any other, grows.
+    chunkSizeWarningLimit: 650,
+  },
   server: {
     host: '0.0.0.0',
     port: 3000,

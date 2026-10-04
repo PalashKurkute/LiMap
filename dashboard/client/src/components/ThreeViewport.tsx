@@ -25,6 +25,7 @@ import { readSceneTokens, type SceneTokens } from '../theme/sceneTheme';
 import { useTheme } from '../theme/theme';
 import { disposeObject } from '../lib/disposeObject';
 import { clearReady, markReady } from '../state/readiness';
+import { PIPE_REL_MIN, PIPE_REL_SPAN } from '../data/pipeline';
 import { prefersReducedMotion } from '../lib/motion';
 
 interface ThreeViewportProps {
@@ -69,9 +70,6 @@ interface PipelineScene {
   overhangIdx: number[];
 }
 
-/** Pipeline height colouring is relative to the grid's own ground estimate, so small dips (potholes) and overhangs stand out. */
-export const PIPE_REL_MIN = -0.8;
-export const PIPE_REL_SPAN = 3.8;
 /** Radius (m) at which each lattice ring ends; used to colour raw points by the ring they fall in. */
 const RING_EDGES = [10, 25, 50];
 

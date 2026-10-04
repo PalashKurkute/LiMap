@@ -1,5 +1,9 @@
 import type { GridCellData } from '../types/telemetry';
 
+/** Pipeline height colouring is relative to the grid's own ground estimate, so small dips (potholes) and overhangs stand out. */
+export const PIPE_REL_MIN = -0.8;
+export const PIPE_REL_SPAN = 3.8;
+
 const median = (values: number[]): number => {
   const s = [...values].sort((a, b) => a - b);
   return s[Math.floor(s.length / 2)];

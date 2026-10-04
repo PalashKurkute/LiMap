@@ -9,6 +9,25 @@ import { hasSeenIntro, markIntroSeen, readProgress, type TourProgress } from './
 
 const TourRoot = lazy(() => import('./TourRoot'));
 
+/**
+ * Catches only the tour's code failing to load (a stale tab after a new deploy, a dropped connection). Errors while the
+ * tour is running are caught by the tour's own boundary, which also restores the app. Either way the rest of the app
+ * carries on; here the tour simply does not start, and the launcher says why.
+ */
+class TourLoadBoundary extends React.Component<{ onFail: () => void; children: React.ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch(error: unknown) {
+    console.warn('the tour could not be loaded', error);
+    this.props.onFail();
+  }
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
+
 interface TourLauncherProps {
   /** Show the first-visit callout (only on a view where the corner is free). */
   showNudge: boolean;
@@ -20,14 +39,21 @@ export const TourLauncher: React.FC<TourLauncherProps> = ({ showNudge }) => {
   const [progress, setProgress] = useState<TourProgress | null>(() => readProgress());
   const [introSeen, setIntroSeen] = useState(() => hasSeenIntro());
   const [menuOpen, setMenuOpen] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
 
   const start = useCallback((from = 0) => {
     markIntroSeen();
     setIntroSeen(true);
     setMenuOpen(false);
+    setLoadFailed(false);
     setStartAt(from);
     setActive(true);
+  }, []);
+
+  const onLoadFail = useCallback(() => {
+    setActive(false);
+    setLoadFailed(true);
   }, []);
 
   useEffect(() => {
@@ -80,6 +106,26 @@ export const TourLauncher: React.FC<TourLauncherProps> = ({ showNudge }) => {
         )}
       </div>
 
+      {loadFailed && (
+        <div
+          role="alert"
+          className="fixed right-4 top-[3.75rem] z-50 w-64 rounded-xl border border-line-strong bg-panel p-3 text-fg shadow-xl"
+        >
+          <p className="text-xs leading-relaxed text-fg-2">The tour could not be loaded. Reload the page to try again; everything else still works.</p>
+          <div className="mt-2.5 flex items-center gap-2">
+            <button
+              onClick={() => window.location.reload()}
+              className="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-on shadow-sm hover:bg-accent/90"
+            >
+              Reload
+            </button>
+            <button onClick={() => setLoadFailed(false)} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-fg-2 hover:bg-subtle">
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       {showNudge && !introSeen && !active && (
         <div
           role="region"
@@ -121,9 +167,11 @@ export const TourLauncher: React.FC<TourLauncherProps> = ({ showNudge }) => {
       )}
 
       {active && (
-        <Suspense fallback={null}>
-          <TourRoot startAt={startAt} onExit={onExit} />
-        </Suspense>
+        <TourLoadBoundary onFail={onLoadFail}>
+          <Suspense fallback={null}>
+            <TourRoot startAt={startAt} onExit={onExit} />
+          </Suspense>
+        </TourLoadBoundary>
       )}
     </>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
+import React, { Suspense, useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import type {
   SceneId,
   RenderMode,
@@ -10,14 +10,14 @@ import type {
   ColorMapMode,
 } from './types/telemetry';
 import { Header } from './components/Header';
-import { ThreeViewport } from './components/ThreeViewport';
 import { DisplaysPanel } from './components/DisplaysPanel';
 import { StressHarnessPanel } from './components/StressHarnessPanel';
 import { ReplayWidget } from './components/ReplayWidget';
 import { InteractiveCrossSection } from './components/InteractiveCrossSection';
 import { TacticalObjectiveCard } from './components/TacticalObjectiveCard';
-import { DataInspectionScreen } from './components/DataInspectionScreen';
-import { EvidenceView } from './features/evidence/EvidenceView';
+import { DataInspectionScreen, EvidenceView, ThreeViewport, ViewLoading } from './components/lazyViews';
+import { prefetchViews } from './components/viewLoaders';
+import { ViewBoundary } from './components/ViewBoundary';
 import { POOL_MB } from './lib/constants';
 import { useSceneData } from './data/useSceneData';
 import { computeGroundZ } from './data/pipeline';
@@ -31,7 +31,8 @@ import { clearReady, markReady } from './state/readiness';
 import { getInspector, replaceInspector, setInspector } from './state/inspector';
 import { AppActionsContext, AppDataContext, type AppActions, type AppSnapshot, type AppView, type DrawerTab } from './state/AppActions';
 import { getThemePreference, setThemePreference } from './theme/theme';
-import { X, Gauge, Radio, ShieldCheck, ShieldAlert, RotateCcw, Compass, Layers } from 'lucide-react';
+import { X, Gauge, Radio, ShieldCheck, ShieldAlert, RotateCcw, Compass, Layers, Keyboard } from 'lucide-react';
+import { ShortcutsSheet } from './components/ShortcutsSheet';
 
 const DEFAULT_LAYERS: LayerVisibility = {
   demSurface: false,
@@ -73,6 +74,8 @@ export const App: React.FC = () => {
   const renderMode: RenderMode = viewMode === 'pipeline' && pipelineData ? 'pipeline' : 'concept';
   const isRealScene = activeScene.startsWith('real_');
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState<boolean>(false);
+  const closeShortcuts = useCallback(() => setShortcutsOpen(false), []);
   const [activeTab, setActiveTab] = useState<DrawerTab>('displays');
 
   // Live UGV Kinematics
@@ -126,6 +129,9 @@ export const App: React.FC = () => {
     };
   }, []);
 
+  // The Map Inspector and Evidence code is fetched once the browser is idle, so switching views is instant.
+  useEffect(() => prefetchViews(), []);
+
   // Readiness signal for the tour and tests: the active scene's data has finished loading.
   useEffect(() => {
     if (sceneStatus === 'ready') markReady('scene-data');
@@ -144,6 +150,11 @@ export const App: React.FC = () => {
 
       if (e.key === 'Escape') {
         if (isAppScope() && isSidebarOpen) setIsSidebarOpen(false);
+        return;
+      }
+      if (e.key === '?' && isAppScope() && !el?.closest('input, textarea, select, [contenteditable="true"]')) {
+        e.preventDefault();
+        setShortcutsOpen(true);
         return;
       }
       if (!isAppScope() || interactive || currentView !== 'hook_3d') return;
@@ -273,46 +284,58 @@ export const App: React.FC = () => {
           }}
         >
           {currentView === 'evidence' ? (
-            <EvidenceView baselines={telemetryData?.baselines ?? null} />
+            <ViewBoundary resetKey={currentView}>
+              <Suspense fallback={<ViewLoading label="Loading evidence…" />}>
+                <EvidenceView baselines={telemetryData?.baselines ?? null} />
+              </Suspense>
+            </ViewBoundary>
           ) : currentView === 'data_inspection' ? (
-            <DataInspectionScreen
-              activeScene={activeScene}
-              telemetryData={telemetryData}
-              sceneData={sceneData}
-              isLoading={isLoading}
-              onBackToHook={() => setCurrentView('hook_3d')}
-              onOpenEvidence={() => setCurrentView('evidence')}
-            />
+            <ViewBoundary resetKey={currentView}>
+              <Suspense fallback={<ViewLoading label="Loading map inspector…" />}>
+                <DataInspectionScreen
+                  activeScene={activeScene}
+                  telemetryData={telemetryData}
+                  sceneData={sceneData}
+                  isLoading={isLoading}
+                  onBackToHook={() => setCurrentView('hook_3d')}
+                  onOpenEvidence={() => setCurrentView('evidence')}
+                />
+              </Suspense>
+            </ViewBoundary>
           ) : (
             <div style={{ flex: 1, height: '100%', position: 'relative', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-              <ThreeViewport
-                sceneId={activeScene}
-                telemetry={telemetryData?.telemetry ?? null}
-                layerVisibility={layerVisibility}
-                stressMode={stressMode}
-                onLayerVisibilityChange={setLayerVisibility}
-                onStressModeChange={setStressMode}
-                cameraMode={cameraMode}
-                onCameraModeChange={setCameraMode}
-                displayMode={displayMode}
-                onDisplayModeChange={setDisplayMode}
-                colorMode={colorMode}
-                onColorModeChange={setColorMode}
-                isWireframe={isWireframe}
-                onWireframeChange={setIsWireframe}
-                isPlaying={isPlaying}
-                onIsPlayingChange={setIsPlaying}
-                currentFrame={currentFrame}
-                onFrameSeek={setCurrentFrame}
-                onCurrentFrameChange={setCurrentFrame}
-                playbackSpeed={playbackSpeed}
-                onPlaybackSpeedChange={setPlaybackSpeed}
-                onTelemetryUpdate={setCarTelemetry}
-                resetSignal={resetSignal}
-                showScaleBar={showScaleBar}
-                renderMode={renderMode}
-                pipelineData={pipelineData}
-              />
+              <ViewBoundary resetKey={currentView}>
+                <Suspense fallback={<ViewLoading label="Loading 3D view…" />}>
+                  <ThreeViewport
+                    sceneId={activeScene}
+                    telemetry={telemetryData?.telemetry ?? null}
+                    layerVisibility={layerVisibility}
+                    stressMode={stressMode}
+                    onLayerVisibilityChange={setLayerVisibility}
+                    onStressModeChange={setStressMode}
+                    cameraMode={cameraMode}
+                    onCameraModeChange={setCameraMode}
+                    displayMode={displayMode}
+                    onDisplayModeChange={setDisplayMode}
+                    colorMode={colorMode}
+                    onColorModeChange={setColorMode}
+                    isWireframe={isWireframe}
+                    onWireframeChange={setIsWireframe}
+                    isPlaying={isPlaying}
+                    onIsPlayingChange={setIsPlaying}
+                    currentFrame={currentFrame}
+                    onFrameSeek={setCurrentFrame}
+                    onCurrentFrameChange={setCurrentFrame}
+                    playbackSpeed={playbackSpeed}
+                    onPlaybackSpeedChange={setPlaybackSpeed}
+                    onTelemetryUpdate={setCarTelemetry}
+                    resetSignal={resetSignal}
+                    showScaleBar={showScaleBar}
+                    renderMode={renderMode}
+                    pipelineData={pipelineData}
+                  />
+                </Suspense>
+              </ViewBoundary>
 
               {/* Top-left stack: scene switcher, view mode, provenance stamp, scene card. One column, so nothing can
                   overlap at any viewport width, and the provenance stamp is always visible. */}
@@ -629,6 +652,17 @@ export const App: React.FC = () => {
               {/* Stress: dropout preview (SIH26053 §9.2) */}
               {activeTab === 'stress' && <StressHarnessPanel activeStressMode={stressMode} onSelectStressMode={setStressMode} />}
             </div>
+
+            <div className="shrink-0 border-t border-line bg-panel px-4 py-2">
+              <button
+                onClick={() => setShortcutsOpen(true)}
+                className="flex items-center gap-2 rounded text-xs font-semibold text-fg-2 transition-colors hover:text-fg"
+              >
+                <Keyboard size={14} aria-hidden="true" />
+                <span>Keyboard shortcuts</span>
+                <kbd className="rounded border border-line-strong bg-subtle px-1.5 py-0.5 font-mono text-[11px] text-fg">?</kbd>
+              </button>
+            </div>
           </aside>
         </div>
 
@@ -673,6 +707,7 @@ export const App: React.FC = () => {
           </span>
         </footer>
 
+        {shortcutsOpen && <ShortcutsSheet onClose={closeShortcuts} />}
       </div>
       </AppDataContext.Provider>
     </AppActionsContext.Provider>

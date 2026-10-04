@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import type { ColorMapMode, GridCellData, RenderMode } from '../../types/telemetry';
 import { useTheme } from '../../theme/theme';
-import { PIPE_REL_MIN, PIPE_REL_SPAN } from '../../components/ThreeViewport';
+import { PIPE_REL_MIN, PIPE_REL_SPAN } from '../../data/pipeline';
 import {
   getTraversabilityColor,
   getTurboColor,

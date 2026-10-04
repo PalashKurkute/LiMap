@@ -24,6 +24,7 @@ import {
 import { readSceneTokens, type SceneTokens } from '../theme/sceneTheme';
 import { useTheme } from '../theme/theme';
 import { disposeObject } from '../lib/disposeObject';
+import { clearReady, markReady } from '../state/readiness';
 import { prefersReducedMotion } from '../lib/motion';
 
 interface ThreeViewportProps {
@@ -418,7 +419,7 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
     if (p.cells.instanceColor) p.cells.instanceColor.needsUpdate = true;
 
     if (p.overhang) {
-      tmp.set(theme === 'dark' ? 'hotpink' : 'mediumvioletred');
+      tmp.set(T.overhang);
       const oh = tmp.clone();
       for (let k = 0; k < p.overhangIdx.length; k++) p.overhang.setColorAt(k, oh);
       if (p.overhang.instanceColor) p.overhang.instanceColor.needsUpdate = true;
@@ -442,6 +443,14 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
       p.points.geometry.attributes.color.needsUpdate = true;
     }
   }, [colorMode, theme, isPipeline, pipelineData, sceneEpoch]);
+
+  // Readiness signal for the tour and tests: the view reflects the current scene and data (concept scene built, or the
+  // pipeline group built from the current cells). Cleared whenever any of those change, so it is never stale.
+  useEffect(() => {
+    const built = !isPipeline || (!!pipelineRef.current && pipelineRef.current.cellData === pipelineData?.cells);
+    if (sceneRef.current && built) markReady('viewport-built');
+    return () => clearReady('viewport-built');
+  }, [isPipeline, pipelineData, sceneEpoch, sceneId]);
 
   // Sensor dropout preview (visual only): hides half of the drawn points.
   useEffect(() => {
@@ -1359,7 +1368,7 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
         new THREE.Vector3(44.0, 0.0, -1.68),
       ];
     } else if (sceneId === 'scene_b_potholes') {
-      // Collision-free avoidance path steering smoothly around crater rims:
+      // Illustrative path steering smoothly around crater rims:
       // Crater 1 at (8.0, 0.0, r=1.2), Crater 2 at (16.0, 2.2, r=0.9), Crater 3 at (23.0, -1.8, r=1.4)
       trajWaypoints = [
         new THREE.Vector3(-2.0, 0.0, -1.68),

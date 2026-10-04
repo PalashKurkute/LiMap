@@ -1,26 +1,25 @@
 import React, { useEffect } from 'react';
 import type { DataSource, SceneId, SnapshotMeta } from '../types/telemetry';
 import type { SceneStatus } from '../data/useSceneData';
-import { Database, HelpCircle, HardDrive, Moon, Sun } from 'lucide-react';
-import { POOL_MB } from '../lib/constants';
+import { Database, Moon, SlidersHorizontal, Sun } from 'lucide-react';
+import { TourLauncher } from '../tour/TourLauncher';
+import { sceneByKey } from '../data/scenes';
+import { isAppScope } from '../lib/keyScope';
 import { toggleTheme, useTheme } from '../theme/theme';
+import type { AppView } from '../state/AppActions';
+
+export type { AppView };
 
 interface HeaderProps {
   onSelectScene: (scene: SceneId) => void;
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
-  onOpenOnboarding: () => void;
-  backendConnected?: boolean;
-  backendPingMs?: number;
   dataSource?: DataSource | null;
   dataStatus?: SceneStatus;
   snapshotMeta?: SnapshotMeta | null;
-  memoryMb?: number;
   currentView?: AppView;
   onViewChange?: (view: AppView) => void;
 }
-
-export type AppView = 'hook_3d' | 'data_inspection' | 'evidence';
 
 const VIEWS: { id: AppView; label: string }[] = [
   { id: 'hook_3d', label: '3D Explore' },
@@ -30,30 +29,25 @@ const VIEWS: { id: AppView; label: string }[] = [
 
 export const Header: React.FC<HeaderProps> = ({
   onSelectScene,
-  isSidebarOpen: _isSidebarOpen,
+  isSidebarOpen,
   onToggleSidebar,
-  onOpenOnboarding,
-  backendConnected = false,
-  backendPingMs = 0,
   dataSource = null,
   dataStatus = 'loading',
   snapshotMeta = null,
-  memoryMb = POOL_MB,
   currentView = 'hook_3d',
   onViewChange,
 }) => {
   const { theme } = useTheme();
 
+  // Global shortcuts: 1-5 pick a scene, T toggles the Controls drawer, Shift+T toggles the theme.
+  // They only fire while the main app owns the keyboard (not during the tour or a dialog).
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.metaKey || e.ctrlKey || e.altKey || !isAppScope()) return;
       const el = e.target as HTMLElement | null;
       if (el?.closest('input, textarea, select, [contenteditable="true"]')) return;
-      if (e.key === '1') onSelectScene('scene_a_bridge');
-      else if (e.key === '2') onSelectScene('scene_b_potholes');
-      else if (e.key === '3') onSelectScene('scene_c_moving');
-      else if (e.key === '4') onSelectScene('scene_d_poles');
-      else if (e.key === '5') onSelectScene('real_seq08_f00');
+      const scene = sceneByKey(e.key);
+      if (scene) onSelectScene(scene.id);
       else if (e.key === 'T') toggleTheme(); // Shift+T
       else if (e.key === 't') onToggleSidebar();
     };
@@ -70,11 +64,11 @@ export const Header: React.FC<HeaderProps> = ({
         <span className="text-sm font-bold tracking-tight text-fg whitespace-nowrap">LiMap</span>
         <span className="text-[10px] font-mono font-bold bg-accent text-accent-on px-1.5 py-0.5 rounded">2.5D</span>
         <span className="hidden xl:inline text-xs text-fg-muted font-medium truncate">
-          Adaptive LiDAR perception · SIH26053
+          Adaptive variable-resolution LiDAR mapping
         </span>
       </div>
 
-      <nav aria-label="Views" className="flex items-center bg-subtle p-1 rounded-xl border border-line text-xs">
+      <nav data-tour="views" aria-label="Views" className="flex items-center bg-subtle p-1 rounded-xl border border-line text-xs">
         {VIEWS.map((v) => {
           const active = currentView === v.id;
           return (
@@ -95,6 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex items-center gap-2.5">
         <div
           data-region="data-source"
+          data-tour="data-source"
           className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 bg-subtle border border-line rounded-lg text-xs font-mono"
           title={
             dataSource && snapshotMeta
@@ -114,23 +109,24 @@ export const Header: React.FC<HeaderProps> = ({
           </span>
         </div>
 
-        <div
-          className="flex items-center gap-1.5 px-2.5 py-1 bg-subtle border border-line rounded-lg text-xs font-mono"
-          title={backendConnected ? 'Backend API reachable' : 'Backend API not reachable'}
+        <button
+          data-tour="controls-button"
+          onClick={onToggleSidebar}
+          aria-expanded={isSidebarOpen}
+          aria-controls="controls-drawer"
+          title="Controls (T)"
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
+            isSidebarOpen
+              ? 'bg-accent-subtle border-accent text-accent-text'
+              : 'bg-subtle border-line-strong text-fg-2 hover:text-fg hover:bg-line'
+          }`}
         >
-          <span className={`w-2 h-2 rounded-full ${backendConnected ? 'bg-good' : 'bg-warn'}`} aria-hidden="true" />
-          <span className="text-fg-2 font-medium whitespace-nowrap">
-            {backendConnected ? `API online (${backendPingMs}ms)` : 'API offline'}
-          </span>
-        </div>
-
-        <div className="hidden xl:flex items-center gap-2 px-3 py-1 bg-subtle border border-line rounded-lg text-xs font-mono">
-          <HardDrive size={13} className="text-fg-2" />
-          <span className="text-fg-muted font-medium">Pool</span>
-          <strong className="text-fg font-bold tabular-nums">{memoryMb.toFixed(4)} MB</strong>
-        </div>
+          <SlidersHorizontal size={14} aria-hidden="true" />
+          <span className="hidden lg:inline">Controls</span>
+        </button>
 
         <button
+          data-tour="theme"
           onClick={toggleTheme}
           aria-pressed={theme === 'dark'}
           aria-label={theme === 'dark' ? 'Dark theme (switch to light)' : 'Light theme (switch to dark)'}
@@ -140,14 +136,7 @@ export const Header: React.FC<HeaderProps> = ({
           {theme === 'dark' ? <Moon size={15} /> : <Sun size={15} />}
         </button>
 
-        <button
-          onClick={onOpenOnboarding}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent/90 text-accent-on text-xs font-semibold rounded-lg shadow-sm transition-all active:scale-95 whitespace-nowrap"
-          title="Open the guided walkthrough"
-        >
-          <HelpCircle size={14} />
-          <span className="hidden lg:inline">Walkthrough</span>
-        </button>
+        <TourLauncher showNudge={currentView === 'hook_3d'} />
       </div>
     </header>
   );

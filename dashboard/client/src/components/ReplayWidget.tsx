@@ -10,6 +10,8 @@ interface ReplayWidgetProps {
   onPlaybackSpeedChange: (speed: number) => void;
 }
 
+const MAX_FRAME = 120;
+
 export const ReplayWidget: React.FC<ReplayWidgetProps> = ({
   isPlaying,
   onIsPlayingChange,
@@ -20,25 +22,26 @@ export const ReplayWidget: React.FC<ReplayWidgetProps> = ({
 }) => {
   return (
     <div
-      style={{ width: '320px', minWidth: '320px' }}
-      data-region="replay" className="absolute bottom-6 right-6 bg-panel border border-line-strong rounded-2xl p-4 shadow-xl flex flex-col gap-3 z-20 select-none text-fg"
+      data-region="replay"
+      data-tour="playback"
+      className="absolute bottom-4 right-4 z-20 w-80 max-w-[calc(100%-2rem)] rounded-xl border border-line-strong bg-panel p-4 shadow-xl flex flex-col gap-3 select-none text-fg"
     >
-      {/* Top Header */}
       <div className="flex items-center justify-between">
-        <span className="text-xs font-bold uppercase tracking-wider text-fg">
-          Mission Playback
-        </span>
-        <span className="text-[10px] font-mono text-fg-muted font-semibold bg-subtle border border-line px-2 py-0.5 rounded">
-          Autonomous Nav
+        <span className="text-xs font-bold uppercase tracking-wider text-fg">Playback</span>
+        <span
+          className="text-[10px] font-mono font-semibold rounded border border-warn-line bg-warn-bg px-2 py-0.5 text-warn-fg"
+          title="The vehicle follows a hand-built loop. It is an illustration, not planner output or a recording."
+        >
+          Concept · illustrative drive
         </span>
       </div>
 
-      {/* Transport Controls & Speed */}
       <div className="flex items-center justify-between gap-2 pt-2 border-t border-line">
         <div className="flex items-center gap-2">
           <button
             onClick={() => onFrameSeek(0)}
-            className="p-1.5 rounded-lg border border-line-strong bg-subtle hover:bg-subtle text-fg-2 transition-colors"
+            className="p-1.5 rounded-lg border border-line-strong bg-subtle text-fg-2 hover:text-fg transition-colors"
+            aria-label="Rewind to start"
             title="Rewind to start"
           >
             <RotateCcw size={13} />
@@ -53,16 +56,16 @@ export const ReplayWidget: React.FC<ReplayWidgetProps> = ({
           </button>
         </div>
 
-        {/* Speed Selector */}
-        <div className="flex gap-1 text-[11px] font-mono">
+        <div role="group" aria-label="Playback speed" className="flex gap-1 text-[11px] font-mono">
           {([1, 2, 4] as const).map((spd) => (
             <button
               key={spd}
               onClick={() => onPlaybackSpeedChange(spd)}
+              aria-pressed={playbackSpeed === spd}
               className={`px-2 py-0.5 rounded-md border transition-all ${
                 playbackSpeed === spd
                   ? 'bg-accent border-line-strong text-accent-on font-semibold'
-                  : 'bg-subtle border-line-strong text-fg-2 hover:bg-subtle'
+                  : 'bg-subtle border-line-strong text-fg-2 hover:text-fg'
               }`}
             >
               {spd}x
@@ -71,20 +74,23 @@ export const ReplayWidget: React.FC<ReplayWidgetProps> = ({
         </div>
       </div>
 
-      {/* Frame Scrubber */}
       <div className="flex flex-col gap-1.5 pt-1">
         <div className="flex justify-between items-center text-[10px] font-mono text-fg-muted font-medium">
-          <span>Frame: {String(currentFrame).padStart(3, '0')} / 120</span>
+          <span>
+            Frame: {String(currentFrame).padStart(3, '0')} / {MAX_FRAME}
+          </span>
           <span>+{(currentFrame * 0.033).toFixed(2)}s</span>
         </div>
         <div className="py-1">
           <input
             type="range"
             min={0}
-            max={120}
+            max={MAX_FRAME}
             value={currentFrame}
             onChange={(e) => onFrameSeek(Number(e.target.value))}
-            className="w-full h-1.5 bg-line rounded-lg appearance-none cursor-pointer accent-slate-900 block"
+            aria-label="Playback position"
+            aria-valuetext={`Frame ${currentFrame} of ${MAX_FRAME}`}
+            className="w-full h-1.5 bg-line rounded-lg appearance-none cursor-pointer accent-accent block"
           />
         </div>
       </div>

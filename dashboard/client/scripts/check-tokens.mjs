@@ -20,8 +20,8 @@ const RULES = [
   [/#[0-9a-fA-F]{8}\b|#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3,4}\b(?![\w-])/, 'hex colour literal'],
   [/\b0x[0-9a-fA-F]{6}\b/, 'Three.js hex colour'],
   [/\b(rgba?|hsla?|oklch|oklab|lab|lch)\(/, 'colour function literal'],
-  [new RegExp(`(?<![\\w-])(?:[a-z0-9-]+:)*(bg|text|border|ring|fill|stroke|from|to|via|divide|outline)-(${FAMS})-\\d{2,3}\\b`), 'Tailwind palette utility'],
-  [/(?<![\w-])(?:[a-z0-9-]+:)*(bg|text|border|ring|fill|stroke)-(white|black)\b/, 'bg/text-white|black utility'],
+  [new RegExp(`(?<![\\w-])(?:[a-z0-9-]+:)*(bg|text|border|ring|fill|stroke|from|to|via|divide|outline|accent|caret|decoration|shadow|placeholder)-(${FAMS})-\\d{2,3}\\b`), 'Tailwind palette utility'],
+  [/(?<![\w-])(?:[a-z0-9-]+:)*(bg|text|border|ring|fill|stroke|accent|caret|decoration|placeholder)-(white|black)\b/, 'bg/text-white|black utility'],
 ];
 
 function walk(dir, out = []) {

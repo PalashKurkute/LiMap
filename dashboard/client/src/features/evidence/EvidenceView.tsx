@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import type { BaselineMetrics, ResultEnvelope } from '../../types/telemetry';
 import { useResult } from '../../data/results';
@@ -13,6 +13,7 @@ import { fmt, fmtExact, fmtInt, fmtMb, fmtMs, fpsFromMs } from '../../lib/format
 import { POOL_CAPACITY_CELLS, CELL_BYTES } from '../../lib/constants';
 import { HBarLog, ColumnBars } from './charts';
 import { DataTable, EvidenceCard, Note, ProvenanceBadge, SourceLine, StatTile } from './primitives';
+import { clearReady, markReady } from '../../state/readiness';
 
 interface EvidenceViewProps {
   baselines: BaselineMetrics | null;
@@ -41,6 +42,13 @@ export const EvidenceView: React.FC<EvidenceViewProps> = ({ baselines }) => {
   const miou = useResult<MiouResult>('miou');
   const mos = useResult<MosResult>('mos');
   const regret = useResult<RegretResult>('regret');
+
+  // Readiness signal for the tour and tests: every result file has loaded (or definitively failed).
+  const stillLoading = [fidelity, latency, miou, mos, regret].some((r) => r.loading);
+  useEffect(() => {
+    if (!stillLoading) markReady('evidence-loaded');
+    return () => clearReady('evidence-loaded');
+  }, [stillLoading]);
 
   return (
     <div data-region="evidence" className="h-full w-full overflow-y-auto bg-app">

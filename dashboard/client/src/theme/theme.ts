@@ -35,12 +35,18 @@ function emit(): void {
   listeners.forEach((l) => l());
 }
 
-export function setThemePreference(next: ThemePreference): void {
+/**
+ * `persist: false` changes the theme for this session only (the tour uses it so it never overwrites the user's
+ * saved choice). Restore with setThemePreference(getThemePreference()) captured beforehand.
+ */
+export function setThemePreference(next: ThemePreference, opts: { persist?: boolean } = {}): void {
   preference = next;
-  try {
-    localStorage.setItem(STORAGE_KEY, next);
-  } catch {
-    /* ignore: preference just won't persist */
+  if (opts.persist !== false) {
+    try {
+      localStorage.setItem(STORAGE_KEY, next);
+    } catch {
+      /* ignore: preference just won't persist */
+    }
   }
   const nextResolved = next === 'system' ? systemTheme() : next;
   if (nextResolved !== resolved || document.documentElement.dataset.theme !== nextResolved) {
@@ -48,6 +54,10 @@ export function setThemePreference(next: ThemePreference): void {
     apply(resolved);
   }
   emit();
+}
+
+export function getThemePreference(): ThemePreference {
+  return preference;
 }
 
 export function toggleTheme(): void {

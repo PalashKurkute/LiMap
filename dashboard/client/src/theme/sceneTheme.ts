@@ -16,6 +16,7 @@ export interface SceneTokens {
   prop2: string;
   pole: string;
   track: string;
+  overhang: string;
   ambient: number;
   key: number;
 }
@@ -41,6 +42,7 @@ export function readSceneTokens(theme: ResolvedTheme): SceneTokens {
     prop2: t('--scene-prop-2'),
     pole: t('--scene-pole'),
     track: t('--scene-track'),
+    overhang: t('--scene-overhang'),
     ambient: n('--scene-ambient', 0.9),
     key: n('--scene-key', 1.2),
   };

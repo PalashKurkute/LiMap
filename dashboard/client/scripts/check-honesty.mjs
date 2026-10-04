@@ -16,7 +16,15 @@ const BANNED = [
   [/\bBayesian\b/i, 'the code uses Welford variance, not Bayesian fusion'],
   [/Kalman fusion/i, 'Kalman fusion is not implemented in the pipeline'],
   [/\(MOCK\)/, 'mock value shown'],
+  [/collision-free/i, 'the hand-built path is an illustration, not planner output'],
+  [/Kalman motion prediction/i, 'there is no Kalman motion prediction in the pipeline'],
+  [/guarantee[sd]?/i, 'no guarantees are claimed'],
 ];
+
+// Code that writes user-facing numbers from data must not type them: in these folders a literal like "12 MB",
+// "3 FPS", "40 ms", "2.1x" or "99.5%" in a line of code is almost certainly a retyped measurement.
+const DATA_ONLY_DIRS = [join('src', 'tour'), join('src', 'features', 'inspector')];
+const UNIT_LITERAL = /\d[\d,]*(?:\.\d+)?\s?(?:MB|FPS|ms|×)|\d+\.\d+\s?%/;
 
 // Benchmark numbers that must never be retyped in source (they live in benchmark/*.json).
 const STALE = [
@@ -62,7 +70,17 @@ for (const f of files) {
       failures++;
     }
   }
-  void lines;
+  if (DATA_ONLY_DIRS.some((d) => relative(root, f).startsWith(d))) {
+    lines.forEach((line, i) => {
+      const code = line.trim();
+      if (code.startsWith('//') || code.startsWith('*') || code.startsWith('/*')) return;
+      const m = UNIT_LITERAL.exec(line);
+      if (m) {
+        console.error(`UNIT     ${relative(root, f)}:${i + 1}  "${m[0]}" - number with a unit typed in code; read it from data`);
+        failures++;
+      }
+    });
+  }
 }
 
 if (failures) {

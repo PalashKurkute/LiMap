@@ -45,7 +45,7 @@ export const InteractiveCrossSection: React.FC<InteractiveCrossSectionProps> = (
 
   if (observed.length === 0) {
     return (
-      <div className="bg-panel border border-line-strong rounded-xl p-4 shadow-sm flex flex-col gap-2">
+      <div data-tour="cross-section" className="bg-panel border border-line-strong rounded-xl p-4 shadow-sm flex flex-col gap-2">
         <div className="flex items-center gap-2 border-b border-line pb-2">
           <Layers size={14} className="text-fg-2" />
           <span className="text-xs font-bold tracking-tight text-fg uppercase">
@@ -81,7 +81,7 @@ export const InteractiveCrossSection: React.FC<InteractiveCrossSectionProps> = (
   const overhangRuns = observedRuns(profile.map((p) => (p.z_overhang !== null ? p : { ...p, observed: false })));
 
   return (
-    <div className="bg-panel border border-line-strong rounded-xl p-4 shadow-sm flex flex-col gap-3">
+    <div data-tour="cross-section" className="bg-panel border border-line-strong rounded-xl p-4 shadow-sm flex flex-col gap-3">
       <div className="flex items-center justify-between border-b border-line pb-2">
         <div className="flex items-center gap-2">
           <Layers size={14} className="text-fg-2" />
@@ -164,7 +164,7 @@ export const InteractiveCrossSection: React.FC<InteractiveCrossSectionProps> = (
           step={Math.max(spanX / 200, 0.05)}
           value={slice}
           onChange={(e) => setSliceOffset(parseFloat(e.target.value))}
-          className="w-full h-1.5 bg-line rounded-lg appearance-none cursor-pointer accent-slate-900"
+          className="w-full h-1.5 bg-line rounded-lg appearance-none cursor-pointer accent-accent"
         />
         <div className="flex justify-between text-[9px] font-mono text-fg-muted">
           <span>{xMin.toFixed(1)}m</span>

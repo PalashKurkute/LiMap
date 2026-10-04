@@ -167,6 +167,71 @@ export interface SceneSnapshot {
   points: ColumnarPoints;
 }
 
+/** Variant snapshots: the same scan re-run with a foveation preset, or on a uniform 5 cm reference grid. */
+export type VariantId =
+  | 'fovea_city_cruise'
+  | 'fovea_highway_extended'
+  | 'fovea_turning_left'
+  | 'fovea_turning_right'
+  | 'uniform_5cm';
+
+export interface VariantMeta {
+  scene_id: string;
+  variant: VariantId;
+  kind: 'fovea_preset' | 'uniform_reference';
+  generated_at: string;
+  git_sha: string;
+  label_source: 'gt' | 'onnx' | 'heuristic';
+  base_inputs_sha256: Record<string, string>;
+  points_raw: number;
+  lattice: LatticeRing[];
+  pool: { capacity: number; cell_bytes: number; mb: number; active_cells: number };
+  fovea: {
+    preset: string;
+    input: { vx_mps: number; vy_mps: number; yaw_rate_rads: number };
+    shift_x_m: number;
+    shift_y_m: number;
+    forward_reach_m: number;
+    stretch_ratio: number;
+  } | null;
+  uniform: {
+    res_m: number;
+    r_outer_m: number;
+    pool_capacity: number;
+    pool_mb: number;
+    theoretical_capacity_mb: number;
+  } | null;
+  /** Counted on the full grid before any sampling, so these stay exact even when fewer cells are drawn. */
+  stats: {
+    active_cells: number;
+    cells_per_ring: number[];
+    cells_per_band: number[];
+    ring0_ahead: number;
+    ring0_behind: number;
+  };
+}
+
+export interface VariantFile {
+  schema: 'limap.variant/1';
+  meta: VariantMeta;
+  cells: ColumnarCells;
+}
+
+export interface VariantData {
+  meta: VariantMeta;
+  cells: GridCellData[];
+  totalActive: number;
+  cellsSampled: boolean;
+}
+
+export interface VariantManifestEntry {
+  file: string;
+  bytes: number;
+  active_cells: number;
+}
+
+export type VariantManifest = Record<string, Partial<Record<VariantId, VariantManifestEntry>>>;
+
 export type DataSource = 'snapshot' | 'live';
 
 /** Everything the views need for the active scene, regardless of where it came from. */

@@ -32,7 +32,7 @@ export const StressHarnessPanel: React.FC<StressHarnessPanelProps> = ({
   ];
 
   return (
-    <div className="bg-panel border border-line-strong rounded-xl p-4 shadow-sm flex flex-col gap-4 text-fg">
+    <div data-tour="stress-panel" className="bg-panel border border-line-strong rounded-xl p-4 shadow-sm flex flex-col gap-4 text-fg">
       <div className="flex items-center justify-between border-b border-line pb-2">
         <div className="flex items-center gap-2">
           <ShieldAlert size={15} className="text-fg" />

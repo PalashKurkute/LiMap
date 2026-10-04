@@ -76,6 +76,9 @@
   --scene-prop-2: #475569;
   --scene-pole: #f59e0b;
   --scene-track: #10b981;
+  --scene-overhang: #c026d3;
+  --scene-hover: #ea580c;
+  --scene-guide: #64748b;
   --scene-ego: #e11d48;
   --scene-ambient: 0.9;
   --scene-key: 1.2;
@@ -150,6 +153,9 @@
   --scene-prop-2: #94a3b8;
   --scene-pole: #fbbf24;
   --scene-track: #34d399;
+  --scene-overhang: #f472b6;
+  --scene-hover: #fb923c;
+  --scene-guide: #94a3b8;
   --scene-ego: #fb7185;
   --scene-ambient: 0.55;
   --scene-key: 0.9;

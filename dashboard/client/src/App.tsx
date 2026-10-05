@@ -2,6 +2,7 @@ import { HelpTip } from './ui/HelpTip';
 import React, { Suspense, useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import type {
   SceneId,
+  SceneSnapshot,
   RenderMode,
   PipelineData,
   LayerVisibility,
@@ -15,14 +16,15 @@ import { DisplaysPanel } from './components/DisplaysPanel';
 import { StressHarnessPanel } from './components/StressHarnessPanel';
 import { ReplayWidget } from './components/ReplayWidget';
 import { InteractiveCrossSection } from './components/InteractiveCrossSection';
-import { TacticalObjectiveCard } from './components/TacticalObjectiveCard';
+import { TacticalObjectiveCard, type UploadFacts } from './components/TacticalObjectiveCard';
+import { AnalyzeScan } from './components/AnalyzeScan';
 import { DataInspectionScreen, EvidenceView, ThreeViewport, ViewLoading } from './components/lazyViews';
 import { prefetchViews } from './components/viewLoaders';
 import { ViewBoundary } from './components/ViewBoundary';
 import { POOL_MB } from './lib/constants';
 import { useSceneData } from './data/useSceneData';
 import { computeGroundZ } from './data/pipeline';
-import { SCENES, sceneInfo } from './data/scenes';
+import { SCENES, UPLOAD_SCENE, sceneInfo } from './data/scenes';
 import { drawOptionsFor } from './data/viewOptions';
 import { ViewportLegend } from './features/viewport/ViewportLegend';
 import { fetchJson } from './data/api';
@@ -59,8 +61,13 @@ const DRAWER_TABS: { id: DrawerTab; label: string; icon: React.ReactNode }[] = [
 export const App: React.FC = () => {
   const [activeScene, setActiveScene] = useState<SceneId>('scene_a_bridge');
   const [currentView, setCurrentView] = useState<AppView>('hook_3d');
+  // "Analyze your own scan": the analysed scan lives in memory only (data/snapshots.ts), so a reload clears it. `uploadRev`
+  // makes a re-upload reload the scene even while 'upload' is already the active one.
+  const [hasUpload, setHasUpload] = useState<boolean>(false);
+  const [uploadRev, setUploadRev] = useState<number>(0);
+  const [uploadName, setUploadName] = useState<string | null>(null);
   // Scene data: precomputed snapshot first (static, no backend needed), upgraded to the live API when it has data.
-  const { data: sceneData, status: sceneStatus } = useSceneData(activeScene);
+  const { data: sceneData, status: sceneStatus } = useSceneData(activeScene, activeScene === 'upload' ? uploadRev : 0);
   const telemetryData = sceneData?.telemetry ?? null;
   const crossSectionData = sceneData?.crossSection ?? null;
   const isLoading = sceneStatus === 'loading';
@@ -76,6 +83,7 @@ export const App: React.FC = () => {
   );
   const renderMode: RenderMode = viewMode === 'pipeline' && pipelineData ? 'pipeline' : 'concept';
   const isRealScene = activeScene.startsWith('real_');
+  const isUploadScene = activeScene === 'upload';
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [shortcutsOpen, setShortcutsOpen] = useState<boolean>(false);
   const closeShortcuts = useCallback(() => setShortcutsOpen(false), []);
@@ -126,9 +134,11 @@ export const App: React.FC = () => {
   // Live Backend Connection & Throttling Telemetry
   const [backendPing, setBackendPing] = useState<number>(0);
   const [isBackendConnected, setIsBackendConnected] = useState<boolean>(false);
+  // The scan size limit the API publishes in /api/health (null until known, or on an older server that does not say).
+  const [maxScanBytes, setMaxScanBytes] = useState<number | null>(null);
 
-  // API health ping (status bar only). Scene data never depends on it: snapshots are static files. While the API is
-  // down the ping backs off (see pollDelayMs).
+  // API health ping (status bar and the "Analyze your own scan" button). Scene data never depends on it: snapshots are
+  // static files. While the API is down the ping backs off (see pollDelayMs).
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -136,10 +146,11 @@ export const App: React.FC = () => {
     const ping = async () => {
       if (document.visibilityState !== 'hidden') {
         const t0 = performance.now();
-        const h = await fetchJson<{ status: string }>('/api/health', { timeoutMs: 3000 });
+        const h = await fetchJson<{ status: string; max_scan_bytes?: number }>('/api/health', { timeoutMs: 3000 });
         if (!alive) return;
         const up = !!h && h.status === 'ONLINE';
         setIsBackendConnected(up);
+        if (up) setMaxScanBytes(typeof h.max_scan_bytes === 'number' && h.max_scan_bytes > 0 ? h.max_scan_bytes : null);
         if (h) setBackendPing(Math.round(performance.now() - t0));
         misses = up ? 0 : misses + 1;
       }
@@ -234,10 +245,23 @@ export const App: React.FC = () => {
       setResetSignal((prev) => prev + 1);
       // A new scene invalidates the inspector's selection and any pending focus request.
       setInspector({ selectedKey: null, focus: null });
-      // The real scene has no concept view, so never carry concept mode into it (there would be no control to leave it).
-      if (sceneInfo(scene).kind === 'real' && snapshotRef.current?.viewMode === 'concept') changeViewMode('pipeline');
+      // The real scene and an uploaded scan have no concept view, so never carry concept mode into them (there would be
+      // no control to leave it).
+      const kind = sceneInfo(scene).kind;
+      if ((kind === 'real' || kind === 'upload') && snapshotRef.current?.viewMode === 'concept') changeViewMode('pipeline');
     },
     [changeViewMode],
+  );
+
+  // An analysed scan is already stored (data/snapshots.ts); show it as the "Your scan" scene.
+  const onScanAnalyzed = useCallback(
+    (_snapshot: SceneSnapshot, fileName: string) => {
+      setUploadName(fileName);
+      setHasUpload(true);
+      setUploadRev((r) => r + 1);
+      selectScene('upload');
+    },
+    [selectScene],
   );
 
   const actions = useMemo<AppActions>(
@@ -278,6 +302,22 @@ export const App: React.FC = () => {
 
   const terrainOptions = drawOptionsFor(renderMode);
   const sceneLabel = sceneInfo(activeScene).label;
+
+  // What the scene card says about an analysed upload: every figure comes from the API's response, nothing typed here.
+  const uploadFacts = useMemo<UploadFacts | null>(
+    () =>
+      isUploadScene && sceneData
+        ? {
+            fileName: uploadName,
+            timingMs: sceneData.timingMs ?? null,
+            activeCells: sceneData.telemetry?.telemetry.active_cells ?? sceneData.totalActive,
+            points: sceneData.meta?.points_raw ?? null,
+            labelSource: sceneData.meta?.label_source ?? null,
+            note: sceneData.meta?.note ?? null,
+          }
+        : null,
+    [isUploadScene, sceneData, uploadName],
+  );
 
   const appData = useMemo(() => ({ scene: activeScene, sceneData }), [activeScene, sceneData]);
 
@@ -364,9 +404,11 @@ export const App: React.FC = () => {
                 </Suspense>
               </ViewBoundary>
 
-              {/* Top-left stack: scene switcher, view mode, provenance stamp, scene card. One column, so nothing can
-                  overlap at any viewport width, and the provenance stamp is always visible. */}
+              {/* Top-left stack: scene switcher (with the "Analyze your own scan" button beside it), view mode, provenance
+                  stamp, scene card. One column, so nothing can overlap at any viewport width, and the provenance stamp is
+                  always visible. */}
               <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-2.5 pointer-events-none max-w-[calc(100%-2rem)]">
+                <div className="pointer-events-none flex max-w-full flex-wrap items-start gap-2">
                 <div
                   role="group"
                   aria-label="Scenes"
@@ -394,10 +436,29 @@ export const App: React.FC = () => {
                       </button>
                     );
                   })}
+                  {/* Present only once a scan has been analysed. It is not a numbered scene, so keys 1-5 do not reach it. */}
+                  {hasUpload && (
+                    <button
+                      key={UPLOAD_SCENE.id}
+                      onClick={() => selectScene(UPLOAD_SCENE.id)}
+                      disabled={isLoading}
+                      aria-pressed={isUploadScene}
+                      aria-label={`${UPLOAD_SCENE.label}: ${UPLOAD_SCENE.desc}`}
+                      title={`${UPLOAD_SCENE.label}: ${UPLOAD_SCENE.desc}`}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all apple-press ${
+                        isUploadScene ? 'bg-accent text-accent-on shadow-sm' : 'text-fg-2 hover:text-fg hover:bg-subtle'
+                      }`}
+                    >
+                      <span>{UPLOAD_SCENE.short}</span>
+                    </button>
+                  )}
                   <HelpTip topic="scenes" className="mx-1.5" />
                 </div>
 
-                {pipelineData && !isRealScene && (
+                <AnalyzeScan apiOnline={isBackendConnected} maxScanBytes={maxScanBytes} onAnalyzed={onScanAnalyzed} />
+                </div>
+
+                {pipelineData && !isRealScene && !isUploadScene && (
                   <div
                     role="group"
                     aria-label="What the 3D view shows"
@@ -441,11 +502,13 @@ export const App: React.FC = () => {
                     ? isRealScene
                       ? 'Real recording · sample points'
                       : 'Concept illustration · hand-built'
-                    : isRealScene
-                      ? sceneData?.meta?.note?.includes('Sparse')
-                        ? 'Real recording · SemanticKITTI · sparse sample · dataset labels'
-                        : 'Real recording · SemanticKITTI seq 08 · dataset labels'
-                      : 'Synthetic scan · pipeline output'}
+                    : isUploadScene
+                      ? `Your scan: pipeline output, labels: ${sceneData?.meta?.label_source ?? 'n/a'}`
+                      : isRealScene
+                        ? sceneData?.meta?.note?.includes('Sparse')
+                          ? 'Real recording · SemanticKITTI · sparse sample · dataset labels'
+                          : 'Real recording · SemanticKITTI seq 08 · dataset labels'
+                        : 'Synthetic scan · pipeline output'}
                 </span>
                 <HelpTip topic="stamp" className="pointer-events-auto" />
                 </div>
@@ -462,6 +525,7 @@ export const App: React.FC = () => {
                   renderMode={renderMode}
                   onFly={routePath && renderMode === 'pipeline' ? () => setFlySignal((n) => n + 1) : undefined}
                   flying={flying}
+                  upload={uploadFacts}
                 />
               </div>
 

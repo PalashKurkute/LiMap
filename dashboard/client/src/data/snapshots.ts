@@ -3,8 +3,21 @@ import { fetchJson } from './api';
 
 const cache = new Map<string, Promise<SceneSnapshot | null>>();
 
+/** The id the analysed upload is stored under. It has no static file, so it is never fetched. */
+export const UPLOAD_ID = 'upload';
+
+/**
+ * Keeps an analysed upload under the id 'upload', replacing any earlier one. Memory only: nothing is written to
+ * localStorage, sessionStorage or IndexedDB, so a reload clears it.
+ */
+export function registerUpload(snapshot: SceneSnapshot): void {
+  cache.set(UPLOAD_ID, Promise.resolve(snapshot));
+}
+
 /** Loads the precomputed pipeline snapshot for a scene (served statically, so no backend is needed). */
 export function loadSceneSnapshot(sceneId: string): Promise<SceneSnapshot | null> {
+  // An upload exists only in memory: with none registered there is nothing to fetch (and no file that could 404).
+  if (sceneId === UPLOAD_ID) return cache.get(UPLOAD_ID) ?? Promise.resolve(null);
   let p = cache.get(sceneId);
   if (!p) {
     p = fetchJson<SceneSnapshot>(`/data/scenes/${sceneId}.json`, { timeoutMs: 15000 }).then((s) => (isSnapshot(s) ? s : null));

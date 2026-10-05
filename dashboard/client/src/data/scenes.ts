@@ -6,11 +6,11 @@ import type { SceneId, TelemetryData } from '../types/telemetry';
  */
 export interface SceneInfo {
   id: SceneId;
-  /** Keyboard shortcut (1-5). */
+  /** Keyboard shortcut (1-5); empty for the uploaded scan, which has none. */
   key: string;
   label: string;
   short: string;
-  kind: 'synthetic' | 'real';
+  kind: 'synthetic' | 'real' | 'upload';
   /** One line on what the scene is for. */
   desc: string;
   /** What the scene card says this scene demonstrates. */
@@ -67,7 +67,22 @@ export const SCENES: SceneInfo[] = [
 
 export const SCENE_IDS: SceneId[] = SCENES.map((s) => s.id);
 
+/**
+ * The scan a visitor analysed through the local API. Deliberately NOT in SCENES: that list is the numbered picker, the
+ * 1-5 shortcuts and the tour's scene set. The picker adds this entry only once a scan exists.
+ */
+export const UPLOAD_SCENE: SceneInfo = {
+  id: 'upload',
+  key: '',
+  label: 'Your scan',
+  short: 'Your scan',
+  kind: 'upload',
+  desc: 'The scan you analysed here, gridded by the pipeline',
+  cardTitle: 'Your file, gridded',
+};
+
 export function sceneInfo(id: SceneId): SceneInfo {
+  if (id === UPLOAD_SCENE.id) return UPLOAD_SCENE;
   return SCENES.find((s) => s.id === id) ?? SCENES[0];
 }
 
@@ -95,6 +110,8 @@ export function inspectorHint(id: SceneId, summary: TelemetryData['tactical_summ
         : 'Colour by Class to see which cells are labelled as moving objects. This is one scan.';
     case 'scene_d_poles':
       return 'Colour by Ring: the finest cells (R0) sit around the vehicle, which is why thin poles stay resolved.';
+    case 'upload':
+      return 'The scan you analysed here, gridded by the pipeline. Class colours come from the label source named in the status bar.';
     default:
       return sparseSample
         ? 'A sparse 5,000-point sample of a real SemanticKITTI scan, coloured with dataset labels.'

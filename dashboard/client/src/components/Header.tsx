@@ -103,7 +103,9 @@ export const Header: React.FC<HeaderProps> = ({
           className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 bg-subtle border border-line rounded-lg text-xs font-mono"
           title={
             dataSource && snapshotMeta
-              ? `Source: ${dataSource === 'live' ? 'live API' : 'precomputed pipeline snapshot'} · generated ${snapshotMeta.generated_at.slice(0, 10)} · commit ${snapshotMeta.git_sha} · labels: ${snapshotMeta.label_source}`
+              ? `Source: ${
+                  dataSource === 'live' ? 'live API' : dataSource === 'upload' ? 'a scan you analysed here, kept in this tab only' : 'precomputed pipeline snapshot'
+                } · generated ${snapshotMeta.generated_at.slice(0, 10)} · commit ${snapshotMeta.git_sha} · labels: ${snapshotMeta.label_source}`
               : 'No scene data loaded'
           }
         >
@@ -111,11 +113,13 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="text-fg-2 font-medium whitespace-nowrap">
             {dataSource === 'live'
               ? 'Live API'
-              : dataSource === 'snapshot' && snapshotMeta
-                ? `Snapshot · ${snapshotMeta.generated_at.slice(0, 10)}`
-                : dataStatus === 'loading'
-                  ? 'Loading…'
-                  : 'No scene data'}
+              : dataSource === 'upload'
+                ? 'Your upload'
+                : dataSource === 'snapshot' && snapshotMeta
+                  ? `Snapshot · ${snapshotMeta.generated_at.slice(0, 10)}`
+                  : dataStatus === 'loading'
+                    ? 'Loading…'
+                    : 'No scene data'}
           </span>
           <HelpTip topic="data-source" />
         </div>

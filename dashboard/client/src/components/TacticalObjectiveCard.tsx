@@ -5,7 +5,23 @@ import { POOL_MB } from '../lib/constants';
 import { sceneInfo } from '../data/scenes';
 import { CAMERA_OPTIONS, colorOptionsFor } from '../data/viewOptions';
 import { Segmented } from '../ui/Segmented';
+import { ProvenanceBadge } from '../features/evidence/primitives';
 import { ChevronDown, ChevronUp, Camera, Palette, Play, Square } from 'lucide-react';
+
+/** What the API's response says about an analysed upload. Every field is read from that response (or the file the visitor picked). */
+export interface UploadFacts {
+  fileName: string | null;
+  /** Measured by the API machine while it analysed this file. */
+  timingMs: number | null;
+  activeCells: number;
+  points: number | null;
+  labelSource: string | null;
+  /** The server's own sentence about the analysis. */
+  note: string | null;
+}
+
+/** 87.6 ms for a quick run, 1,235 ms for a slow one: one decimal below a hundred, whole numbers above. */
+const fmtMs = (ms: number) => `${ms >= 100 ? Math.round(ms).toLocaleString() : ms.toFixed(1)} ms`;
 
 interface TacticalObjectiveCardProps {
   sceneId: SceneId;
@@ -20,6 +36,8 @@ interface TacticalObjectiveCardProps {
   /** Present when this scene has a route to fly (the planner's path under the bridge). */
   onFly?: () => void;
   flying?: boolean;
+  /** Present only for the analysed upload. */
+  upload?: UploadFacts | null;
 }
 
 export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
@@ -34,6 +52,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
   renderMode = 'concept',
   onFly,
   flying = false,
+  upload = null,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const info = sceneInfo(sceneId);
@@ -238,6 +257,51 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
                   <span className="font-bold">{memoryMb.toFixed(4)} MB fixed pool</span>
                 </div>
               </div>
+            </div>
+          )}
+
+          {sceneId === 'upload' && (
+            <div data-region="upload-card" className="flex flex-col gap-1.5">
+              <div className="flex flex-wrap justify-between items-baseline gap-x-2 gap-y-1">
+                <span className="text-xs font-bold text-fg">{info.cardTitle}</span>
+                <span className="text-[10px] font-mono font-bold text-fg-2 bg-subtle px-1.5 py-0.5 rounded border border-line-strong">
+                  {upload?.labelSource ? `LABELS: ${upload.labelSource}` : 'NO LABEL DATA'}
+                </span>
+              </div>
+              {upload?.fileName && (
+                <p data-region="upload-file" className="truncate font-mono text-[11px] text-fg-2" title={upload.fileName}>
+                  {upload.fileName}
+                </p>
+              )}
+              <div className="grid grid-cols-3 gap-1.5 text-[11px] font-mono">
+                <div className="bg-subtle p-1.5 rounded border border-line-strong flex flex-col gap-0.5">
+                  <span className="text-[9px] uppercase text-fg-2 font-bold">Analysis time</span>
+                  <span data-metric="upload-time" className="font-bold text-fg">
+                    {upload?.timingMs != null ? fmtMs(upload.timingMs) : 'n/a'}
+                  </span>
+                  {upload?.timingMs != null && (
+                    <span className="self-start">
+                      <ProvenanceBadge kind="MEASURED" />
+                    </span>
+                  )}
+                </div>
+                <div className="bg-subtle p-1.5 rounded border border-line-strong flex flex-col gap-0.5">
+                  <span className="text-[9px] uppercase text-fg-2 font-bold">Grid cells</span>
+                  <span data-metric="upload-cells" className="font-bold text-fg">
+                    {upload ? upload.activeCells.toLocaleString() : 'n/a'}
+                  </span>
+                </div>
+                <div className="bg-subtle p-1.5 rounded border border-line-strong flex flex-col gap-0.5">
+                  <span className="text-[9px] uppercase text-fg-2 font-bold">Points</span>
+                  <span data-metric="upload-points" className="font-bold text-fg">
+                    {upload?.points != null ? upload.points.toLocaleString() : 'n/a'}
+                  </span>
+                </div>
+              </div>
+              <p className="text-[10px] leading-snug text-fg-2">
+                The time was measured on the machine running the API, for this file only.
+                {upload?.note ? ` ${upload.note}` : ''}
+              </p>
             </div>
           )}
 

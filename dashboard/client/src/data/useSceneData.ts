@@ -20,7 +20,7 @@ interface LiveCells {
  *  2. If the API is reachable AND has the scene's data, the view upgrades to live data in place.
  * Nothing is ever invented: with neither source the status is 'unavailable'.
  */
-export function useSceneData(sceneId: SceneId): { data: SceneData | null; status: SceneStatus } {
+export function useSceneData(sceneId: SceneId, revision = 0): { data: SceneData | null; status: SceneStatus } {
   const [state, setState] = useState<{ sceneId: SceneId; data: SceneData | null; status: SceneStatus }>({
     sceneId,
     data: null,
@@ -35,10 +35,13 @@ export function useSceneData(sceneId: SceneId): { data: SceneData | null; status
       const snap = await loadSceneSnapshot(sceneId);
       if (cancelled) return;
 
+      // An analysed upload lives in memory only: there is no static file to prefetch and no /api/load_scene route for it.
+      const isUpload = sceneId === 'upload';
+
       let snapshotData: SceneData | null = null;
       if (snap) {
         snapshotData = {
-          source: 'snapshot',
+          source: isUpload ? 'upload' : 'snapshot',
           meta: snap.meta,
           telemetry: snap.telemetry,
           crossSection: snap.cross_section,
@@ -46,12 +49,14 @@ export function useSceneData(sceneId: SceneId): { data: SceneData | null; status
           totalActive: snap.cells.total_active,
           cellsSampled: snap.cells.sampled,
           points: snap.points,
+          timingMs: isUpload && typeof snap.timing_ms === 'number' ? snap.timing_ms : null,
         };
         setState({ sceneId, data: snapshotData, status: 'ready' });
-        prefetchSnapshots(ALL_SCENES.filter((id) => id !== sceneId));
+        if (!isUpload) prefetchSnapshots(ALL_SCENES.filter((id) => id !== sceneId));
       } else {
         setState({ sceneId, data: null, status: 'unavailable' });
       }
+      if (isUpload) return;
 
       // Best-effort upgrade to the live API. A deployed API without scene data answers 503 and we stay on the snapshot.
       const loaded = await fetchJson<{ status: string; label_source?: 'gt' | 'onnx' | 'heuristic' }>(
@@ -85,7 +90,7 @@ export function useSceneData(sceneId: SceneId): { data: SceneData | null; status
     return () => {
       cancelled = true;
     };
-  }, [sceneId]);
+  }, [sceneId, revision]);
 
   // While switching scenes, never show the previous scene's data as if it were the new one.
   if (state.sceneId !== sceneId) return { data: null, status: 'loading' };

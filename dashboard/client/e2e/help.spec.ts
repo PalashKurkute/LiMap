@@ -46,11 +46,11 @@ async function hoverEach(page: Page, ids: HelpId[]) {
   }
 }
 
-test('3D view: scene picker, view toggle, stamp, scene card, camera, colour, fly, legend and the data source', async ({ page }) => {
+test('3D view: scene picker, upload, view toggle, stamp, scene card, camera, colour, fly, legend and the data source', async ({ page }) => {
   test.setTimeout(300_000);
   await open(page);
   await page.waitForSelector('html[data-ready~="viewport-built"]', { timeout: 60_000 });
-  await hoverEach(page, ['data-source', 'scenes', 'view-mode', 'stamp', 'scene-card', 'camera', 'colour', 'fly', 'legend']);
+  await hoverEach(page, ['data-source', 'scenes', 'upload', 'view-mode', 'stamp', 'scene-card', 'camera', 'colour', 'fly', 'legend']);
 });
 
 test('Concept view: playback', async ({ page }) => {

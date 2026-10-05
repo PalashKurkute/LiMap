@@ -30,7 +30,7 @@ import {
 } from '../state/inspector';
 import { clearReady, markReady } from '../state/readiness';
 import { Segmented } from '../ui/Segmented';
-import { inspectorHint } from '../data/scenes';
+import { inspectorHint, sceneInfo } from '../data/scenes';
 import { computeGroundZ } from '../data/pipeline';
 import { presetVariantId, useVariant, useVariantAvailability } from '../data/variants';
 import { usePlanner, usePlannerAvailability } from '../data/planner';
@@ -139,6 +139,14 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
     // Moving to a scene without a planner snapshot switches the comparison off instead of leaving a dead mode on.
     if (underpass && plannerAvailable === false) setInspector({ underpass: false });
   }, [underpass, plannerAvailable]);
+  // An analysed upload has no precomputed variants (foveation presets, the uniform reference), so the controls that need
+  // them stay off instead of leaving a dead mode on.
+  const isUploadScene = sceneInfo(activeScene).kind === 'upload';
+  const uploadRef = useRef(false);
+  useEffect(() => {
+    uploadRef.current = isUploadScene;
+    if (isUploadScene && (compare || preset !== 'NOMINAL')) setInspector({ compare: false, preset: 'NOMINAL' });
+  }, [isUploadScene, compare, preset]);
   const shift = useMemo(() => ({ x: foveaMeta?.fovea?.shift_x_m ?? 0, y: foveaMeta?.fovea?.shift_y_m ?? 0 }), [foveaMeta]);
 
   const selectedCell = useMemo<GridCellData | null>(
@@ -462,6 +470,7 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
       if (e.metaKey || e.ctrlKey || e.altKey || !isAppScope()) return;
       if (e.key !== 'b' && e.key !== 'B') return;
       if ((e.target as HTMLElement | null)?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (uploadRef.current) return; // no uniform reference exists for an analysed upload
       setInspector({ compare: !getInspectorState().compare });
     };
     window.addEventListener('keydown', onKey);
@@ -505,7 +514,8 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
   // Counts for the header chip: a preset variant reports its own totals (its drawn cells are a capped, evenly spaced sample).
   const chipTotal = foveaMeta ? foveaMeta.stats.active_cells : totalActive;
   const chipSampled = foveaMeta ? !!presetVar.data?.cellsSampled : !!sceneData?.cellsSampled;
-  const sourceLabel = sceneData?.source === 'live' ? 'LIVE API' : sceneData ? 'PRECOMPUTED SNAPSHOT' : 'NO DATA';
+  const sourceLabel =
+    sceneData?.source === 'live' ? 'LIVE API' : sceneData?.source === 'upload' ? 'YOUR UPLOAD' : sceneData ? 'PRECOMPUTED SNAPSHOT' : 'NO DATA';
   const sem = selectedCell ? semanticColor(selectedCell.sem_id, theme) : '';
   const modeInfo = COLOR_MODES.find((m) => m.id === colorBy)?.info ?? '';
   const hint = inspectorHint(activeScene, telemetryData?.telemetry?.tactical_summary, sparseSample);
@@ -544,10 +554,20 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
           </span>
           <span
             className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
-              isReal ? 'text-good-fg bg-good-bg border-good-line' : 'text-warn-fg bg-warn-bg border-warn-line'
+              isUploadScene
+                ? 'text-accent-text bg-accent-subtle border-accent-line'
+                : isReal
+                  ? 'text-good-fg bg-good-bg border-good-line'
+                  : 'text-warn-fg bg-warn-bg border-warn-line'
             }`}
           >
-            {isReal ? (sparseSample ? 'REAL: SemanticKITTI (sparse sample)' : 'REAL: SemanticKITTI Seq 08') : 'SYNTHETIC SCENE'}
+            {isUploadScene
+              ? `YOUR SCAN (labels: ${sceneData?.meta?.label_source ?? 'n/a'})`
+              : isReal
+                ? sparseSample
+                  ? 'REAL: SemanticKITTI (sparse sample)'
+                  : 'REAL: SemanticKITTI Seq 08'
+                : 'SYNTHETIC SCENE'}
           </span>
         </div>
 
@@ -620,8 +640,13 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
           data-tour="compare-toggle"
           onClick={() => setInspector({ compare: !compare })}
           aria-pressed={compare}
-          title="Compare with a uniform 5 cm grid on the same scan (B)"
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border font-semibold transition-colors ${
+          disabled={isUploadScene}
+          title={
+            isUploadScene
+              ? 'The uniform reference is precomputed, and a scan you analysed here has none.'
+              : 'Compare with a uniform 5 cm grid on the same scan (B)'
+          }
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
             compare ? 'bg-accent text-accent-on border-accent' : 'bg-subtle text-fg-2 border-line-strong hover:text-fg'
           }`}
         >

@@ -69,7 +69,9 @@ export type SceneId =
   | 'real_seq08_f00'
   | 'real_seq08_f25'
   | 'real_seq08_f50'
-  | 'real_seq08_f100';
+  | 'real_seq08_f100'
+  /** The scan the visitor analysed through the local API (kept in memory only). Not one of the numbered scenes. */
+  | 'upload';
 
 export type CameraViewMode = 'chase' | 'orbit' | 'bev' | 'cockpit' | 'cross_cut';
 export type ColorMapMode = 'elevation' | 'traversability' | 'uncertainty' | 'semantics' | 'ring' | 'variance';
@@ -119,7 +121,7 @@ export interface LatticeRing {
 
 export interface SnapshotMeta {
   scene_id: string;
-  kind: 'synthetic' | 'real';
+  kind: 'synthetic' | 'real' | 'upload';
   generated_at: string;
   git_sha: string;
   label_source: 'gt' | 'onnx' | 'heuristic';
@@ -165,6 +167,8 @@ export interface SceneSnapshot {
   cross_section: CrossSectionResponse;
   cells: ColumnarCells;
   points: ColumnarPoints;
+  /** Only an analysed upload carries this: how long the API machine took to analyse the file, in milliseconds. */
+  timing_ms?: number;
 }
 
 /** Variant snapshots: the same scan re-run with a foveation preset, or on a uniform 5 cm reference grid. */
@@ -290,7 +294,7 @@ export interface PlannerManifestEntry {
 
 export type PlannerManifest = Record<string, PlannerManifestEntry>;
 
-export type DataSource = 'snapshot' | 'live';
+export type DataSource = 'snapshot' | 'live' | 'upload';
 
 /** Everything the views need for the active scene, regardless of where it came from. */
 export interface SceneData {
@@ -302,6 +306,8 @@ export interface SceneData {
   totalActive: number;
   cellsSampled: boolean;
   points: ColumnarPoints | null;
+  /** Upload only: the API machine's measured analysis time in milliseconds. */
+  timingMs?: number | null;
 }
 
 /** A whitelisted benchmark result file wrapped with provenance (see /api/results/{name}). */

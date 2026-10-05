@@ -20,6 +20,10 @@ export const HELP = {
     title: 'Scenes',
     text: 'Pick what to look at: four synthetic scenes, each built to stress one capability, and one real SemanticKITTI scan. The number keys 1 to 5 do the same.',
   },
+  upload: {
+    title: 'Analyze your own scan',
+    text: 'Choose a LiDAR .bin file (x, y, z and intensity points, the SemanticKITTI layout) and the local API grids it with the same pipeline. It needs the API running. Labels come from a geometric heuristic unless the server has a trained model, and the scan stays in this tab: reloading clears it.',
+  },
   'view-mode': {
     title: 'What the 3D view shows',
     text: 'Pipeline output draws the cells the pipeline actually produced. Concept view is a hand-built illustration of the scenario, and it is labelled as one.',

@@ -3,9 +3,22 @@
  * so it loads fast, and it carries no figures: every number in the product is on the dashboard, read from data.
  */
 import React from 'react';
-import { ArrowRight, Compass, Moon, Sun } from 'lucide-react';
+import { ArrowRight, ChevronDown, Compass, Moon, Sun } from 'lucide-react';
 import LogoMark from '../brand/LogoMark';
 import { toggleTheme, useTheme } from '../theme/theme';
+import RobotFit from './RobotFit';
+
+const ROBOT_FIT_ID = 'how-it-fits-a-robot';
+
+/** Brings the "How it fits a robot" section into view inside the home scroller; instant under reduced motion. */
+function scrollToRobotFit(e: React.MouseEvent<HTMLAnchorElement>) {
+  const section = document.getElementById(ROBOT_FIT_ID);
+  if (!section) return; // no section to scroll to: let the browser follow the link
+  e.preventDefault();
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  section.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  section.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true });
+}
 
 /**
  * Resolution rings spreading from the mark like ripples on water: fine spacing near the centre, coarse far away. The drawing is
@@ -46,47 +59,60 @@ const HomePage: React.FC = () => {
         </button>
       </header>
 
-      <main className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 pb-10 pt-2 text-center">
-        <Backdrop />
-        <div className="relative flex max-w-2xl flex-col items-center gap-5">
-          <LogoMark size={120} title="LiMap logo" />
-          <h1 className="mt-2 text-4xl font-bold tracking-tight sm:text-5xl">LiMap</h1>
-          <p className="text-sm font-semibold uppercase tracking-widest text-accent-text">Adaptive variable-resolution 2.5D LiDAR mapping</p>
-          <p className="text-[15px] leading-relaxed text-fg-2">
-            LiMap turns a LiDAR scan into a 2.5D grid that keeps fine cells near the vehicle and coarse cells far away, held in a
-            fixed-size memory pool. Each cell remembers the height of the ground and of anything overhead, so a planner can tell an
-            underpass from a wall, and moving objects are filtered out so they leave no ghost trails. It was built for problem
-            statement SIH26053 (DRDO) on mapping dynamic environments for an unmanned ground vehicle, and every figure in the
-            dashboard is read from data, never typed in.
-          </p>
+      <main className="relative z-10 flex flex-1 flex-col">
+        {/* The first screen: it fills the space between the header and where the footer used to sit, so the hero is placed as before. */}
+        <div className="relative flex min-h-[calc(100vh-113.5px)] flex-1 flex-col items-center justify-center px-6 pb-10 pt-2 text-center">
+          <Backdrop />
+          <div className="relative flex max-w-2xl flex-col items-center gap-5">
+            <LogoMark size={120} title="LiMap logo" />
+            <h1 className="mt-2 text-4xl font-bold tracking-tight sm:text-5xl">LiMap</h1>
+            <p className="text-sm font-semibold uppercase tracking-widest text-accent-text">Adaptive variable-resolution 2.5D LiDAR mapping</p>
+            <p className="text-[15px] leading-relaxed text-fg-2">
+              LiMap turns a LiDAR scan into a 2.5D grid that keeps fine cells near the vehicle and coarse cells far away, held in a
+              fixed-size memory pool. Each cell remembers the height of the ground and of anything overhead, so a planner can tell an
+              underpass from a wall, and moving objects are filtered out so they leave no ghost trails. It was built for problem
+              statement SIH26053 (DRDO) on mapping dynamic environments for an unmanned ground vehicle, and every figure in the
+              dashboard is read from data, never typed in.
+            </p>
 
-          <div className="mt-1 flex flex-wrap items-center justify-center gap-3">
+            <div className="mt-1 flex flex-wrap items-center justify-center gap-3">
+              <a
+                href="/dashboard/"
+                className="flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-accent-on shadow-sm transition-colors hover:bg-accent/90"
+              >
+                <span>Open the dashboard</span>
+                <ArrowRight size={16} aria-hidden="true" />
+              </a>
+              <a
+                href="/dashboard/?tour=1"
+                className="flex items-center gap-2 rounded-xl border border-line-strong bg-panel px-5 py-2.5 text-sm font-semibold text-fg transition-colors hover:bg-subtle"
+              >
+                <Compass size={16} aria-hidden="true" />
+                <span>Take the guided tour</span>
+              </a>
+            </div>
             <a
-              href="/dashboard/"
-              className="flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-accent-on shadow-sm transition-colors hover:bg-accent/90"
+              href={`#${ROBOT_FIT_ID}`}
+              onClick={scrollToRobotFit}
+              className="-mt-1 flex items-center gap-1 rounded text-sm font-medium text-accent-text underline-offset-4 hover:underline"
             >
-              <span>Open the dashboard</span>
-              <ArrowRight size={16} aria-hidden="true" />
-            </a>
-            <a
-              href="/dashboard/?tour=1"
-              className="flex items-center gap-2 rounded-xl border border-line-strong bg-panel px-5 py-2.5 text-sm font-semibold text-fg transition-colors hover:bg-subtle"
-            >
-              <Compass size={16} aria-hidden="true" />
-              <span>Take the guided tour</span>
+              <span>How it fits a robot</span>
+              <ChevronDown size={15} aria-hidden="true" />
             </a>
           </div>
+
+          <section aria-label="Built by" className="relative mt-12 flex flex-col items-center gap-3">
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-fg-muted">Built by</span>
+            <img
+              src={team}
+              alt="Team Abhedya logo"
+              width={160}
+              className="h-auto w-40 rounded-2xl border border-line shadow-sm"
+            />
+          </section>
         </div>
 
-        <section aria-label="Built by" className="relative mt-12 flex flex-col items-center gap-3">
-          <span className="text-[11px] font-semibold uppercase tracking-widest text-fg-muted">Built by</span>
-          <img
-            src={team}
-            alt="Team Abhedya logo"
-            width={160}
-            className="h-auto w-40 rounded-2xl border border-line shadow-sm"
-          />
-        </section>
+        <RobotFit id={ROBOT_FIT_ID} />
       </main>
 
       <footer className="relative z-10 px-6 py-4 text-center text-[11px] text-fg-muted">

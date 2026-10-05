@@ -1,4 +1,4 @@
-<p align="center"><img src="dashboard/client/public/brand/limap-logo.svg" alt="LiMap logo: a lotus" width="96"></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="dashboard/client/public/brand/limap-logo-dark.svg"><img src="dashboard/client/public/brand/limap-logo-light.svg" alt="LiMap logo: a LiDAR-scanning ground vehicle over a 2.5D height grid" width="280"></picture></p>
 
 # LiMap: adaptive variable-resolution 2.5D LiDAR mapping
 

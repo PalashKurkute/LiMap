@@ -26,8 +26,9 @@ Two plain HTML pages (a multi-page Vite build, no router), so any static host se
   is real here and what is only described, plus what is not done. Every sentence comes from
   `docs/reference/KNOWN_LIMITATIONS.md`, `ARCHITECTURE.md` or the code. No figures.
 - `/dashboard/` is the **dashboard** (`dashboard/index.html`, `src/main.tsx`); its header logo leads home.
-- The logo is `src/brand/LogoMark.tsx` (theme tokens `--brand-*`); `scripts/make-logo.mjs` writes `public/favicon.svg` and
-  `public/brand/limap-logo.svg` from the same petal numbers. The team logos are in `public/brand/` (dark and light).
+- The logo is SVG artwork in `public/brand/`: `limap-mark-{light,dark}.svg` (the vehicle and grid) and `limap-logo-{light,dark}.svg`
+  (with the wordmark). `src/brand/LogoMark.tsx` shows the mark for the current theme; `public/favicon.svg` is the mark on a square
+  canvas that follows the browser's colour scheme.
 
 The **?** icons are `src/ui/HelpTip.tsx`; the words are one list in `src/help/topics.ts`. A tip opens on hover (after a short
 delay) and on focus, can be moved onto, closes on Esc, on leaving and on an outside click, and uses `aria-describedby`. To add

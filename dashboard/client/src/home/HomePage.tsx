@@ -2,7 +2,7 @@
  * The home screen: shown at `/` before the dashboard (which lives at `/dashboard/`). It imports nothing from the dashboard,
  * so it loads fast, and it carries no figures: every number in the product is on the dashboard, read from data.
  */
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ArrowRight, ChevronDown, Compass, Moon, Sun } from 'lucide-react';
 import LogoMark from '../brand/LogoMark';
 import { toggleTheme, useTheme } from '../theme/theme';
@@ -21,22 +21,56 @@ function scrollToRobotFit(e: React.MouseEvent<HTMLAnchorElement>) {
 }
 
 /**
- * Resolution rings spreading from the mark like ripples on water: fine spacing near the centre, coarse far away. The drawing is
- * centred on the mark at the top of the page (the SVG scales to fill the window, which keeps it there), and the inner dashed
- * ring frames the mark.
+ * Resolution rings spreading from the mark like ripples on water: fine spacing near the centre, coarse far away. The rings are
+ * centred on the mark itself (measured, so they stay on it at any window size), the inner dashed ring frames the mark, and the
+ * outer radii grow with the window as before (units of a 1200 x 800 window).
  */
-const RINGS = [60, 125, 190, 275, 390, 540, 740];
+const RINGS = [125, 190, 275, 390, 540, 740];
 
-const Backdrop: React.FC = () => (
-  <svg aria-hidden="true" viewBox="-600 -400 1200 800" preserveAspectRatio="xMidYMid slice" className="pointer-events-none absolute inset-0 h-full w-full">
-    {RINGS.map((r, i) => (
-      <circle key={r} cx={0} cy={-250} r={r} fill="none" strokeWidth={1.5} strokeDasharray={i === 0 ? '6 8' : undefined} style={{ stroke: i === 0 ? 'var(--accent)' : 'var(--line)', opacity: i === 0 ? 0.7 : 1 }} />
-    ))}
-  </svg>
-);
+const Backdrop: React.FC<{ anchor: React.RefObject<HTMLElement | null> }> = ({ anchor }) => {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [geo, setGeo] = useState<{ x: number; y: number; frame: number; scale: number } | null>(null);
+
+  // A passive effect: it runs after every ref in the page is attached (the mark comes after the backdrop in the tree).
+  useEffect(() => {
+    const svg = svgRef.current;
+    const mark = anchor.current;
+    if (!svg || !mark) return;
+    const measure = () => {
+      const box = svg.getBoundingClientRect();
+      const m = (mark.querySelector('img') ?? mark).getBoundingClientRect();
+      setGeo({
+        x: m.left + m.width / 2 - box.left,
+        y: m.top + m.height / 2 - box.top,
+        frame: m.width * 0.55, // the drawing is a wide diamond, so this clears its corners with a small margin
+        scale: Math.max(box.width / 1200, box.height / 800),
+      });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(svg);
+    observer.observe(mark);
+    return () => observer.disconnect();
+  }, [anchor]);
+
+  const outer = geo ? RINGS.map((r) => r * geo.scale).filter((r) => r > geo.frame + 16) : [];
+  return (
+    <svg ref={svgRef} aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full">
+      {geo && (
+        <>
+          <circle cx={geo.x} cy={geo.y} r={geo.frame} fill="none" strokeWidth={1.5} strokeDasharray="6 8" style={{ stroke: 'var(--accent)', opacity: 0.7 }} />
+          {outer.map((r) => (
+            <circle key={r} cx={geo.x} cy={geo.y} r={r} fill="none" strokeWidth={1.5} style={{ stroke: 'var(--line)' }} />
+          ))}
+        </>
+      )}
+    </svg>
+  );
+};
 
 const HomePage: React.FC = () => {
   const { theme } = useTheme();
+  const markRef = useRef<HTMLDivElement>(null);
   const team = theme === 'dark' ? '/brand/team-abhedya-dark.png' : '/brand/team-abhedya-light.png';
 
   return (
@@ -62,9 +96,12 @@ const HomePage: React.FC = () => {
       <main className="relative z-10 flex flex-1 flex-col">
         {/* The first screen: it fills the space between the header and where the footer used to sit, so the hero is placed as before. */}
         <div className="relative flex min-h-[calc(100vh-113.5px)] flex-1 flex-col items-center justify-center px-6 pb-10 pt-2 text-center">
-          <Backdrop />
+          <Backdrop anchor={markRef} />
           <div className="relative flex max-w-2xl flex-col items-center gap-5">
-            <LogoMark size={120} title="LiMap logo" />
+            {/* The top padding leaves room for the dashed ring above the mark (below, the heading's own spacing is enough). */}
+            <div ref={markRef} className="flex pt-8">
+              <LogoMark size={120} title="LiMap logo" />
+            </div>
             <h1 className="mt-2 text-4xl font-bold tracking-tight sm:text-5xl">LiMap</h1>
             <p className="text-sm font-semibold uppercase tracking-widest text-accent-text">Adaptive variable-resolution 2.5D LiDAR mapping</p>
             <p className="text-[15px] leading-relaxed text-fg-2">

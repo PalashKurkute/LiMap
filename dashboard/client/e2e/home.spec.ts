@@ -17,8 +17,10 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(product).toBeVisible();
     await expect(team).toBeVisible();
     await expect(team).toHaveAttribute('src', new RegExp(`team-abhedya-${theme}\\.png$`));
+    await expect(product).toHaveAttribute('src', new RegExp(`limap-mark-${theme}\\.svg$`));
     // Both really loaded (a broken image has no natural width).
     expect(await team.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(0);
+    expect(await product.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(0);
     await expect(page.getByText(/turns a LiDAR scan into a 2\.5D grid/)).toBeVisible();
     await expect(page.getByText('Built by')).toBeVisible();
   });
@@ -104,7 +106,7 @@ for (const size of [
 }
 
 test('the brand files are served', async ({ page }) => {
-  for (const f of ['team-abhedya-dark.png', 'team-abhedya-light.png', 'team-abhedya-mark-dark.png', 'team-abhedya-mark-light.png', 'limap-logo.svg']) {
+  for (const f of ['team-abhedya-dark.png', 'team-abhedya-light.png', 'team-abhedya-mark-dark.png', 'team-abhedya-mark-light.png', 'limap-logo-light.svg', 'limap-logo-dark.svg', 'limap-mark-light.svg', 'limap-mark-dark.svg']) {
     const res = await page.request.get(`/brand/${f}`);
     expect(res.status(), f).toBe(200);
   }
@@ -121,8 +123,10 @@ const STAGES = ['Scan in', 'Grid', 'Costmap', 'Planner'];
 for (const theme of ['light', 'dark'] as const) {
   test(`${theme}: the "How it fits a robot" section shows four stages in order and the gaps`, async ({ page }) => {
     await openHome(page, theme);
-    await section(page).scrollIntoViewIfNeeded();
     const h2 = page.getByRole('heading', { level: 2, name: 'How it fits a robot' });
+    // Scroll the heading, not the section: when the section's top edge already peeks in at the bottom of the window, the
+    // browser counts the section as visible and does not scroll, leaving the heading below the fold.
+    await h2.scrollIntoViewIfNeeded();
     await expect(h2).toBeVisible();
     await expect(h2).toBeInViewport();
     // The stages are in the documented order, left to right.

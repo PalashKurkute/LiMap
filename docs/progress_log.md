@@ -565,3 +565,27 @@ See `dashboard/client/README.md` for structure, data flow and test map, and `das
 - **Console noise.** With no backend the status bar's health ping logged a failed request every 10 s. It now backs off to 60 s while
   the API is down (`pollDelayMs`) and returns to 10 s once it answers.
 - **Cleanup.** Removed the unused `public/icons.svg` (Vite template leftover) and a no-op `0.0 * f` term in the turbo colour ramp (one lint warning fewer).
+
+---
+
+## Shorter tour, home screen, logo and "?" help
+
+- **Tour glitch.** On every Next the popover jumped to the middle of the screen and back. Cause: when a step began to get
+  ready the spotlight rectangle was cleared, and a popover with no anchor is centred. The popover and spotlights now stay
+  where they were while the next step gets ready ("Getting ready..."), then glide to the new place (instantly under reduced
+  motion). A test samples the popover on every frame across six steps and fails if it is ever anywhere but where it was or
+  where it goes.
+- **40 steps became 15,** none dropped: related steps are grouped and each lights up everything it names (new `also`
+  anchors, drawn as one SVG with a hole per spotlight; the lit-up controls stay clickable). The colour modes, the three
+  Controls tabs, the five presets and the seven Evidence cards are each one step now. The saved-progress key is
+  `limap.tour.v2`, so an old "Resume at step 26 of 40" never appears.
+- **Logo.** A lotus: each petal row is a height layer of the 2.5D grid, the rows open outward like the resolution rings, the
+  leaves and water line are the ground and the dot at the base is the vehicle. It replaces the Vite default favicon and is in
+  the dashboard header (a link home). `scripts/make-logo.mjs` writes the static SVGs from the same numbers as the component.
+- **Home screen** at `/`, dashboard at `/dashboard/` (a two-page Vite build, no router): the mark, one paragraph, the Team
+  Abhedya logo (dark and light variants) and buttons for the dashboard and the guided tour. Old `/?tour=1` links redirect.
+- **"?" help.** `HelpTip` next to each tool or feature group (the scene picker, view toggle and stamp, camera, colour, fly,
+  legend, playback, each Controls section, each Map Inspector tool and panel, the Evidence tags and the header data source),
+  words in `src/help/topics.ts`. Opens on hover and keyboard focus, closes on Esc, leaving and an outside click.
+- **Tests.** `home.spec.ts`, `help.spec.ts`, the no-detour tour test, secondary-spotlight checks in the every-step test; the
+  existing specs now open `/dashboard/`.

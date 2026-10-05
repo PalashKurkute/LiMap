@@ -19,8 +19,11 @@ beyond its short popover**: narration is yours.
    ```
    It works with no backend: every scene is a precomputed snapshot, and the status bar shows `API: offline`. To show
    `API: online`, also start the server from the repo root with `npm run server` before opening the page.
-4. **Start the tour already running:** open `http://127.0.0.1:4173/?tour=1`. The flag is removed from the address bar
-   immediately, so reloading does not restart it. Or use the **Take the tour** button in the header at any time.
+4. **Start from the home screen.** `http://127.0.0.1:4173/` is the home screen (logos, a short description and the team);
+   **Open the dashboard** goes to `/dashboard/`, and **Take the guided tour** starts the tour there. To skip the home
+   screen, open `http://127.0.0.1:4173/dashboard/?tour=1` (an old `/?tour=1` link redirects to it). The flag is removed from
+   the address bar immediately, so reloading does not restart the tour. The **Take the tour** button in the dashboard header
+   also starts it at any time.
 5. **Theme.** The tour is theme-neutral. Pick light or dark with the sun/moon button (or Shift+T) before you start. One
    step flips the theme to show it follows, without saving it, and the tour restores your choice when it ends.
 
@@ -32,37 +35,42 @@ beyond its short popover**: narration is yours.
 | Left arrow | previous step |
 | Esc, or the X in the popover | leave the tour (the app is restored) |
 
-Press `?` (outside the tour) for the full list of app shortcuts.
+Press `?` (outside the tour) for the full list of app shortcuts. The small **?** icons next to the tools explain each one
+on hover or keyboard focus, so you can point at a control during the recording without opening the tour.
 
 Nothing advances by itself, so you control pacing. Each step first sets the app up (switching scene, view or panel) and
-shows "Getting ready..." until the 3D view or map has finished drawing; click Next once it reads normally.
+shows "Getting ready..." until the 3D view or map has finished drawing, while the popover and spotlight stay where they were;
+click Next once it reads normally.
 
 **Retakes.** Use Back to redo a step. If you leave part-way, the header button becomes **Resume tour** and offers
 "Resume at step n" or "Start over". To see the first-visit callout again, delete the `limap.welcomeSeen` and
-`limap.tour.v1` entries from the page's local storage.
+`limap.tour.v2` entries from the page's local storage.
 
-## What the tour shows (40 steps)
+## What the tour shows (15 steps)
 
-| # | Step | What it shows |
+Each step lights up everything it talks about, and those controls stay clickable, so you can click through them while you
+narrate. Steps that cover several controls name each one in the popover.
+
+| # | Step | What it lights up and says |
 |---|---|---|
-| 1 | Welcome | the idea: fine cells near the vehicle, coarse far away |
-| 2-4 | Scene picker, provenance stamp, data source | five scenes (keys 1-5); every view says whether it is pipeline output, an illustration or a real recording; snapshots work without a server |
-| 5 | Scene card | what this scene demonstrates, with its figure read from the snapshot |
-| 6-10 | Colour by height, class, ring, variance; legend | the four colourings of the pipeline's cells and the legend that follows them |
-| 11-12 | Camera, fly under the bridge | orbit, follow, top; then a button for a camera shot along the route the planner found under the deck. **Click it yourself**: nothing starts by itself. With OS animations off it is a still shot under the deck |
-| 13-16 | What to draw, overlays, clearance slicer, dropout preview | the Controls panel: cells vs raw returns, range rings, the cross-section slicer, the visual-only dropout preview |
-| 17 | Concept view | the hand-built illustration with playback, labelled as a concept |
-| 18-19 | Moving objects, a real scan | the moving-traffic scene; the real SemanticKITTI scan (a sparse sample) |
-| 20-24 | Map Inspector, overhang colouring, ring filter, isometric view, inspect a cell | the top-down map, overhang cells, one ring at a time, the tilted view with the bridge deck floating above the road, and a cell's statistics |
-| 25-29 | Foveation presets (stationary, city, highway, turn left, turn right) | the dashed outline of where each ring sits, one step per preset |
-| 30 | Uniform 5 cm vs FoveaGrid | the swipe comparison with MEASURED and CALCULATED figures |
-| 31 | Underpass: one height vs 2.5D | the same bridge scan as two costmaps, from a one-height grid (left) and the 2.5D grid (right), with what the planner found on each and the figures in the panel |
-| 32-38 | Evidence: memory, fidelity, segmentation, speed, moving objects, planner regret, limits | every figure with its source file; ends on "What this does not show" |
-| 39 | Light and dark | the theme follows everywhere |
-| 40 | Finish | Replay, or Finish to restore the app |
+| 1 | Welcome | the idea: fine cells near the vehicle, coarse far away; the ? icons explain any control on their own |
+| 2 | Scenes, and what each view is | the scene picker (keys 1-5), the view stamp (pipeline output, illustration or real recording) and the header data-source chip (snapshots work without a server) |
+| 3 | What this scene shows | the scene card with its figure read from the snapshot, and the camera row (orbit, follow, top) |
+| 4 | Four ways to colour the cells | the colour row and the legend: height, class, ring, variance. Click each |
+| 5 | Fly under the bridge | a camera shot along the route the planner found under the deck. **Click it yourself**: nothing starts by itself. With OS animations off it is a still shot under the deck. Skipped if the scene has no planner route |
+| 6 | The Controls panel | the whole panel: Layers (cells or raw returns, range rings), Section (the clearance slicer), Stress (the visual-only dropout preview). Click the tabs |
+| 7 | Concept view | the hand-built illustration with playback, labelled as a concept, and the Pipeline/Concept switch |
+| 8 | A real scan, and moving objects | the real SemanticKITTI scan (a sparse sample); press 3 for the moving-traffic scene |
+| 9 | Map Inspector | the map from above, with colour-by (overhang) and the ring filter |
+| 10 | Inspect a cell, and tilt the map | a cell's statistics (a showcase cell chosen from the data) and the Isometric view, where the bridge deck floats above the road |
+| 11 | Foveation presets | the preset switch and the foveation card: stationary, city, highway, turn left, turn right, with the dashed outline of where each ring sits. Click through them |
+| 12 | Uniform 5 cm vs FoveaGrid | the swipe comparison with MEASURED and CALCULATED figures |
+| 13 | Underpass: one height vs 2.5D | the same bridge scan as two costmaps, from a one-height grid (left) and the 2.5D grid (right), with what the planner found on each |
+| 14 | Evidence | the whole Evidence page: memory, fidelity, segmentation, speed, moving objects, planner regret and what this does not show, each with its source file. Scroll it |
+| 15 | Light and dark, and the end | the theme follows everywhere (not saved); Replay, or Finish to restore the app |
 
-Three steps are skipped automatically if their element is not on screen (the data-source chip is hidden on narrow windows,
-the isometric toggle if that view is unavailable, and the fly-through button if the scene has no planner route).
+Two things are skipped automatically: the fly-through step when the scene has no planner route, and any secondary highlight
+that is not on screen (the data-source chip is hidden on narrow windows).
 
 ## Saying only what the screen supports
 

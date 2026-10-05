@@ -44,7 +44,7 @@ Pre-overhaul screenshots: `e2e/__baseline__/`.
 - ✅ Light / dark / system toggle in the header; persisted; no flash; reaches DOM, SVG, 3D scene, map canvas, dialogs
 
 ## Added with the tour and inspector work
-- ✅ **Take the tour**: header button, first-visit callout (`limap.welcomeSeen`), resume (`limap.tour.v1`), `?tour=1`; 40 steps over every view; restores the app on every exit path
+- ✅ **Take the tour**: header button, first-visit callout (`limap.welcomeSeen`), resume (`limap.tour.v2`), `/dashboard/?tour=1`; 15 steps over every view, each lighting up all the controls it names; restores the app on every exit path
 - ✅ **Isometric Map Inspector**: Top-down / Isometric switch, overhang canopies drawn at their real height, cursor readout (X fwd, Y lat, distance, ring), guides toggle, per-scene hint, colour-mode descriptions
 - ✅ **Foveation presets** in the Map Inspector (stationary, city, highway, turn left, turn right) with a dashed fovea outline and a statistics card, from precomputed variant snapshots (`docs/DATA_VARIANTS.md`)
 - ✅ **Uniform 5 cm vs FoveaGrid** swipe comparison (key `B`), with occupied-cell (MEASURED) and reserved-memory (CALCULATED) figures

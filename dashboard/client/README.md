@@ -23,13 +23,36 @@ used as an optional upgrade (see Data below).
 | **Map Inspector** | Canvas of every grid cell, top-down or **isometric** (heights and overhangs show). Click a cell for its ring, class, point count, mean height, variance and overhang clearance. A **foveation preset** switch re-draws the scan with the fine zone shifted for city or highway speed or a turn, with a dashed outline of where each ring sits. **Compare with uniform 5 cm** splits the canvas with a swipe divider: uniform grid on the left, FoveaGrid on the right, with occupied-cell and reserved-memory figures. |
 | **Evidence** | Memory, grid fidelity by ring, segmentation accuracy by distance, speed, moving-object filtering and planner regret. Each figure is read from `benchmark/*.json` and tagged MEASURED / CALCULATED / DATASET. |
 
+## Home screen, dashboard and the "?" help
+
+The site is two plain HTML pages (a multi-page Vite build, no router), so any static host serves them:
+
+- `/` is the **home screen** (`index.html`, `src/home/`): the LiMap lotus mark, one paragraph on what it is, the Team
+  Abhedya logo and two buttons. It imports nothing from the dashboard and carries no figures. An old `/?tour=1` link is
+  redirected to `/dashboard/?tour=1`.
+- `/dashboard/` is the **dashboard** (`dashboard/index.html`, `src/main.tsx`). The logo in its header leads back home.
+- The logo is `src/brand/LogoMark.tsx` (theme tokens `--brand-*`); `scripts/make-logo.mjs` writes `public/favicon.svg` and
+  `public/brand/limap-logo.svg` from the same petal numbers. The team logos are in `public/brand/` (dark and light).
+
+The small **?** icons next to each tool or feature group are `src/ui/HelpTip.tsx`; the words are one list in
+`src/help/topics.ts`. A tip opens on hover (after a short delay) and on keyboard focus, can be moved onto without closing,
+closes on Esc, on leaving and on a click elsewhere, and is tied to its button with `aria-describedby`. To add one, add a
+topic and put `<HelpTip topic="..." />` beside the control (outside any `inert` group, so it still works when the control
+is disabled). `e2e/help.spec.ts` fails if a topic is not used anywhere, or a tip does not fit the window. The honesty guard
+scans `src/help/` and `src/home/` for typed numbers with units, like the tour.
+
 ## Take the tour
 
-A guided tour of every feature: a spotlight on the real UI plus a short popover, advanced **only** by the user (Next,
-Enter, the right arrow; Back or the left arrow; Esc leaves). It is always available from the header button, first-time
-visitors also see a dismissible callout, and `?tour=1` starts it directly (the flag is removed from the URL at once).
-`limap.welcomeSeen` records that the callout was dismissed and `limap.tour.v1` records progress for "Resume tour".
-Nothing else is ever written.
+A guided tour of every feature in **15 steps**: a spotlight on the real UI plus a short popover, advanced **only** by the
+user (Next, Enter, the right arrow; Back or the left arrow; Esc leaves). Each step lights up everything it talks about (the
+step's `anchor` plus its `also` anchors), and the lit-up controls stay clickable on `interactive` steps. It is always
+available from the header button, first-time visitors also see a dismissible callout, and `/dashboard/?tour=1` starts it
+directly (the flag is removed from the URL at once). `limap.welcomeSeen` records that the callout was dismissed and
+`limap.tour.v2` records progress for "Resume tour". Nothing else is ever written.
+
+While a step is getting ready the popover and spotlight stay where they were and the popover reads "Getting ready...";
+when it is ready they glide to the new place (instantly under reduced motion). The overlay is one SVG with a hole per
+spotlight (`TourRoot.tsx`), and the glide is `src/tour/useGlide.ts`.
 
 Design rules, enforced by `e2e/tour.spec.ts`:
 
@@ -56,9 +79,10 @@ Steps are data in `src/tour/steps.ts`:
 {
   id: 'ring-filter',
   anchor: '[data-tour="ring-filter"]',      // a data-tour attribute on the element (or an element id)
+  also: ['[data-tour="inspector-colour"]'], // more elements to light up; any that are not on screen are skipped
   title: 'Ring filter',
-  body: (d) => 'One or two short sentences. Values come from `d` (loaded data), never typed.',
-  interactive: true,                        // the highlighted element stays clickable
+  body: (d) => 'A few short sentences. Values come from `d` (loaded data), never typed.',
+  interactive: true,                        // the highlighted elements stay clickable
   optional: false,                          // true: skipped silently if the anchor is not on screen
   enter: ({ actions }) => ensure(actions, { scene: 'scene_a_bridge', view: 'data_inspection', inspector: { ringFilter: 0 } }),
 }
@@ -66,7 +90,7 @@ Steps are data in `src/tour/steps.ts`:
 
 - Each step's `enter` sets **everything it needs** through `ensure(...)`, so any step can be entered from any other
   (Back, Resume and Replay all rely on this) and waits on readiness signals, not timers.
-- Keep copy to two short sentences. `scripts/check-honesty.mjs` fails the build on retired claims in `src/`, and on a
+- Keep copy to a few short sentences, naming each thing a grouped step lights up. `scripts/check-honesty.mjs` fails the build on retired claims in `src/`, and on a
   typed number with a unit (`12 MB`, `3 FPS`, `40 ms`, `2.1x`, `99.5%`) in `src/tour/` or `src/features/inspector/`.
   Interpolate from data instead; `pickShowcaseCell` (`src/tour/showcase.ts`) picks the cell the "Inspect a cell" step shows.
 - Put the anchor on the element with a `data-tour="..."` attribute. `data-tour` is separate from `data-region`, which the
@@ -172,9 +196,11 @@ BASE_URL=https://<preview> npx playwright test e2e/smoke.spec.ts e2e/data.spec.t
 | `flythrough.spec.ts` | The route maths (eased, continuous, below the vehicle height the planner used); the button is on the bridge scene's pipeline view only; reduced motion gives a still shot and Stop glides back; with animations on the shot ends by itself and a drag takes the camera back at once; `R` puts an orbited camera back. |
 | `shortcuts.spec.ts` | The `?` sheet opens by key and from the Controls panel, holds focus, leaves everything behind it inert, returns focus, lists only keys the app handles, and stays out of the tour. |
 | `quality.spec.ts` | Every view has one `main` landmark, one level-one heading and one banner; the MEASURED, CALCULATED, ESTIMATE and DATASET badge text reaches 4.5:1 on its own tint on every surface in both themes; the API health ping backs off while the API is down. |
+| `home.spec.ts` | The home screen shows both logos (the team logo matching the theme) and the description in both themes; one `main`, one `h1`, one banner and footer; the buttons reach the dashboard and the tour; the dashboard logo leads home; an old `/?tour=1` redirects; no failed request or console error; no horizontal overflow at 1280 and 390 px. |
+| `help.spec.ts` | Every "?" icon in the 3D view, Concept view, Controls panel, Map Inspector and Evidence opens its tip on hover with the topic's words, keeps it inside the window and closes it on leaving; keyboard focus opens it, Esc closes only the tip; every topic is used somewhere. |
 | `smoke.spec.ts` / `matrix.spec.ts` | Every scene × view × theme loads with no console errors; the first-visit callout shows once. |
 | `features.spec.ts` | Isometric projection maths and picking in both projections; the cursor readout; each foveation preset's outline and statistics against the exported JSON on disk; the uniform comparison's figures and keyboard-operable divider; inspector state survives leaving the view. |
-| `tour.spec.ts` | Every tour step shows its anchor with the spotlight on it and the popover on screen; nothing advances by itself; Esc, Finish and Back; the app and its saved settings are exactly as before; shortcuts are inert during the tour; resume after a reload; honest copy; with animations on, the spotlight settles on its anchor through the smooth-scrolled Evidence steps. |
+| `tour.spec.ts` | Every tour step shows its anchor with the spotlight on it (and every secondary anchor lit up) and the popover on screen; while a step gets ready the popover stays where it was and never detours through the centre; nothing advances by itself; Esc, Finish and Back; the app and its saved settings are exactly as before; shortcuts are inert during the tour; resume after a reload; honest copy; with animations on, the spotlight settles on its anchor through the smooth-scrolled Evidence steps. |
 | `tour-recovery.spec.ts` | The tour's code failing to load (button and `?tour=1`) shows a message and leaves the app working; a step whose variant data never arrives still shows and the tour carries on and leaves cleanly; Finish restores the app and its saved theme exactly. Shared helpers live in `tour-helpers.ts`. |
 
 `e2e/PARITY.md` lists every feature that existed before the overhaul and where it lives now. `e2e/__baseline__/` holds

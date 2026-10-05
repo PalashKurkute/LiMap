@@ -1,3 +1,5 @@
+<p align="center"><img src="dashboard/client/public/brand/limap-logo.svg" alt="LiMap logo: a lotus" width="96"></p>
+
 # LiMap: adaptive variable-resolution 2.5D LiDAR mapping
 
 LiMap turns a LiDAR scan into a **2.5D grid with fine cells near the vehicle and coarse cells far away**, held in a
@@ -7,15 +9,16 @@ unmanned ground vehicle.
 This repository holds the perception pipeline (`core/`), its benchmarks (`benchmark/`), and a dashboard
 (`dashboard/`) that shows the pipeline's output and the evidence behind it.
 
-**Take the tour.** The dashboard has a guided tour of every feature: click **Take the tour** in the header (or open it
-with `?tour=1`). See [docs/DEMO_RECORDING.md](docs/DEMO_RECORDING.md).
+**Take the tour.** The site opens on a home screen; **Open the dashboard** goes to `/dashboard/`. The dashboard has a
+15-step guided tour of every feature: click **Take the tour** in its header, or open `/dashboard/?tour=1`. Small **?**
+icons next to the tools explain each one on hover. See [docs/DEMO_RECORDING.md](docs/DEMO_RECORDING.md).
 
 ## Run the dashboard
 
 ```bash
 cd dashboard/client
 npm ci
-npm run dev            # http://localhost:3000
+npm run dev            # home screen at http://localhost:3000, dashboard at http://localhost:3000/dashboard/
 ```
 
 It works with **no backend**: every scene is served from precomputed snapshots committed under

@@ -521,7 +521,7 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
   });
 
   return (
-    <div data-region="inspector-screen" className="w-full h-full flex flex-col bg-app text-fg select-none overflow-hidden font-sans">
+    <main data-region="inspector-screen" className="w-full h-full flex flex-col bg-app text-fg select-none overflow-hidden font-sans">
       {/* Toolbar */}
       <header className="min-h-14 border-b border-line bg-panel px-4 py-2 flex flex-wrap items-center justify-between gap-2 z-30 shrink-0">
         <div className="flex items-center gap-3 flex-wrap">
@@ -532,7 +532,7 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
             <ArrowLeft size={14} />
             <span>Back to 3D</span>
           </button>
-          <span className="font-bold text-sm text-fg tracking-tight">Map Inspector</span>
+          <h1 className="font-bold text-sm text-fg tracking-tight">Map Inspector</h1>
           <span className="px-2 py-0.5 rounded text-[10px] font-mono text-accent-text border border-accent-line bg-accent-subtle">
             {chipTotal
               ? `${chipTotal.toLocaleString()} cells${chipSampled ? ` (${shown.toLocaleString()} shown)` : ''}`
@@ -872,7 +872,8 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
         </div>
 
         {/* Inspector sidebar */}
-        <aside
+        <section
+          aria-label="Cell and scene details"
           data-region="inspector-sidebar"
           data-tour="cell-inspector"
           className="w-80 xl:w-96 border-l border-line bg-panel overflow-y-auto flex flex-col divide-y divide-line text-xs z-20 shrink-0"
@@ -882,6 +883,8 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
             <UnderpassCard data={planner.data} status={planner.status} minClearance={telemetryData?.telemetry?.tactical_summary?.min_clearance_m ?? null} />
           )}
 
+          {/* Cells cannot be picked while the two costmaps are shown, so the panel would only mislead. */}
+          {!underpassOn && (
           <div className="p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <span className="font-bold text-fg uppercase tracking-wider text-[11px] flex items-center gap-1.5">
@@ -931,6 +934,7 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
               </div>
             )}
           </div>
+          )}
 
           {/* Foveation: where the fine cells sit for the chosen preset (all values from the exported variant file) */}
           {!underpassOn && (
@@ -949,7 +953,7 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
                     <span className="text-fg-muted" title={`The preset's configured reach is ${foveaMeta.fovea.forward_reach_m} m`}>
                       Fine cells reach ahead
                     </span>
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-2 shrink-0 whitespace-nowrap">
                       <strong className="text-fg tabular-nums">{fineReach.toFixed(1)} m</strong>
                       <ProvenanceBadge kind="CALCULATED" />
                     </span>
@@ -957,7 +961,7 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
                 )}
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-fg-muted">Fine cells ahead / behind</span>
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center gap-2 shrink-0 whitespace-nowrap">
                     <strong className="text-fg tabular-nums">
                       {foveaMeta.stats.ring0_ahead.toLocaleString()} / {foveaMeta.stats.ring0_behind.toLocaleString()}
                     </strong>
@@ -985,28 +989,28 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
                 <div className="bg-subtle border border-line rounded-lg p-3 flex flex-col gap-1.5 text-[11px] font-mono">
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-fg-muted">Occupied cells, uniform</span>
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-2 shrink-0 whitespace-nowrap">
                       <strong className="text-fg tabular-nums">{uniformMeta.stats.active_cells.toLocaleString()}</strong>
                       <ProvenanceBadge kind="MEASURED" />
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-fg-muted">Occupied cells, FoveaGrid</span>
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-2 shrink-0 whitespace-nowrap">
                       <strong className="text-fg tabular-nums">{foveaOccupied.toLocaleString()}</strong>
                       <ProvenanceBadge kind="MEASURED" />
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-fg-muted">Reserved memory, uniform</span>
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-2 shrink-0 whitespace-nowrap">
                       <strong className="text-fg tabular-nums">{uniformMeta.uniform?.theoretical_capacity_mb.toFixed(1)} MB</strong>
                       <ProvenanceBadge kind="CALCULATED" />
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-fg-muted">Reserved memory, FoveaGrid</span>
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-2 shrink-0 whitespace-nowrap">
                       <strong className="text-fg tabular-nums">{POOL_MB.toFixed(4)} MB</strong>
                       <ProvenanceBadge kind="CALCULATED" />
                     </span>
@@ -1045,7 +1049,7 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
                 }
               />
               <Row label="Pool (fixed by design)" value={`${(telemetryData?.telemetry.total_heap_mb ?? POOL_MB).toFixed(4)} MB`} />
-              <Row label="Cells shown" value={foveaCells.length.toLocaleString()} />
+              {!underpassOn && <Row label="Cells shown" value={foveaCells.length.toLocaleString()} />}
             </div>
 
             {foveaCells.length > 0 && (
@@ -1072,9 +1076,9 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
               .
             </div>
           </div>
-        </aside>
+        </section>
       </div>
-    </div>
+    </main>
   );
 };
 

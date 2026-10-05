@@ -25,7 +25,7 @@ export function getTurboColor(normZ: number): Rgb {
     return { r: 0.15 * (1 - f) + 0.1 * f, g: 0.1 * (1 - f) + 0.35 * f, b: 0.75 * (1 - f) + 1.0 * f };
   } else if (t < 0.35) {
     const f = (t - 0.15) / 0.2;
-    return { r: 0.1 * (1 - f) + 0.0 * f, g: 0.35 * (1 - f) + 0.9 * f, b: 1.0 * (1 - f) + 0.95 * f };
+    return { r: 0.1 * (1 - f), g: 0.35 * (1 - f) + 0.9 * f, b: 1.0 * (1 - f) + 0.95 * f };
   } else if (t < 0.6) {
     const f = (t - 0.35) / 0.25;
     return { r: 0.0, g: 0.9 * (1 - f) + 0.92 * f, b: 0.95 * (1 - f) + 0.3 * f };

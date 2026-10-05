@@ -28,6 +28,7 @@ import { fetchJson } from './data/api';
 import { loadPlanner } from './data/planner';
 import { prefersReducedMotion } from './lib/motion';
 import { isAppScope } from './lib/keyScope';
+import { pollDelayMs } from './lib/pollDelay';
 import { clearReady, markReady } from './state/readiness';
 import { getInspector, replaceInspector, setInspector } from './state/inspector';
 import { AppActionsContext, AppDataContext, type AppActions, type AppSnapshot, type AppView, type DrawerTab } from './state/AppActions';
@@ -125,22 +126,28 @@ export const App: React.FC = () => {
   const [backendPing, setBackendPing] = useState<number>(0);
   const [isBackendConnected, setIsBackendConnected] = useState<boolean>(false);
 
-  // API health ping (status bar only). Scene data never depends on it: snapshots are static files.
+  // API health ping (status bar only). Scene data never depends on it: snapshots are static files. While the API is
+  // down the ping backs off (see pollDelayMs).
   useEffect(() => {
     let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let misses = 0;
     const ping = async () => {
-      if (document.visibilityState === 'hidden') return;
-      const t0 = performance.now();
-      const h = await fetchJson<{ status: string }>('/api/health', { timeoutMs: 3000 });
-      if (!alive) return;
-      setIsBackendConnected(!!h && h.status === 'ONLINE');
-      if (h) setBackendPing(Math.round(performance.now() - t0));
+      if (document.visibilityState !== 'hidden') {
+        const t0 = performance.now();
+        const h = await fetchJson<{ status: string }>('/api/health', { timeoutMs: 3000 });
+        if (!alive) return;
+        const up = !!h && h.status === 'ONLINE';
+        setIsBackendConnected(up);
+        if (h) setBackendPing(Math.round(performance.now() - t0));
+        misses = up ? 0 : misses + 1;
+      }
+      timer = setTimeout(ping, pollDelayMs(misses));
     };
     void ping();
-    const id = setInterval(ping, 10000);
     return () => {
       alive = false;
-      clearInterval(id);
+      clearTimeout(timer);
     };
   }, []);
 
@@ -318,7 +325,8 @@ export const App: React.FC = () => {
               </Suspense>
             </ViewBoundary>
           ) : (
-            <div style={{ flex: 1, height: '100%', position: 'relative', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <main style={{ flex: 1, height: '100%', position: 'relative', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+              <h1 className="sr-only">3D Explore</h1>
               <ViewBoundary resetKey={currentView}>
                 <Suspense fallback={<ViewLoading label="Loading 3D view…" />}>
                   <ThreeViewport
@@ -475,7 +483,7 @@ export const App: React.FC = () => {
                   </p>
                 </div>
               )}
-            </div>
+            </main>
           )}
 
           {/* Slide-out Controls drawer */}

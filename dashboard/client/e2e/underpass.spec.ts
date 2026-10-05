@@ -162,6 +162,8 @@ test('cell controls are inert while it is on, the map still zooms, and the norma
   await expect(zoomLabel(page)).not.toHaveText('6.0 px/m'); // fitted to the underpass
   await expect(page.getByRole('group', { name: 'Colour cells by' })).toHaveAttribute('inert', '');
   await expect(page.locator('[data-tour="fovea-presets"]')).toHaveAttribute('inert', '');
+  // Cells cannot be picked here, so the "click any cell" panel is not offered.
+  await expect(page.getByText('Cell inspector', { exact: true })).toBeHidden();
 
   const before = parseFloat((await zoomLabel(page).innerText()).split(' ')[0]);
   const box = (await canvas(page).boundingBox())!;
@@ -173,6 +175,7 @@ test('cell controls are inert while it is on, the map still zooms, and the norma
   await expect(canvas(page)).toHaveAttribute('data-underpass', 'off');
   await expect(zoomLabel(page)).toHaveText('6.0 px/m');
   await expect(page.getByRole('group', { name: 'Colour cells by' })).not.toHaveAttribute('inert', '');
+  await expect(page.getByText('Cell inspector', { exact: true })).toBeVisible();
 });
 
 test('if the planner file cannot be fetched the map stays usable and says so', async ({ page }) => {

@@ -113,11 +113,11 @@ export const ColumnBars: React.FC<{
   ariaLabel: string;
   height?: number;
 }> = ({ title, unit, items, max, ariaLabel, height = 96 }) => (
-  <figure className="flex min-w-0 flex-col gap-1.5" role="img" aria-label={ariaLabel}>
-    <figcaption className="flex items-baseline justify-between gap-2">
+  <div className="flex min-w-0 flex-col gap-1.5" role="img" aria-label={ariaLabel}>
+    <div className="flex items-baseline justify-between gap-2">
       <span className="text-[11px] font-semibold text-fg">{title}</span>
       {unit && <span className="font-mono text-[10px] text-fg-muted">{unit}</span>}
-    </figcaption>
+    </div>
     <div className="grid items-end gap-2 border-b border-viz-axis" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`, height }}>
       {items.map((it) => {
         const h = it.value == null ? 0 : Math.max(2, (it.value / max) * (height - 18));
@@ -143,5 +143,5 @@ export const ColumnBars: React.FC<{
         </div>
       ))}
     </div>
-  </figure>
+  </div>
 );

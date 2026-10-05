@@ -44,12 +44,12 @@
   --critical-bg: #fdecec;
   --critical-line: #f0b4b4;
 
-  /* Provenance badges */
-  --prov-measured: #2a78d6;
+  /* Provenance badges: 10 px bold text on its own 10% tint, kept at 4.5:1 or better on every surface in both themes */
+  --prov-measured: #2365b5;
   --prov-calculated: #4a3aa7;
-  --prov-estimate: #eb6834;
+  --prov-estimate: #b13f11;
   --prov-synthetic: #b27400;
-  --prov-precomputed: #128a60;
+  --prov-precomputed: #0f7350;
 
   /* Charts */
   --viz-surface: #ffffff;
@@ -126,11 +126,11 @@
   --critical-bg: #2d1414;
   --critical-line: #6b2a2a;
 
-  --prov-measured: #3987e5;
-  --prov-calculated: #9085e9;
-  --prov-estimate: #d95926;
+  --prov-measured: #5698e9;
+  --prov-calculated: #958aea;
+  --prov-estimate: #e0784e;
   --prov-synthetic: #e0a020;
-  --prov-precomputed: #199e70;
+  --prov-precomputed: #1ba978;
 
   --viz-surface: #111827;
   --viz-grid: #243042;

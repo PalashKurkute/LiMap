@@ -51,7 +51,7 @@ export const EvidenceView: React.FC<EvidenceViewProps> = ({ baselines }) => {
   }, [stillLoading]);
 
   return (
-    <div data-region="evidence" className="h-full w-full overflow-y-auto bg-app">
+    <main data-region="evidence" className="h-full w-full overflow-y-auto bg-app">
       <div className="mx-auto flex max-w-6xl flex-col gap-5 px-6 py-6">
         <header className="flex flex-col gap-2">
           <h1 className="text-xl font-semibold tracking-tight text-fg">Evidence</h1>
@@ -508,6 +508,6 @@ export const EvidenceView: React.FC<EvidenceViewProps> = ({ baselines }) => {
           </ul>
         </EvidenceCard>
       </div>
-    </div>
+    </main>
   );
 };

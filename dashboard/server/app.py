@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 import numpy as np
 
@@ -152,8 +152,16 @@ if _default_bin.is_file():
     GLOBAL_GRID.insert_points(_pts, semantic_labels=_sem)
 
 DIST_DIR = Path(__file__).resolve().parent.parent / "client" / "dist"
-if (DIST_DIR / "assets").is_dir():
-    app.mount("/assets", StaticFiles(directory=str(DIST_DIR / "assets")), name="assets")
+
+
+def mount_site(application: FastAPI, dist_dir: Path) -> bool:
+    """Serves the built site from `dist_dir`: the home page at /, the dashboard at /dashboard/, plus /assets and the
+    brand files. It is a catch-all mount, so call it after every API and WebSocket route has been registered.
+    Returns False (and mounts nothing) when there is no build, as on the serverless deployment."""
+    if not (dist_dir / "index.html").is_file():
+        return False
+    application.mount("/", StaticFiles(directory=str(dist_dir), html=True), name="site")
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -344,14 +352,6 @@ def build_result_envelope(name: str) -> Dict[str, object]:
 # Routes
 # ---------------------------------------------------------------------------
 
-@app.get("/")
-def serve_dashboard():
-    if (DIST_DIR / "index.html").is_file():
-        return FileResponse(DIST_DIR / "index.html")
-    index_file = Path(__file__).resolve().parent.parent / "client" / "index.html"
-    return FileResponse(index_file)
-
-
 @app.get("/api/health")
 def health_check() -> Dict[str, object]:
     return {
@@ -467,6 +467,10 @@ async def websocket_stream(websocket: WebSocket) -> None:
 
     except WebSocketDisconnect:
         pass
+
+
+# Last, so the catch-all site mount never shadows an API or WebSocket route.
+mount_site(app, DIST_DIR)
 
 
 if __name__ == "__main__":

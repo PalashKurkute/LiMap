@@ -30,6 +30,10 @@ The site is two plain HTML pages (a multi-page Vite build, no router), so any st
 - `/` is the **home screen** (`index.html`, `src/home/`): the LiMap lotus mark, one paragraph on what it is, the Team
   Abhedya logo and two buttons. It imports nothing from the dashboard and carries no figures. An old `/?tour=1` link is
   redirected to `/dashboard/?tour=1`.
+- Below the first screen the home screen has **How it fits a robot** (`src/home/RobotFit.tsx`): the four stages from a scan
+  to a route (scan in, grid, costmap, planner), each with what is real in this repository and what is only described, and
+  a list of what is not done yet. Every sentence is taken from `docs/reference/KNOWN_LIMITATIONS.md`, `ARCHITECTURE.md` or
+  the code; to add or change one, check it against those files first. It carries no figures.
 - `/dashboard/` is the **dashboard** (`dashboard/index.html`, `src/main.tsx`). The logo in its header leads back home.
 - The logo is `src/brand/LogoMark.tsx` (theme tokens `--brand-*`); `scripts/make-logo.mjs` writes `public/favicon.svg` and
   `public/brand/limap-logo.svg` from the same petal numbers. The team logos are in `public/brand/` (dark and light).
@@ -196,7 +200,7 @@ BASE_URL=https://<preview> npx playwright test e2e/smoke.spec.ts e2e/data.spec.t
 | `flythrough.spec.ts` | The route maths (eased, continuous, below the vehicle height the planner used); the button is on the bridge scene's pipeline view only; reduced motion gives a still shot and Stop glides back; with animations on the shot ends by itself and a drag takes the camera back at once; `R` puts an orbited camera back. |
 | `shortcuts.spec.ts` | The `?` sheet opens by key and from the Controls panel, holds focus, leaves everything behind it inert, returns focus, lists only keys the app handles, and stays out of the tour. |
 | `quality.spec.ts` | Every view has one `main` landmark, one level-one heading and one banner; the MEASURED, CALCULATED, ESTIMATE and DATASET badge text reaches 4.5:1 on its own tint on every surface in both themes; the API health ping backs off while the API is down. |
-| `home.spec.ts` | The home screen shows both logos (the team logo matching the theme) and the description in both themes; one `main`, one `h1`, one banner and footer; the buttons reach the dashboard and the tour; the dashboard logo leads home; an old `/?tour=1` redirects; no failed request or console error; no horizontal overflow at 1280 and 390 px. |
+| `home.spec.ts` | The home screen shows both logos (the team logo matching the theme) and the description in both themes; one `main`, one `h1`, one banner and footer; the buttons reach the dashboard and the tour; the dashboard logo leads home; an old `/?tour=1` redirects; no failed request or console error; no horizontal overflow at 1280 and 390 px. The "How it fits a robot" section: four stages in order, each with its real/only-described lines, the gaps list, heading order h1 > h2 > h3, the link scrolls it into view (instantly under reduced motion), readable text in both themes, no overflow at 1280 and 390 px. |
 | `help.spec.ts` | Every "?" icon in the 3D view, Concept view, Controls panel, Map Inspector and Evidence opens its tip on hover with the topic's words, keeps it inside the window and closes it on leaving; keyboard focus opens it, Esc closes only the tip; every topic is used somewhere. |
 | `smoke.spec.ts` / `matrix.spec.ts` | Every scene × view × theme loads with no console errors; the first-visit callout shows once. |
 | `features.spec.ts` | Isometric projection maths and picking in both projections; the cursor readout; each foveation preset's outline and statistics against the exported JSON on disk; the uniform comparison's figures and keyboard-operable divider; inspector state survives leaving the view. |

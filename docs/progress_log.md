@@ -587,5 +587,13 @@ See `dashboard/client/README.md` for structure, data flow and test map, and `das
 - **"?" help.** `HelpTip` next to each tool or feature group (the scene picker, view toggle and stamp, camera, colour, fly,
   legend, playback, each Controls section, each Map Inspector tool and panel, the Evidence tags and the header data source),
   words in `src/help/topics.ts`. Opens on hover and keyboard focus, closes on Esc, leaving and an outside click.
+- **"How it fits a robot"** on the home screen, under the first screen: scan in, grid, costmap, planner, each with what is real
+  in the repository and what is only described, plus five open gaps (no robot or embedded run, ROS 2 / Nav2 only partly there,
+  the planner has one scenario, labels come with the scans, little real data). Each line is taken from
+  `docs/reference/KNOWN_LIMITATIONS.md`, `ARCHITECTURE.md` or the code. While writing it I found that `ARCHITECTURE.md`'s status
+  table (lines 253-262) is out of date against `KNOWN_LIMITATIONS.md` (it still says Nav2 / ROS 2 is not implemented and that
+  real-dataset validation has not run); the home section follows `KNOWN_LIMITATIONS.md` and the code.
+- **Server fix.** The API server only served `/` and `/assets`, so with the server alone `/dashboard/`, the favicon and the
+  brand images returned 404. It now serves the whole built site (`mount_site`, registered after every API route).
 - **Tests.** `home.spec.ts`, `help.spec.ts`, the no-detour tour test, secondary-spotlight checks in the every-step test; the
   existing specs now open `/dashboard/`.

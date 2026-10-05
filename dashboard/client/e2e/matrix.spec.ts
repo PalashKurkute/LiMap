@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // Screenshot matrix: every scene x view x theme. Fails on any page error / unexpected console error.
-// Images land in e2e/__out__/ (gitignored) for visual review against e2e/__baseline__/.
+// Images land in e2e/__out__/ (gitignored) for visual review.
 const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), '__out__');
 const SCENES = ['1', '2', '3', '4', '5'];
 

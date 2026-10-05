@@ -12,6 +12,8 @@ content-addressable JSON into dashboard/client/public/data/, which Vercel serves
                                               presets (CITY_CRUISE / HIGHWAY_EXTENDED / TURNING_LEFT / TURNING_RIGHT)
                                               and the uniform 5 cm reference grid (schema limap.variant/1).
                                               NOMINAL is the base scene snapshot, so it has no variant file.
+    public/data/planner/<scene>.json          the bridge underpass replayed through the real costmap generator and
+                                              Hybrid-A* planner, once per grid philosophy (schema limap.planner/1)
     public/data/results/<name>.json           benchmark/*.json wrapped with sha256 provenance
 
 Usage (from the repo root):
@@ -45,6 +47,8 @@ from core.grid.baselines import calculate_baselines  # noqa: E402
 from core.grid.nested_lattice import NestedLattice, RingConfig  # noqa: E402
 from core.grid.fovea_controller import FoveaState  # noqa: E402
 from core.grid.spatial_hash import CELL_DTYPE, SpatialHashGrid  # noqa: E402
+from core.planning.costmap_generator import COST_LETHAL, CostmapGenerator  # noqa: E402
+from core.planning.hybrid_a_star import HybridAStarPlanner  # noqa: E402
 
 OUT_DIR = REPO_ROOT / "dashboard" / "client" / "public" / "data"
 SYNTHETIC_IDS = ["scene_a_bridge", "scene_b_potholes", "scene_c_moving", "scene_d_poles"]
@@ -72,6 +76,23 @@ UNIFORM_RES_M = 0.05
 UNIFORM_R_OUTER_M = 100.0
 UNIFORM_POOL_CELLS = 500_000  # same evaluation pool as benchmark/fidelity_study.py (15.26 MB, NOT the product pool)
 BAND_EDGES_M = (10.0, 25.0, 50.0)  # cells_per_band: [0,10) [10,25) [25,50) [50, inf) of real cell-centre range
+
+PLANNER_SCHEMA = "limap.planner/1"
+# The bridge underpass exactly as benchmark/regret_benchmark.py::benchmark_bridge_underpass sets it up (same costmap
+# size, planner settings, start and goal), but run on the grid built from the scene the dashboard itself exports.
+PLANNER_SCENE = "scene_a_bridge"
+PLANNER_SCENARIO = "Bridge underpass (Scene A)"
+PLANNER_COSTMAP_M = 70.0
+PLANNER_STEP_M = 0.5
+PLANNER_XY_RES_M = 0.25
+PLANNER_START = (5.0, 0.0, 0.0)
+PLANNER_GOAL = (28.0, 0.0, 0.0)
+# The two grid philosophies. `ignore_overhang_clearance=True` is this project's own naive baseline (a height-collapse
+# grid: anything overhead makes the cell impassable), not a third-party planner.
+PLANNER_GRIDS = {
+    "naive": {"label": "One-height grid (naive baseline)", "ignore_overhang_clearance": True},
+    "aware": {"label": "2.5D grid (clearance-aware)", "ignore_overhang_clearance": False},
+}
 LICENSE_NOTE = {
     "real_seq08_f00": "SemanticKITTI (CC BY-NC-SA 3.0). Labels are dataset ground truth, not model output.",
 }
@@ -406,6 +427,94 @@ def write_variants(out_dir: Path, scene_id: str, scene: SceneData, base_cells: D
     return entries
 
 
+# ---------------------------------------------------------------------------------------------------------------
+# Planner snapshot: what each grid philosophy hands the planner for the bridge underpass, and what the planner does.
+# ---------------------------------------------------------------------------------------------------------------
+
+def costmap_sparse(costmap: np.ndarray) -> Dict[str, object]:
+    """Non-zero costmap cells as parallel arrays, row-major. The maps are >99% free, so this is far smaller than a raster."""
+    iy, ix = np.nonzero(costmap)
+    return {
+        "n": int(len(ix)),
+        "ix": ix.astype(int).tolist(),
+        "iy": iy.astype(int).tolist(),
+        "v": costmap[iy, ix].astype(int).tolist(),
+    }
+
+
+def plan_result(planner: HybridAStarPlanner, costmap: np.ndarray, with_path: bool = True) -> Dict[str, object]:
+    traj, cost = planner.plan(costmap, PLANNER_START, PLANNER_GOAL)
+    found = traj is not None
+    out: Dict[str, object] = {
+        "traversable": found,
+        "cost": round(float(cost), 2) if found else None,  # the planner reports inf when blocked; JSON has no inf
+        "waypoints": int(len(traj)) if found else 0,
+    }
+    if with_path:
+        out["path"] = [[round(float(x), 3), round(float(y), 3), round(float(th), 3)] for x, y, th in traj] if found else None
+    return out
+
+
+def planner_snapshot(scene_id: str, scene: SceneData) -> Dict[str, object]:
+    """Replays benchmark_bridge_underpass on the scene's own grid: one costmap per grid philosophy, one Hybrid-A* plan each.
+
+    Nothing here is asserted about the outcome: whether a plan was found is recorded as measured, and the dashboard
+    reads it from this file. (The benchmark itself asserts the 2.5D plan exists; tests/test_export_planner.py pins that
+    this export agrees with the benchmark.)
+    """
+    grid = SpatialHashGrid()
+    run_grid(scene.pts, scene.sem, grid)
+    gen = CostmapGenerator(grid_width_m=PLANNER_COSTMAP_M, grid_height_m=PLANNER_COSTMAP_M)
+    planner = HybridAStarPlanner(gen, step_size_m=PLANNER_STEP_M, xy_resolution_m=PLANNER_XY_RES_M)
+
+    maps = {name: gen.generate_costmap(grid, ignore_overhang_clearance=cfg["ignore_overhang_clearance"])
+            for name, cfg in PLANNER_GRIDS.items()}
+    reference = plan_result(planner, np.zeros_like(maps["aware"]), with_path=False)  # same start and goal, no obstacles
+    results = {name: plan_result(planner, cm) for name, cm in maps.items()}
+
+    return {
+        "schema": PLANNER_SCHEMA,
+        "meta": {
+            "scene_id": scene_id,
+            "scenario": PLANNER_SCENARIO,
+            "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "git_sha": git_sha(),
+            "label_source": scene.src,
+            "base_inputs_sha256": scene.inputs,
+            "costmap": {
+                "resolution_m": round(float(gen.res), 4),
+                "origin_x_m": float(gen.origin_x),
+                "origin_y_m": float(gen.origin_y),
+                "nx": int(gen.nx),
+                "ny": int(gen.ny),
+                "vehicle_height_m": float(gen.vehicle_height_m),
+                "lethal": int(COST_LETHAL),
+            },
+            "planner": {"name": "HybridAStarPlanner", "step_size_m": PLANNER_STEP_M, "xy_resolution_m": PLANNER_XY_RES_M},
+            "start": list(PLANNER_START),
+            "goal": list(PLANNER_GOAL),
+            "grids": {
+                name: {**cfg, "lethal_cells": int(np.count_nonzero(maps[name] == COST_LETHAL))}
+                for name, cfg in PLANNER_GRIDS.items()
+            },
+        },
+        "maps": {name: costmap_sparse(cm) for name, cm in maps.items()},
+        "results": {**results, "reference": reference},
+    }
+
+
+def write_planner(out_dir: Path, scene_id: str, scene: SceneData) -> Dict[str, object]:
+    """Writes planner/<scene_id>.json and returns the manifest `planner[scene_id]` entry."""
+    (out_dir / "planner").mkdir(parents=True, exist_ok=True)
+    snap = planner_snapshot(scene_id, scene)
+    text = dumps(snap)
+    (out_dir / "planner" / f"{scene_id}.json").write_text(text, encoding="utf-8")
+    res = snap["results"]  # type: ignore[index]
+    print(f"  planner {scene_id:<16} 2.5D path={res['aware']['traversable']} one-height path={res['naive']['traversable']}  "  # type: ignore[index]
+          f"{len(text) / 1024:>7.0f} kB")
+    return {"file": f"planner/{scene_id}.json", "bytes": len(text.encode("utf-8"))}
+
+
 def export(out_dir: Path) -> Dict[str, object]:
     (out_dir / "scenes").mkdir(parents=True, exist_ok=True)
     (out_dir / "results").mkdir(parents=True, exist_ok=True)
@@ -415,6 +524,7 @@ def export(out_dir: Path) -> Dict[str, object]:
         "scenes": {},
         "results": {},
         "variants": {},
+        "planner": {},
     }
 
     scenes = load_scenes()
@@ -446,6 +556,8 @@ def export(out_dir: Path) -> Dict[str, object]:
 
     for sid, scene in scenes.items():
         manifest["variants"][sid] = write_variants(out_dir, sid, scene, snapshots[sid]["cells"])  # type: ignore[index,arg-type]
+
+    manifest["planner"][PLANNER_SCENE] = write_planner(out_dir, PLANNER_SCENE, scenes[PLANNER_SCENE])  # type: ignore[index]
 
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     return manifest
@@ -499,6 +611,41 @@ def stale_variants(fresh: Path, committed: Path) -> List[str]:
     return stale
 
 
+def stale_planner(fresh: Path, committed: Path) -> List[str]:
+    """Planner files / manifest `planner` block in `committed` that differ from a fresh export (timestamps ignored)."""
+    stale: List[str] = []
+    fresh_files = sorted((fresh / "planner").glob("*.json"))
+    for p in fresh_files:
+        rel = p.relative_to(fresh).as_posix()
+        cp = committed / rel
+        if not cp.is_file():
+            stale.append(f"{rel} (missing)")
+        elif _without_provenance(json.loads(p.read_text(encoding="utf-8"))) != _without_provenance(
+                json.loads(cp.read_text(encoding="utf-8"))):
+            stale.append(rel)
+    expected = {p.relative_to(fresh).as_posix() for p in fresh_files}
+    for cp in sorted((committed / "planner").glob("*.json")):
+        rel = cp.relative_to(committed).as_posix()
+        if rel not in expected:
+            stale.append(f"{rel} (unexpected)")
+
+    fresh_block = json.loads((fresh / "manifest.json").read_text(encoding="utf-8")).get("planner", {})
+    mpath = committed / "manifest.json"
+    committed_block = json.loads(mpath.read_text(encoding="utf-8")).get("planner") if mpath.is_file() else None
+    if committed_block is None:
+        stale.append("manifest.json planner block (missing)")
+    else:
+        mismatch = sorted(set(fresh_block) ^ set(committed_block))
+        for sid in sorted(set(fresh_block) & set(committed_block)):
+            f, c = fresh_block[sid], committed_block[sid]
+            on_disk = committed / c["file"]
+            if f["file"] != c["file"] or not on_disk.is_file() or on_disk.stat().st_size != c["bytes"]:
+                mismatch.append(sid)
+        if mismatch:
+            stale.append("manifest.json planner block (" + ", ".join(mismatch) + ")")
+    return stale
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--check", action="store_true",
@@ -532,6 +679,7 @@ def main() -> int:
             if a != b:
                 stale.append(f"scenes/{p.name}")
         stale += stale_variants(fresh, args.out)
+        stale += stale_planner(fresh, args.out)
         if stale:
             print("STALE snapshots (re-run scripts/export_dashboard_data.py):\n  " + "\n  ".join(stale))
             return 1

@@ -216,5 +216,11 @@
         "active_cells": 4881
       }
     }
+  },
+  "planner": {
+    "scene_a_bridge": {
+      "file": "planner/scene_a_bridge.json",
+      "bytes": 53430
+    }
   }
 }

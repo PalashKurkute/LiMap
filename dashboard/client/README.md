@@ -19,7 +19,7 @@ used as an optional upgrade (see Data below).
 
 | View | Contents |
 |---|---|
-| **3D Explore** | The pipeline's grid cells and raw returns for a scan (default), or a labelled hand-built concept illustration. Colour by height-above-ground, class, resolution ring or Welford variance. |
+| **3D Explore** | The pipeline's grid cells and raw returns for a scan (default), or a labelled hand-built concept illustration. Colour by height-above-ground, class, resolution ring or Welford variance. On the bridge scene, **Fly under the bridge** (scene card) is a camera shot along the route the planner found; dragging, scrolling or a camera change takes the camera back, and **R** resets it. |
 | **Map Inspector** | Canvas of every grid cell, top-down or **isometric** (heights and overhangs show). Click a cell for its ring, class, point count, mean height, variance and overhang clearance. A **foveation preset** switch re-draws the scan with the fine zone shifted for city or highway speed or a turn, with a dashed outline of where each ring sits. **Compare with uniform 5 cm** splits the canvas with a swipe divider: uniform grid on the left, FoveaGrid on the right, with occupied-cell and reserved-memory figures. |
 | **Evidence** | Memory, grid fidelity by ring, segmentation accuracy by distance, speed, moving-object filtering and planner regret. Each figure is read from `benchmark/*.json` and tagged MEASURED / CALCULATED / DATASET. |
 
@@ -98,6 +98,20 @@ Steps are data in `src/tour/steps.ts`:
   `sy = oy - k*sinP*rotX - (z - groundZ)*k*cosP*1.5`. `unproject` inverts it exactly on the ground plane and is what
   hit-testing and the cursor readout use. Cells are painted far to near.
 - **Variant data** (foveation presets, the uniform reference): see [../../docs/DATA_VARIANTS.md](../../docs/DATA_VARIANTS.md).
+- **Planner data** (`src/data/planner.ts`, `src/data/manifest.ts`): the bridge underpass replayed through the real costmap
+  generator and Hybrid-A* (schema `limap.planner/1`, same document). `manifest.ts` is the one cached manifest fetch the
+  variant and planner loaders share, so only files the manifest lists are requested.
+- **Underpass comparison** (`src/features/inspector/underpass.ts`, `UnderpassPanels.tsx`): two panes drawn by calling
+  `drawInspector` once per pane with a clip and an overlay callback, so the rings, guides and grid lines are the existing
+  code. Pan and zoom are shared; the view is fitted from the data (the sideways span of the impassable cells between start
+  and goal). The inspector store enforces the mode's rules in one place (`setInspector`): turning it on turns the uniform
+  comparison off and forces the top-down view, and choosing Isometric turns it off.
+- **Fly-through** (`src/features/viewport/flythrough.ts`, used by `ThreeViewport.tsx`): the planner's path, extended a
+  little before and after, eased along its length, flown at eye height with the camera looking along it. It is
+  time-based, so it takes the same time at any frame rate; it cuts to the start of the shot so it is identical every
+  time, holds at the end and glides back by itself. With reduced motion it is a still pose just before the underpass and
+  stays until stopped. Any drag, wheel, camera change or reset ends it. `R` now also resets the camera; before this it
+  only reset the (hidden) vehicle.
 
 ## Data flow
 
@@ -154,6 +168,8 @@ BASE_URL=https://<preview> npx playwright test e2e/smoke.spec.ts e2e/data.spec.t
 | `evidence.spec.ts` | On-screen numbers equal the committed result files; provenance tags; failures are shown as failures. |
 | `pipeline.spec.ts` | The 3D view draws pipeline output, legends follow colour modes, concept view is labelled, theme re-colours cells. |
 | `resilience.spec.ts` | A view whose code fails to load (the request is aborted) shows a message with a Reload button; the idle prefetch raises no uncaught error; the header, scene picker and other views keep working. |
+| `underpass.spec.ts` | The two panes draw the two exported costmaps and only the 2.5D pane has the planned path (checked on canvas pixels, light and dark); the card and pane labels equal `planner/scene_a_bridge.json`; the mode excludes the uniform comparison and ends with Isometric; scenes without a planner run cannot use it; the map still zooms and the normal view returns; a failed planner download leaves the map usable. |
+| `flythrough.spec.ts` | The route maths (eased, continuous, below the vehicle height the planner used); the button is on the bridge scene's pipeline view only; reduced motion gives a still shot and Stop glides back; with animations on the shot ends by itself and a drag takes the camera back at once; `R` puts an orbited camera back. |
 | `shortcuts.spec.ts` | The `?` sheet opens by key and from the Controls panel, holds focus, leaves everything behind it inert, returns focus, lists only keys the app handles, and stays out of the tour. |
 | `smoke.spec.ts` / `matrix.spec.ts` | Every scene × view × theme loads with no console errors; the first-visit callout shows once. |
 | `features.spec.ts` | Isometric projection maths and picking in both projections; the cursor readout; each foveation preset's outline and statistics against the exported JSON on disk; the uniform comparison's figures and keyboard-operable divider; inspector state survives leaving the view. |

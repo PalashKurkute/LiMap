@@ -96,6 +96,47 @@ grid (`theoretical_capacity_mb`, from `calculate_baselines()`), not the 500k eva
   client reads it first and fetches only files it lists, so a missing variant is "unavailable" (the control is disabled)
   and never a 404 in the console.
 
+## Planner snapshot: the underpass (`limap.planner/1`)
+
+`public/data/planner/scene_a_bridge.json` records what the project's own planner does with the bridge scene when the same
+scan is turned into a costmap by two kinds of grid. `scripts/export_dashboard_data.py` (`planner_snapshot`) replays
+`benchmark/regret_benchmark.py::benchmark_bridge_underpass` on the grid built from the scene the dashboard itself exports:
+a 70 m square costmap from `CostmapGenerator`, `HybridAStarPlanner(step_size_m=0.5, xy_resolution_m=0.25)`, from
+(5, 0) to (28, 0).
+
+- **Two grids.** `aware` is the 2.5D grid (`ignore_overhang_clearance=False`): a cell with a deck above it is passable when
+  the clearance is enough for the vehicle. `naive` is this project's own height-collapse baseline
+  (`ignore_overhang_clearance=True`): any cell with something overhead is impassable. It is the project's baseline, not a
+  third-party system.
+- **Nothing is asserted about the outcome.** Whether each plan was found is recorded as measured and the dashboard reads
+  it from the file. `test_export_planner.py` pins that this export agrees with the benchmark function on the same
+  generated files (the same found / blocked verdicts and costs).
+- **Cost** is the planner's: path length plus risk and steering penalties. `reference` is the same start and goal on an
+  empty map.
+- **Costmaps are sparse.** Only non-zero cells are stored (`ix`, `iy`, `v`, row-major) because the maps are more than 99%
+  free. A cell's centre is `origin + (index + 0.5) * resolution`. `v` runs from 1 to `lethal`; lethal cells are impassable.
+- **Format.**
+
+```
+{ schema: "limap.planner/1",
+  meta: { scene_id, scenario, generated_at, git_sha, label_source, base_inputs_sha256,
+          costmap: { resolution_m, origin_x_m, origin_y_m, nx, ny, vehicle_height_m, lethal },
+          planner: { name, step_size_m, xy_resolution_m },
+          start: [x, y, heading], goal: [x, y, heading],
+          grids: { naive: { label, ignore_overhang_clearance, lethal_cells }, aware: { ... } } },
+  maps: { naive: { n, ix[], iy[], v[] }, aware: { ... } },
+  results: { naive: { traversable, cost, waypoints, path }, aware: { ... },
+             reference: { traversable, cost, waypoints } } }
+```
+
+  `cost` and `path` are `null` when no path was found (JSON has no infinity).
+- **Manifest.** A `planner` block `{scene: {file, bytes}}`. The client reads it first (`src/data/manifest.ts`, shared with
+  the variant loader) and fetches only files it lists, so a scene without one is "unavailable" and never a 404.
+- **Where it is used.** The Map Inspector's underpass comparison (two costmaps side by side, the path, a card with these
+  figures) and the 3D view's fly-through (the camera follows `results.aware.path`).
+- **Limits.** One scenario on one synthetic scene with the planner's own settings. It says nothing about any other
+  planner, vehicle or scene (see `docs/reference/KNOWN_LIMITATIONS.md` section 10).
+
 ## Regenerating and checking
 
 ```bash
@@ -104,8 +145,8 @@ grid (`theoretical_capacity_mb`, from `calculate_baselines()`), not the 500k eva
 .venv/Scripts/python -m pytest dashboard/server/tests -q        # includes test_export_variants.py
 ```
 
-`--check` compares variant files and the manifest block against a fresh export, ignoring `generated_at` and `git_sha`;
-it also reports missing or unexpected variant files. It checks each committed `bytes` against the file on disk rather
+`--check` compares variant files, the planner file and their manifest blocks against a fresh export, ignoring `generated_at` and `git_sha`;
+it also reports missing or unexpected variant and planner files. It checks each committed `bytes` against the file on disk rather
 than the regenerated size, because the abbreviated git sha embedded in each file can change length.
 
 `dashboard/server/tests/test_export_variants.py` covers: each input selects its intended preset; NOMINAL equals the base

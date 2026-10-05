@@ -44,10 +44,13 @@ Pre-overhaul screenshots: `e2e/__baseline__/`.
 - ✅ Light / dark / system toggle in the header; persisted; no flash; reaches DOM, SVG, 3D scene, map canvas, dialogs
 
 ## Added with the tour and inspector work
-- ✅ **Take the tour**: header button, first-visit callout (`limap.welcomeSeen`), resume (`limap.tour.v1`), `?tour=1`; 38 steps over every view; restores the app on every exit path
+- ✅ **Take the tour**: header button, first-visit callout (`limap.welcomeSeen`), resume (`limap.tour.v1`), `?tour=1`; 40 steps over every view; restores the app on every exit path
 - ✅ **Isometric Map Inspector**: Top-down / Isometric switch, overhang canopies drawn at their real height, cursor readout (X fwd, Y lat, distance, ring), guides toggle, per-scene hint, colour-mode descriptions
 - ✅ **Foveation presets** in the Map Inspector (stationary, city, highway, turn left, turn right) with a dashed fovea outline and a statistics card, from precomputed variant snapshots (`docs/DATA_VARIANTS.md`)
 - ✅ **Uniform 5 cm vs FoveaGrid** swipe comparison (key `B`), with occupied-cell (MEASURED) and reserved-memory (CALCULATED) figures
 - ✅ Scene stamp, scene card and drawer wording made plain ("Illustrative drive", "Layers", "Section"); the illustrative path, bridge deck and vehicle-box overlays only appear in the Concept view and are labelled hand-built
 - ✂️ Header API and pool chips: duplicated the status bar, which keeps both
 - ✂️ Upstream "CAR #1 / CAR #2 / TRUCK #3 / TREE / CURB" boxes in the Data Matrix: hard-coded, drawn on every scene whatever the data said. Not carried over (`parked-upstream/README.md`)
+- ✅ **Underpass: one height vs 2.5D** (Map Inspector): the bridge scan as two costmaps side by side, from the project's own planner run (`limap.planner/1`), with the path found on each and a card of figures; excludes the uniform comparison; top-down only
+- ✅ **Fly under the bridge** (3D view, scene card): a camera shot along the planner's route; self-ending, takes the user's input at once, still pose under reduced motion
+- 🔧 `R` now resets the camera as well as the vehicle (it used to reset only the hidden vehicle, so an orbited camera stayed where it was)

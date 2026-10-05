@@ -521,3 +521,24 @@ See `dashboard/client/README.md` for structure, data flow and test map, and `das
 ### Not done
 - A reducer-based `App.tsx`, keeping the 3D view mounted across views, a command palette. The first two are refactors with
   no visible benefit for the demo and a real regression risk; the palette would duplicate the `?` sheet and the header.
+
+---
+
+## Underpass comparison and fly-through (branch `feat/overhang-and-flythrough`)
+
+- **What was asked for:** "fly under the bridge" and a "2D vs 2.5D overhang" comparison.
+- **What the data allowed.** A cell-level swipe would have shown almost no difference: in the bridge scan only 126 of the
+  drawn cells, along the deck's two edges, hold both a road and a deck. The project's benchmark already tests this
+  properly (the naive height-collapse grid is blocked, the 2.5D grid finds a path), but its result lived only in a markdown
+  report. So the dashboard now shows that result from the real code.
+- **Exporter.** `planner_snapshot` replays the benchmark on the grid the dashboard exports and writes
+  `public/data/planner/scene_a_bridge.json` (`limap.planner/1`, about 50 kB, sparse costmaps). `--check` covers it;
+  `test_export_planner.py` (9 tests) pins agreement with the benchmark function on the same generated files and was
+  confirmed to fail when the two grid settings are swapped.
+- **Map Inspector.** "Underpass: one height vs 2.5D": two costmaps side by side, the planner's path, and a card of figures
+  (MEASURED). `drawInspector` gained a pane clip and an overlay hook; the store enforces the mode's rules in one place.
+- **3D view.** "Fly under the bridge" on the scene card: the camera follows the planner's route. Also fixed: `R` reset only
+  the hidden vehicle, not an orbited camera, although the shortcut sheet and docs said it reset the camera.
+- **Tour.** Two new steps (`fly`, `underpass`): 40 in all.
+- **Tests.** `underpass.spec.ts`, `flythrough.spec.ts`; the tour specs count steps from the script.
+- **Not done / limits:** see `docs/reference/KNOWN_LIMITATIONS.md` section 10.

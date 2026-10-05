@@ -136,3 +136,21 @@ This ensures zero `FileNotFoundError` across offline tests and synthetic benchma
 - **The uniform reference uses a larger evaluation pool.** It is built like `benchmark/fidelity_study.py` (a 500,000-cell
   pool). The memory shown for it is the calculated capacity of a full uniform 5 cm grid, not that pool.
 - **The real scene is a 5,000-point sample** in this repository, so its presets and comparison hold few cells.
+
+---
+
+## 10. Dashboard: the underpass comparison and the fly-through
+
+- **One scenario.** The underpass comparison replays `benchmark_bridge_underpass` on the synthetic bridge scene, from (5, 0)
+  to (28, 0). It says nothing about other scenes, vehicles or planners. Only the bridge scene has it.
+- **The one-height grid is this project's own baseline.** It is the costmap generator with `ignore_overhang_clearance=True`
+  (anything overhead makes a cell impassable). It is not a third-party planner and the dashboard does not call it one.
+- **The 2.5D path is not free.** It costs more than the same route on an empty map; the panel shows both. Cost is the
+  planner's own: path length plus risk and steering penalties, not metres.
+- **Why not a cell-level comparison.** In this scan only a small number of cells, along the deck's two edges, hold both a
+  road and a deck; the deck's interior is separate cells at deck height. A one-height grid at the same cell size would
+  therefore look almost the same as the 2.5D one, so the comparison is made where it matters, at the costmap the planner
+  actually uses.
+- **The fly-through is a camera shot.** The route is the planner's path and the scenery is the grid's cells and returns; it
+  is not a recorded drive. The eye height and speed are camera settings. With reduced motion it is a still pose, not a
+  flight, and the drag, wheel, camera change or `R` ends it.

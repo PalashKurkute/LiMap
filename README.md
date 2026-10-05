@@ -34,8 +34,8 @@ Production build and preview: `npm run build && npm run preview` (from the repos
 
 | View | Contents |
 |---|---|
-| **3D Explore** | The grid cells and raw returns the pipeline produced for a scan, coloured by height, class, resolution ring or Welford variance. A hand-built concept view is kept, labelled as an illustration. |
-| **Map Inspector** | A map of every cell, top-down or isometric. Click a cell for its ring, class, point count, height statistics and overhang clearance. Switch foveation presets to watch the fine zone shift, or compare the same scan on a uniform 5 cm grid. |
+| **3D Explore** | The grid cells and raw returns the pipeline produced for a scan, coloured by height, class, resolution ring or Welford variance. **Fly under the bridge** is a one-click camera shot along the route the planner found through the underpass. A hand-built concept view is kept, labelled as an illustration. |
+| **Map Inspector** | A map of every cell, top-down or isometric. Click a cell for its ring, class, point count, height statistics and overhang clearance. Switch foveation presets to watch the fine zone shift, or compare the same scan on a uniform 5 cm grid. **Underpass** shows the bridge scan as two costmaps, from a one-height grid and from the 2.5D grid, with what the planner did with each. |
 | **Evidence** | Memory, fidelity by ring, segmentation by distance, speed, moving-object filtering and planner regret, each read from `benchmark/*.json` with its checksum and tagged MEASURED, CALCULATED or DATASET. Ends with what the dashboard does *not* show. |
 
 Every number on screen is read from data (a snapshot, the API or a results file). Synthetic scenes, the concept view and

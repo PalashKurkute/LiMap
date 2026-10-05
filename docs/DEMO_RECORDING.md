@@ -41,7 +41,7 @@ shows "Getting ready..." until the 3D view or map has finished drawing; click Ne
 "Resume at step n" or "Start over". To see the first-visit callout again, delete the `limap.welcomeSeen` and
 `limap.tour.v1` entries from the page's local storage.
 
-## What the tour shows (38 steps)
+## What the tour shows (40 steps)
 
 | # | Step | What it shows |
 |---|---|---|
@@ -49,18 +49,20 @@ shows "Getting ready..." until the 3D view or map has finished drawing; click Ne
 | 2-4 | Scene picker, provenance stamp, data source | five scenes (keys 1-5); every view says whether it is pipeline output, an illustration or a real recording; snapshots work without a server |
 | 5 | Scene card | what this scene demonstrates, with its figure read from the snapshot |
 | 6-10 | Colour by height, class, ring, variance; legend | the four colourings of the pipeline's cells and the legend that follows them |
-| 11-15 | Camera, what to draw, overlays, clearance slicer, dropout preview | the Controls panel: cells vs raw returns, range rings, the cross-section slicer, the visual-only dropout preview |
-| 16 | Concept view | the hand-built illustration with playback, labelled as a concept |
-| 17-18 | Moving objects, a real scan | the moving-traffic scene; the real SemanticKITTI scan (a sparse sample) |
-| 19-23 | Map Inspector, overhang colouring, ring filter, isometric view, inspect a cell | the top-down map, overhang cells, one ring at a time, the tilted view with the bridge deck floating above the road, and a cell's statistics |
-| 24-28 | Foveation presets (stationary, city, highway, turn left, turn right) | the dashed outline of where each ring sits, one step per preset |
-| 29 | Uniform 5 cm vs FoveaGrid | the swipe comparison with MEASURED and CALCULATED figures |
-| 30-36 | Evidence: memory, fidelity, segmentation, speed, moving objects, planner regret, limits | every figure with its source file; ends on "What this does not show" |
-| 37 | Light and dark | the theme follows everywhere |
-| 38 | Finish | Replay, or Finish to restore the app |
+| 11-12 | Camera, fly under the bridge | orbit, follow, top; then a button for a camera shot along the route the planner found under the deck. **Click it yourself**: nothing starts by itself. With OS animations off it is a still shot under the deck |
+| 13-16 | What to draw, overlays, clearance slicer, dropout preview | the Controls panel: cells vs raw returns, range rings, the cross-section slicer, the visual-only dropout preview |
+| 17 | Concept view | the hand-built illustration with playback, labelled as a concept |
+| 18-19 | Moving objects, a real scan | the moving-traffic scene; the real SemanticKITTI scan (a sparse sample) |
+| 20-24 | Map Inspector, overhang colouring, ring filter, isometric view, inspect a cell | the top-down map, overhang cells, one ring at a time, the tilted view with the bridge deck floating above the road, and a cell's statistics |
+| 25-29 | Foveation presets (stationary, city, highway, turn left, turn right) | the dashed outline of where each ring sits, one step per preset |
+| 30 | Uniform 5 cm vs FoveaGrid | the swipe comparison with MEASURED and CALCULATED figures |
+| 31 | Underpass: one height vs 2.5D | the same bridge scan as two costmaps, from a one-height grid (left) and the 2.5D grid (right), with what the planner found on each and the figures in the panel |
+| 32-38 | Evidence: memory, fidelity, segmentation, speed, moving objects, planner regret, limits | every figure with its source file; ends on "What this does not show" |
+| 39 | Light and dark | the theme follows everywhere |
+| 40 | Finish | Replay, or Finish to restore the app |
 
-Two steps are skipped automatically if their element is not on screen (the data-source chip is hidden on narrow windows,
-and the isometric toggle if that view is unavailable).
+Three steps are skipped automatically if their element is not on screen (the data-source chip is hidden on narrow windows,
+the isometric toggle if that view is unavailable, and the fly-through button if the scene has no planner route).
 
 ## Saying only what the screen supports
 
@@ -75,6 +77,10 @@ your narration inside that:
 - Foveation here is **speed and turn presets**; hazard-driven foveation is planned, not built. Each preset view is one
   scan re-run, not a drive.
 - Heights are plain running mean and variance (Welford); there is no probabilistic filter on them.
+- The underpass panel is **one scenario on a synthetic scene**, planned by this project's own Hybrid-A*. The one-height grid
+  is this project's own naive baseline, not a competitor, so do not name a rival. The panel's cost is path length plus
+  risk and steering penalties, shown next to the cost on an empty map; the 2.5D path costs more than that reference.
+- The fly-through is a **camera shot** along the planner's route over the grid's cells, not a recorded drive.
 - Moving-object recall is partial on real data and the Evidence page says so.
 - Nothing has run on embedded hardware.
 - The real scene in this repository is a sparse 5,000-point sample, not a full frame.

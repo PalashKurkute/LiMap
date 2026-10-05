@@ -1,3 +1,4 @@
+import { HelpTip } from '../ui/HelpTip';
 import React from 'react';
 import type { LayerVisibility, RenderMode } from '../types/telemetry';
 import { Eye, EyeOff, RotateCcw, Layers } from 'lucide-react';
@@ -33,6 +34,7 @@ export const DisplaysPanel: React.FC<DisplaysPanelProps> = ({ layers, renderMode
         <div className="flex items-center gap-2">
           <Layers size={14} className="text-fg-2" />
           <span className="text-xs font-semibold uppercase tracking-wider text-fg-2">Overlays</span>
+          <HelpTip topic="overlays" side="left" />
         </div>
         <button
           onClick={onResetLayers}

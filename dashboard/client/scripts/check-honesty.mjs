@@ -23,7 +23,7 @@ const BANNED = [
 
 // Code that writes user-facing numbers from data must not type them: in these folders a literal like "12 MB",
 // "3 FPS", "40 ms", "2.1x" or "99.5%" in a line of code is almost certainly a retyped measurement.
-const DATA_ONLY_DIRS = [join('src', 'tour'), join('src', 'features', 'inspector')];
+const DATA_ONLY_DIRS = [join('src', 'tour'), join('src', 'features', 'inspector'), join('src', 'home'), join('src', 'help')];
 const UNIT_LITERAL = /\d[\d,]*(?:\.\d+)?\s?(?:MB|FPS|ms|×)|\d+\.\d+\s?%/;
 
 // Benchmark numbers that must never be retyped in source (they live in benchmark/*.json).

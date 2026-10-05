@@ -1,3 +1,4 @@
+import { HelpTip } from '../ui/HelpTip';
 import React, { useMemo, useState } from 'react';
 import type { CrossSectionResponse, CrossSectionPoint } from '../types/telemetry';
 import { Layers } from 'lucide-react';
@@ -51,6 +52,7 @@ export const InteractiveCrossSection: React.FC<InteractiveCrossSectionProps> = (
           <span className="text-xs font-bold tracking-tight text-fg uppercase">
             Interactive Cross-Section Slicer
           </span>
+          <HelpTip topic="slicer" side="left" />
         </div>
         <p className="text-xs text-fg-2 leading-relaxed">
           No grid cells are available along this line for <span className="font-mono">{sceneId}</span>, so no
@@ -88,6 +90,7 @@ export const InteractiveCrossSection: React.FC<InteractiveCrossSectionProps> = (
           <span className="text-xs font-bold tracking-tight text-fg uppercase">
             Interactive Cross-Section Slicer
           </span>
+          <HelpTip topic="slicer" side="left" />
         </div>
         <span className="text-[11px] font-mono font-semibold text-fg-2 bg-subtle px-2 py-0.5 rounded">
           X = {nearest.x.toFixed(1)}m

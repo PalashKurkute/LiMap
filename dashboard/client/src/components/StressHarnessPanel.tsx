@@ -1,3 +1,4 @@
+import { HelpTip } from '../ui/HelpTip';
 import React from 'react';
 import type { StressModeId } from '../types/telemetry';
 import { ShieldAlert, CheckCircle, EyeOff } from 'lucide-react';
@@ -37,6 +38,7 @@ export const StressHarnessPanel: React.FC<StressHarnessPanelProps> = ({
         <div className="flex items-center gap-2">
           <ShieldAlert size={15} className="text-fg" />
           <span className="text-xs font-bold tracking-tight uppercase">Sensor dropout preview</span>
+          <HelpTip topic="stress" side="left" />
         </div>
         <span className="text-[10px] font-mono font-medium text-warn-fg bg-warn-bg border border-warn-line px-2 py-0.5 rounded">
           VISUAL ONLY

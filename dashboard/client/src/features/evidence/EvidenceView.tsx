@@ -1,3 +1,4 @@
+import { HelpTip } from '../../ui/HelpTip';
 import React, { useEffect } from 'react';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import type { BaselineMetrics, ResultEnvelope } from '../../types/telemetry';
@@ -63,6 +64,7 @@ export const EvidenceView: React.FC<EvidenceViewProps> = ({ baselines }) => {
             <span className="flex items-center gap-1.5"><ProvenanceBadge kind="MEASURED" /> run on data</span>
             <span className="flex items-center gap-1.5"><ProvenanceBadge kind="CALCULATED" /> derived arithmetically</span>
             <span className="flex items-center gap-1.5"><ProvenanceBadge kind="DATASET" /> from the dataset</span>
+            <HelpTip topic="evidence-tags" />
           </div>
         </header>
 

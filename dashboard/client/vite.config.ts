@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
@@ -6,6 +7,13 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [tailwindcss(), react()],
   build: {
+    // Two pages: the home screen at / and the dashboard at /dashboard/ (each is a plain HTML file, so any static host serves them).
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        dashboard: fileURLToPath(new URL('./dashboard/index.html', import.meta.url)),
+      },
+    },
     // The 3D view's chunk is mostly three.js (~590 kB minified) and cannot be split further. The limit sits just above it
     // so the warning returns if that chunk, or any other, grows.
     chunkSizeWarningLimit: 650,

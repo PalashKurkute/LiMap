@@ -1,3 +1,4 @@
+import { HelpTip } from './ui/HelpTip';
 import React, { Suspense, useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import type {
   SceneId,
@@ -393,6 +394,7 @@ export const App: React.FC = () => {
                       </button>
                     );
                   })}
+                  <HelpTip topic="scenes" className="mx-1.5" />
                 </div>
 
                 {pipelineData && !isRealScene && (
@@ -419,9 +421,11 @@ export const App: React.FC = () => {
                         {m === 'pipeline' ? 'Pipeline output' : 'Concept view'}
                       </button>
                     ))}
+                    <HelpTip topic="view-mode" className="mx-1.5" />
                   </div>
                 )}
 
+                <div className="flex items-center gap-1.5">
                 <span
                   data-region="provenance"
                   data-tour="provenance"
@@ -443,6 +447,8 @@ export const App: React.FC = () => {
                         : 'Real recording · SemanticKITTI seq 08 · dataset labels'
                       : 'Synthetic scan · pipeline output'}
                 </span>
+                <HelpTip topic="stamp" className="pointer-events-auto" />
+                </div>
 
                 <TacticalObjectiveCard
                   sceneId={activeScene}
@@ -534,9 +540,12 @@ export const App: React.FC = () => {
               {activeTab === 'displays' && (
                 <div className="flex flex-col gap-4">
                   <div data-tour="draw-mode" className="bg-panel border border-line-strong rounded-xl p-4 shadow-sm flex flex-col gap-1.5">
-                    <span className="text-[11px] font-bold text-fg uppercase tracking-wide">
-                      {renderMode === 'pipeline' ? 'What to draw' : 'Terrain'}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-bold text-fg uppercase tracking-wide">
+                        {renderMode === 'pipeline' ? 'What to draw' : 'Terrain'}
+                      </span>
+                      <HelpTip topic="draw-mode" side="left" />
+                    </div>
                     <div role="radiogroup" aria-label="What to draw" className="flex flex-col gap-1.5">
                       {terrainOptions.map((grid) => {
                         const isSelected = displayMode === grid.id;
@@ -585,6 +594,7 @@ export const App: React.FC = () => {
                       <div className="text-xs font-bold text-fg uppercase flex items-center gap-1.5">
                         <Gauge size={14} className="text-fg" />
                         <span>Vehicle model (simulated)</span>
+                        <HelpTip topic="vehicle-model" side="left" />
                       </div>
                       <button
                         onClick={() => {
@@ -634,6 +644,7 @@ export const App: React.FC = () => {
                     <div className="text-xs font-bold text-fg uppercase flex items-center gap-1.5 border-b border-line pb-2">
                       <ShieldCheck size={14} className="text-fg" />
                       <span>Memory</span>
+                      <HelpTip topic="memory" side="left" />
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 font-mono">

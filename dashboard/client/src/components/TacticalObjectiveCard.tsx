@@ -1,3 +1,4 @@
+import { HelpTip } from '../ui/HelpTip';
 import React, { useState } from 'react';
 import type { SceneId, CameraViewMode, ColorMapMode, TelemetryData, BaselineMetrics, RenderMode } from '../types/telemetry';
 import { POOL_MB } from '../lib/constants';
@@ -40,7 +41,10 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
   return (
     <div data-region="scene-card" data-tour="scene-card" className="pointer-events-auto w-80 max-w-full bg-panel/95 backdrop-blur-md border border-line/90 rounded-2xl shadow-lg text-fg transition-all select-none overflow-hidden">
       <div className="px-3.5 py-2.5 border-b border-line flex items-center justify-between bg-subtle/70">
-        <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-fg">{info.label}</span>
+        <span className="flex items-center gap-1.5">
+          <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-fg">{info.label}</span>
+          <HelpTip topic="scene-card" side="right" />
+        </span>
 
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
@@ -243,6 +247,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
               <span className="text-[10px] font-bold text-fg-2 uppercase flex items-center gap-1 font-mono">
                 <Camera size={11} className="text-fg-muted" aria-hidden="true" />
                 <span>Camera</span>
+                <HelpTip topic="camera" />
               </span>
               <Segmented<CameraViewMode>
                 ariaLabel="Camera"
@@ -256,6 +261,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
               <span className="text-[10px] font-bold text-fg-2 uppercase flex items-center gap-1 font-mono">
                 <Palette size={11} className="text-fg-muted" aria-hidden="true" />
                 <span>Colour</span>
+                <HelpTip topic="colour" />
               </span>
               <Segmented<ColorMapMode>
                 ariaLabel="Colour by"
@@ -266,6 +272,7 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
             </div>
 
             {onFly && (
+              <div className="flex items-center gap-2">
               <button
                 data-tour="fly"
                 onClick={onFly}
@@ -281,6 +288,8 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
                 {flying ? <Square size={11} aria-hidden="true" /> : <Play size={11} aria-hidden="true" />}
                 <span>{flying ? 'Stop the fly-through' : 'Fly under the bridge'}</span>
               </button>
+              <HelpTip topic="fly" side="top" />
+              </div>
             )}
           </div>
         </div>

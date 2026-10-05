@@ -1,8 +1,10 @@
+import { HelpTip } from '../ui/HelpTip';
 import React, { useEffect } from 'react';
 import type { DataSource, SceneId, SnapshotMeta } from '../types/telemetry';
 import type { SceneStatus } from '../data/useSceneData';
 import { Database, Moon, SlidersHorizontal, Sun } from 'lucide-react';
 import { TourLauncher } from '../tour/TourLauncher';
+import LogoMark from '../brand/LogoMark';
 import { sceneByKey } from '../data/scenes';
 import { isAppScope } from '../lib/keyScope';
 import { toggleTheme, useTheme } from '../theme/theme';
@@ -61,7 +63,15 @@ export const Header: React.FC<HeaderProps> = ({
       className="h-13 shrink-0 bg-panel border-b border-line px-4 flex items-center justify-between gap-3 z-30 select-none"
     >
       <div className="flex items-center gap-2.5 min-w-0">
-        <span className="text-sm font-bold tracking-tight text-fg whitespace-nowrap">LiMap</span>
+        <a
+          href="/"
+          title="Home"
+          aria-label="LiMap home"
+          className="flex items-center gap-2 rounded-md text-sm font-bold tracking-tight text-fg whitespace-nowrap hover:text-accent-text"
+        >
+          <LogoMark size={26} />
+          <span>LiMap</span>
+        </a>
         <span className="text-[10px] font-mono font-bold bg-accent text-accent-on px-1.5 py-0.5 rounded">2.5D</span>
         <span className="hidden xl:inline text-xs text-fg-muted font-medium truncate">
           Adaptive variable-resolution LiDAR mapping
@@ -107,6 +117,7 @@ export const Header: React.FC<HeaderProps> = ({
                   ? 'Loading…'
                   : 'No scene data'}
           </span>
+          <HelpTip topic="data-source" />
         </div>
 
         <button

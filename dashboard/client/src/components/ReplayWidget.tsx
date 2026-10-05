@@ -1,3 +1,4 @@
+import { HelpTip } from '../ui/HelpTip';
 import React from 'react';
 import { Play, Pause, RotateCcw } from 'lucide-react';
 
@@ -27,7 +28,10 @@ export const ReplayWidget: React.FC<ReplayWidgetProps> = ({
       className="absolute bottom-4 right-4 z-20 w-80 max-w-[calc(100%-2rem)] rounded-xl border border-line-strong bg-panel p-4 shadow-xl flex flex-col gap-3 select-none text-fg"
     >
       <div className="flex items-center justify-between">
-        <span className="text-xs font-bold uppercase tracking-wider text-fg">Playback</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-bold uppercase tracking-wider text-fg">Playback</span>
+          <HelpTip topic="playback" side="top" />
+        </div>
         <span
           className="text-[10px] font-mono font-semibold rounded border border-warn-line bg-warn-bg px-2 py-0.5 text-warn-fg"
           title="The vehicle follows a hand-built loop. It is an illustration, not planner output or a recording."

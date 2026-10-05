@@ -1,3 +1,4 @@
+import { HelpTip } from '../../ui/HelpTip';
 import React, { useMemo } from 'react';
 import type { ColorMapMode, GridCellData, RenderMode } from '../../types/telemetry';
 import { useTheme } from '../../theme/theme';
@@ -85,7 +86,10 @@ export const ViewportLegend: React.FC<ViewportLegendProps> = ({ renderMode, colo
       data-region="viewport-legend"
       className="pointer-events-auto absolute bottom-4 left-4 z-20 flex max-w-52 flex-col gap-1.5 rounded-xl border border-line bg-panel/90 p-2.5 text-[10px] text-fg-2 shadow-md backdrop-blur-md"
     >
-      <span className="font-mono font-bold uppercase tracking-wider text-fg-muted">{title}</span>
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-mono font-bold uppercase tracking-wider text-fg-muted">{title}</span>
+        <HelpTip topic="legend" side="top" />
+      </div>
       {body}
     </div>
   );

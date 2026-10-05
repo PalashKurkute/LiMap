@@ -1,3 +1,4 @@
+import { HelpTip } from '../ui/HelpTip';
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import {
   ArrowLeft,
@@ -550,6 +551,7 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
           </span>
         </div>
 
+        <div className="flex items-center gap-1.5">
         <div
           data-tour="inspector-colour"
           inert={underpassOn}
@@ -577,6 +579,8 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
             </button>
           ))}
         </div>
+          <HelpTip topic="inspector-colour" side="left" />
+        </div>
       </header>
 
       {/* Second toolbar: view, foveation preset, comparison, guides */}
@@ -592,8 +596,10 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
             onChange={(id) => setInspector({ projection: id })}
             options={PROJECTION_OPTIONS}
           />
+          <HelpTip topic="projection" />
         </div>
 
+        <div className="flex items-center gap-1.5">
         <div data-tour="fovea-presets" inert={underpassOn} className={`flex items-center gap-2 ${underpassOn ? 'opacity-40' : ''}`}>
           <span className="font-mono text-fg-muted" title="Re-runs this scan through the grid with each speed or turn preset">
             Fovea preset
@@ -606,7 +612,10 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
           />
           {presetLoading && <span className="font-mono text-fg-muted">loading…</span>}
         </div>
+        <HelpTip topic="fovea-presets" />
+        </div>
 
+        <div className="flex items-center gap-1.5">
         <button
           data-tour="compare-toggle"
           onClick={() => setInspector({ compare: !compare })}
@@ -619,7 +628,10 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
           <SplitSquareHorizontal size={13} aria-hidden="true" />
           <span>Compare with uniform 5 cm</span>
         </button>
+        <HelpTip topic="compare" />
+        </div>
 
+        <div className="flex items-center gap-1.5">
         <button
           data-tour="underpass-toggle"
           onClick={() => setInspector({ underpass: !underpass })}
@@ -637,7 +649,10 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
           <Route size={13} aria-hidden="true" />
           <span>Underpass: one height vs 2.5D</span>
         </button>
+        <HelpTip topic="underpass" />
+        </div>
 
+        <div className="flex items-center gap-1.5">
         <button
           onClick={() => setInspector({ guides: !guides })}
           aria-pressed={guides}
@@ -649,6 +664,8 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
           {guides ? <Eye size={13} aria-hidden="true" /> : <EyeOff size={13} aria-hidden="true" />}
           <span>Guides</span>
         </button>
+        <HelpTip topic="guides" />
+        </div>
       </div>
 
       <p data-region="inspector-hint" className="px-4 py-1.5 text-[11px] text-fg-2 border-b border-line bg-subtle shrink-0">
@@ -692,6 +709,7 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
               <div className="text-[10px] text-fg-muted font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
                 <Crosshair size={12} className="text-accent-text" />
                 <span>Ring resolution filter</span>
+                <HelpTip topic="ring-filter" side="right" />
               </div>
               <div className="flex gap-1 flex-wrap">
                 <button
@@ -890,6 +908,7 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
               <span className="font-bold text-fg uppercase tracking-wider text-[11px] flex items-center gap-1.5">
                 <Database size={13} className="text-accent-text" />
                 <span>Cell inspector</span>
+                <HelpTip topic="cell-inspector" side="left" />
               </span>
               <span className="text-[10px] font-mono text-fg-muted">
                 {selectedCell ? `ix: ${selectedCell.ix}, iy: ${selectedCell.iy}` : 'Select a cell'}
@@ -939,7 +958,10 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
           {/* Foveation: where the fine cells sit for the chosen preset (all values from the exported variant file) */}
           {!underpassOn && (
           <div data-region="fovea-card" className="p-4 flex flex-col gap-2.5">
-            <span className="font-bold text-fg uppercase tracking-wider text-[11px]">Foveation</span>
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-fg uppercase tracking-wider text-[11px]">Foveation</span>
+              <HelpTip topic="fovea-card" side="left" />
+            </div>
             {foveaMeta?.fovea ? (
               <div className="bg-subtle border border-line rounded-lg p-3 flex flex-col gap-1.5 text-[11px] font-mono">
                 <Row label="Preset" value={foveaMeta.fovea.preset.replace(/_/g, ' ').toLowerCase()} />
@@ -1035,6 +1057,7 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
             <span className="font-bold text-fg uppercase tracking-wider text-[11px] flex items-center gap-1.5">
               <Cpu size={13} className="text-accent-text" />
               <span>Scene statistics</span>
+              <HelpTip topic="scene-stats" side="left" />
             </span>
 
             <div className="bg-subtle border border-line rounded-lg p-3 flex flex-col gap-1.5 text-[11px] font-mono">

@@ -12,11 +12,12 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCcw,
+  Route,
 } from 'lucide-react';
 import type { TelemetryResponse, SceneId, SceneData, GridCellData, LatticeRing } from '../types/telemetry';
 import { POOL_MB } from '../lib/constants';
 import { isAppScope } from '../lib/keyScope';
-import { useTheme } from '../theme/theme';
+import { readToken, useTheme } from '../theme/theme';
 import {
   cellKey,
   getInspector as getInspectorState,
@@ -31,8 +32,11 @@ import { Segmented } from '../ui/Segmented';
 import { inspectorHint } from '../data/scenes';
 import { computeGroundZ } from '../data/pipeline';
 import { presetVariantId, useVariant, useVariantAvailability } from '../data/variants';
+import { usePlanner, usePlannerAvailability } from '../data/planner';
 import { ProvenanceBadge } from '../features/evidence/primitives';
 import { drawInspector, type CellLayer } from '../features/inspector/draw';
+import { UNDERPASS_HINT, drawCostmap, fitUnderpass } from '../features/inspector/underpass';
+import { UnderpassCard, UnderpassLegend, UnderpassPaneLabel } from '../features/inspector/UnderpassPanels';
 import { isoDepth, makeProjection } from '../features/inspector/projection';
 import {
   SEMANTIC_CLASSES,
@@ -112,7 +116,7 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
   // Colour, ring filter, projection, preset, compare and selection live in a shared store (state/inspector.ts) so
   // they survive switching views and can be driven by the tour through the same setters a click uses.
   const inspector = useInspector();
-  const { colorBy, ringFilter: filterRing, projection: projMode, guides, preset, compare, divider } = inspector;
+  const { colorBy, ringFilter: filterRing, projection: projMode, guides, preset, compare, underpass, divider } = inspector;
   const setColorBy = (id: ColorBy) => setInspector({ colorBy: id });
   const setFilterRing = (r: number | 'all') => setInspector({ ringFilter: r });
 
@@ -125,6 +129,15 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
   const foveaCells = presetId && presetVar.data ? presetVar.data.cells : baseCells;
   const uniformCells = compare && uniformVar.data ? uniformVar.data.cells : null;
   const comparing = !!uniformCells;
+
+  // Underpass comparison: the planner snapshot, only for scenes the manifest lists one for.
+  const plannerAvailable = usePlannerAvailability(activeScene);
+  const planner = usePlanner(activeScene, underpass && plannerAvailable === true);
+  const underpassOn = underpass && !!planner.data;
+  useEffect(() => {
+    // Moving to a scene without a planner snapshot switches the comparison off instead of leaving a dead mode on.
+    if (underpass && plannerAvailable === false) setInspector({ underpass: false });
+  }, [underpass, plannerAvailable]);
   const shift = useMemo(() => ({ x: foveaMeta?.fovea?.shift_x_m ?? 0, y: foveaMeta?.fovea?.shift_y_m ?? 0 }), [foveaMeta]);
 
   const selectedCell = useMemo<GridCellData | null>(
@@ -184,6 +197,13 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
     setView({ zoom, pan: { x: size.w / 2 - base.x, y: size.h / 2 - base.y } });
   }, [focusNonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Fit the underpass into one pane when the comparison turns on (and again if its data arrives later).
+  useEffect(() => {
+    if (!underpassOn || !planner.data || size.w === 0) return;
+    const f = fitUnderpass(planner.data, size.w / 2, size.h);
+    setInspector({ focus: { x: f.x, y: f.y, zoom: f.zoom, nonce: (getInspectorState().focus?.nonce ?? 0) + 1 } });
+  }, [underpassOn, planner.data, size.w === 0]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ---- derived cell sets ----
   const ringCounts = useMemo(() => {
     const counts = [0, 0, 0, 0];
@@ -240,6 +260,44 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
     if (canvas.height !== pxH) canvas.height = pxH;
     ctx.setTransform(size.dpr, 0, 0, size.dpr, 0, 0);
 
+    if (underpassOn && planner.data) {
+      // Two panes side by side, each its own costmap, sharing one pan and zoom.
+      const data = planner.data;
+      const half = size.w / 2;
+      (['naive', 'aware'] as const).forEach((grid, i) => {
+        drawInspector({
+          ctx,
+          w: size.w,
+          h: size.h,
+          proj: makeProjection({
+            mode: '2d',
+            zoom: view.zoom,
+            origin: { x: half * (i + 0.5) + view.pan.x, y: size.h * 0.5 + view.pan.y },
+            groundZ,
+          }),
+          layers: [],
+          colorBy,
+          theme,
+          rings: ringGeoms,
+          shift: { x: 0, y: 0 },
+          showOutline: false,
+          guides,
+          selected: null,
+          groundZ,
+          pane: { x0: half * i, x1: half * (i + 1) },
+          overlay: (c, pr) => drawCostmap(c, pr, data, grid, size.w, size.h),
+        });
+      });
+      ctx.strokeStyle = readToken('--scene-grid-major');
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(Math.round(half) + 0.5, 0);
+      ctx.lineTo(Math.round(half) + 0.5, size.h);
+      ctx.stroke();
+      markReady('inspector-drawn');
+      return;
+    }
+
     const layers: CellLayer[] =
       comparing && uniformDisplayed
         ? [
@@ -264,11 +322,12 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
       groundZ,
     });
     if (foveaDisplayed.length > 0) markReady('inspector-drawn');
-  }, [foveaDisplayed, uniformDisplayed, comparing, splitX, proj, colorBy, theme, ringGeoms, shift, foveaMeta, guides, selectedCell, size, groundZ]);
+  }, [foveaDisplayed, uniformDisplayed, comparing, splitX, proj, colorBy, theme, ringGeoms, shift, foveaMeta, guides, selectedCell, size, groundZ, underpassOn, planner.data, view]);
 
   // ---- picking ----
   const pickAt = useCallback(
     (sx: number, sy: number): GridCellData | null => {
+      if (underpassOn) return null;
       const set = comparing && uniformDisplayed && sx < splitX ? uniformDisplayed : foveaDisplayed;
       let best: GridCellData | null = null;
       let bestD = Infinity;
@@ -295,7 +354,7 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
       }
       return best;
     },
-    [comparing, uniformDisplayed, splitX, foveaDisplayed, proj, view.zoom],
+    [underpassOn, comparing, uniformDisplayed, splitX, foveaDisplayed, proj, view.zoom],
   );
 
   const localPoint = (e: { clientX: number; clientY: number }) => {
@@ -358,21 +417,30 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
       const cx = e.clientX - rect.left;
       const cy = e.clientY - rect.top;
       const oyFrac = projMode === 'iso' ? ISO_ORIGIN_Y : 0.5;
+      // Side by side, each pane has its own origin (a quarter and three quarters across).
+      const baseX = underpassOn ? (cx < rect.width / 2 ? rect.width / 4 : (rect.width * 3) / 4) : rect.width / 2;
       setView((v) => {
         const nz = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.zoom * Math.exp(-e.deltaY * 0.0015)));
         const k = nz / v.zoom;
-        const ox = rect.width / 2 + v.pan.x;
+        const ox = baseX + v.pan.x;
         const oy = rect.height * oyFrac + v.pan.y;
-        return { zoom: nz, pan: { x: cx - (cx - ox) * k - rect.width / 2, y: cy - (cy - oy) * k - rect.height * oyFrac } };
+        return { zoom: nz, pan: { x: cx - (cx - ox) * k - baseX, y: cy - (cy - oy) * k - rect.height * oyFrac } };
       });
     };
     canvas.addEventListener('wheel', onWheel, { passive: false });
     return () => canvas.removeEventListener('wheel', onWheel);
-  }, [projMode]);
+  }, [projMode, underpassOn]);
 
   const zoomBy = (factor: number) =>
     setView((v) => ({ ...v, zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.zoom * factor)) }));
   const resetView = () => setView({ zoom: DEFAULT_ZOOM, pan: { x: 0, y: 0 } });
+
+  // The underpass comparison zooms to fit; when it ends the map goes back to its normal view.
+  const wasUnderpass = useRef(false);
+  useEffect(() => {
+    if (wasUnderpass.current && !underpassOn) setView({ zoom: DEFAULT_ZOOM, pan: { x: 0, y: 0 } });
+    wasUnderpass.current = underpassOn;
+  }, [underpassOn]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLCanvasElement>) => {
     const STEP = 40;
@@ -482,7 +550,13 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
           </span>
         </div>
 
-        <div data-tour="inspector-colour" className="flex items-center gap-1.5 flex-wrap" role="group" aria-label="Colour cells by">
+        <div
+          data-tour="inspector-colour"
+          inert={underpassOn}
+          className={`flex items-center gap-1.5 flex-wrap ${underpassOn ? 'opacity-40' : ''}`}
+          role="group"
+          aria-label="Colour cells by"
+        >
           <span className="text-[11px] font-mono text-fg-muted flex items-center gap-1">
             <Filter size={12} />
             <span>Colour by</span>
@@ -520,7 +594,7 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
           />
         </div>
 
-        <div data-tour="fovea-presets" className="flex items-center gap-2">
+        <div data-tour="fovea-presets" inert={underpassOn} className={`flex items-center gap-2 ${underpassOn ? 'opacity-40' : ''}`}>
           <span className="font-mono text-fg-muted" title="Re-runs this scan through the grid with each speed or turn preset">
             Fovea preset
           </span>
@@ -547,6 +621,24 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
         </button>
 
         <button
+          data-tour="underpass-toggle"
+          onClick={() => setInspector({ underpass: !underpass })}
+          aria-pressed={underpass}
+          disabled={plannerAvailable !== true}
+          title={
+            plannerAvailable === true
+              ? 'The same scan as a costmap from a one-height grid and from the 2.5D grid, and what the planner does with each'
+              : 'No planner run is exported for this scene'
+          }
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+            underpass ? 'bg-accent text-accent-on border-accent' : 'bg-subtle text-fg-2 border-line-strong hover:text-fg'
+          }`}
+        >
+          <Route size={13} aria-hidden="true" />
+          <span>Underpass: one height vs 2.5D</span>
+        </button>
+
+        <button
           onClick={() => setInspector({ guides: !guides })}
           aria-pressed={guides}
           title="Show ring labels and the forward / left axes"
@@ -560,7 +652,13 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
       </div>
 
       <p data-region="inspector-hint" className="px-4 py-1.5 text-[11px] text-fg-2 border-b border-line bg-subtle shrink-0">
-        {hint} <span className="text-fg-muted">{modeInfo}.</span>
+        {underpassOn ? (
+          UNDERPASS_HINT
+        ) : (
+          <>
+            {hint} <span className="text-fg-muted">{modeInfo}.</span>
+          </>
+        )}
       </p>
 
       <div className="flex-1 flex overflow-hidden relative">
@@ -572,7 +670,12 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
             role="img"
             data-fovea-shift={foveaMeta ? `${shift.x},${shift.y}` : '0,0'}
             data-projection={projMode}
-            aria-label={`${projMode === 'iso' ? 'Isometric' : 'Top-down'} map of ${foveaDisplayed.length} grid cells coloured by ${colorBy}. Arrow keys pan, plus and minus zoom.`}
+            data-underpass={underpassOn ? 'on' : 'off'}
+            aria-label={
+              underpassOn
+                ? 'Two costmaps of the same scan side by side: from a one-height grid on the left and from the 2.5D grid on the right. Arrow keys pan, plus and minus zoom.'
+                : `${projMode === 'iso' ? 'Isometric' : 'Top-down'} map of ${foveaDisplayed.length} grid cells coloured by ${colorBy}. Arrow keys pan, plus and minus zoom.`
+            }
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerLeave={onPointerLeave}
@@ -583,6 +686,7 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
           />
 
           {/* Ring filter */}
+          {!underpassOn && (
           <div className="absolute top-4 left-4 flex flex-col gap-2 z-20">
             <div data-tour="ring-filter" className="bg-panel/90 border border-line rounded-xl p-2.5 backdrop-blur-md flex flex-col gap-1.5 shadow-lg text-xs font-mono">
               <div className="text-[10px] text-fg-muted font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
@@ -614,6 +718,15 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
               </div>
             </div>
           </div>
+          )}
+
+          {/* Underpass: a title and verdict over each pane */}
+          {underpassOn && planner.data && (
+            <>
+              <UnderpassPaneLabel data={planner.data} grid="naive" leftPct={25} />
+              <UnderpassPaneLabel data={planner.data} grid="aware" leftPct={75} />
+            </>
+          )}
 
           {/* A/B swipe divider */}
           {comparing && (
@@ -649,7 +762,7 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
           )}
 
           {/* Cursor readout */}
-          {readout && (
+          {readout && !underpassOn && (
             <div
               data-region="inspector-readout"
               className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 rounded-lg border border-line bg-panel/90 px-3 py-1 text-[11px] font-mono text-fg-2 shadow-md backdrop-blur-md pointer-events-none whitespace-nowrap"
@@ -675,7 +788,8 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
           </div>
 
           {/* Legend */}
-          {baseCells.length > 0 && (
+          {underpassOn && <UnderpassLegend />}
+          {!underpassOn && baseCells.length > 0 && (
             <div
               data-region="inspector-legend"
               className="absolute bottom-4 right-4 z-20 bg-panel/90 border border-line rounded-xl p-2.5 backdrop-blur-md shadow-md text-[10px] font-mono text-fg-2 max-w-56"
@@ -763,6 +877,11 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
           data-tour="cell-inspector"
           className="w-80 xl:w-96 border-l border-line bg-panel overflow-y-auto flex flex-col divide-y divide-line text-xs z-20 shrink-0"
         >
+          {/* While the underpass comparison is on its figures lead the sidebar, so they stay in view. */}
+          {underpass && (
+            <UnderpassCard data={planner.data} status={planner.status} minClearance={telemetryData?.telemetry?.tactical_summary?.min_clearance_m ?? null} />
+          )}
+
           <div className="p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <span className="font-bold text-fg uppercase tracking-wider text-[11px] flex items-center gap-1.5">
@@ -814,6 +933,7 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
           </div>
 
           {/* Foveation: where the fine cells sit for the chosen preset (all values from the exported variant file) */}
+          {!underpassOn && (
           <div data-region="fovea-card" className="p-4 flex flex-col gap-2.5">
             <span className="font-bold text-fg uppercase tracking-wider text-[11px]">Foveation</span>
             {foveaMeta?.fovea ? (
@@ -854,6 +974,8 @@ export const DataInspectionScreen: React.FC<DataInspectionScreenProps> = ({
               </p>
             )}
           </div>
+
+          )}
 
           {/* Uniform vs FoveaGrid, from the two exported grids */}
           {compare && (

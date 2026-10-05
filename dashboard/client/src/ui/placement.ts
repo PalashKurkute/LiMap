@@ -11,6 +11,9 @@ export interface Rect {
 
 export type Side = 'top' | 'bottom' | 'left' | 'right' | 'center';
 
+/** Where a popover sits along a tall anchor's edge: centred on it (default) or with its bottom on the anchor's bottom. */
+export type Align = 'center' | 'end';
+
 export function placePopover(
   anchor: Rect | null,
   size: { w: number; h: number },
@@ -18,6 +21,7 @@ export function placePopover(
   prefer: 'auto' | Side = 'auto',
   gap = 14,
   margin = 12,
+  align: Align = 'center',
 ): { left: number; top: number; side: Side } {
   const clampX = (x: number) => Math.min(Math.max(x, margin), Math.max(margin, vp.w - size.w - margin));
   const clampY = (y: number) => Math.min(Math.max(y, margin), Math.max(margin, vp.h - size.h - margin));
@@ -46,11 +50,13 @@ export function placePopover(
 
   const cx = anchor.left + anchor.width / 2;
   const cy = anchor.top + anchor.height / 2;
+  // Beside the anchor: centred on it, or (align 'end') down at its bottom so the top of a tall neighbour stays in view.
+  const sideTop = clampY(align === 'end' ? bottom - size.h : cy - size.h / 2);
   switch (side) {
     case 'right':
-      return { left: clampX(right + gap), top: clampY(cy - size.h / 2), side };
+      return { left: clampX(right + gap), top: sideTop, side };
     case 'left':
-      return { left: clampX(anchor.left - gap - size.w), top: clampY(cy - size.h / 2), side };
+      return { left: clampX(anchor.left - gap - size.w), top: sideTop, side };
     case 'bottom':
       return { left: clampX(cx - size.w / 2), top: clampY(bottom + gap), side };
     case 'top':

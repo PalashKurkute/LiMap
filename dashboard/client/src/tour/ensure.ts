@@ -64,6 +64,10 @@ export async function ensure(a: AppActions, w: Want): Promise<void> {
     await frames(3);
     await waitReady('variant', SETTLE_MS);
   }
+  if (w.inspector?.underpass === true) {
+    await frames(3);
+    await waitReady('planner', SETTLE_MS);
+  }
   await frames(2);
 }
 

@@ -27,6 +27,7 @@ import { disposeObject } from '../lib/disposeObject';
 import { clearReady, markReady } from '../state/readiness';
 import { PIPE_REL_MIN, PIPE_REL_SPAN } from '../data/pipeline';
 import { prefersReducedMotion } from '../lib/motion';
+import { FLIGHT_FOV_DEG, FLIGHT_HOLD_MS, planFlight, poseAt, poseNearX, type FlightPlan, type Path3 } from '../features/viewport/flythrough';
 
 interface ThreeViewportProps {
   sceneId: SceneId;
@@ -58,6 +59,21 @@ interface ThreeViewportProps {
   /** 'pipeline' draws the grid cells / raw returns the pipeline produced; 'concept' the hand-built illustration. */
   renderMode?: RenderMode;
   pipelineData?: PipelineData | null;
+  /** The route to fly (the planner's path as [x, y, heading]), or null when this scene has none. */
+  flightPath?: Path3 | null;
+  /** Increments to start the fly-through, or to stop it (and glide back) while it is running. */
+  flySignal?: number;
+  onFlightChange?: (flying: boolean) => void;
+}
+
+/** One fly-through in progress. `hold` is the still shot used when the user asks for reduced motion. */
+interface FlightRun {
+  plan: FlightPlan;
+  t0: number;
+  hold: boolean;
+  tDone: number | null;
+  /** The camera as it was before the shot, so the shot ends where it began, whatever the user had done to the view. */
+  before: { pos: THREE.Vector3; look: THREE.Vector3; up: THREE.Vector3; fov: number };
 }
 
 interface PipelineScene {
@@ -102,6 +118,9 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
   showScaleBar = true,
   renderMode = 'concept',
   pipelineData = null,
+  flightPath = null,
+  flySignal,
+  onFlightChange,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
@@ -239,6 +258,7 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
       cameraRef.current.up.set(0, 0, 1);
       targetCameraPos.current.set(car.x - 14, car.y - 14, car.z + 11);
       targetLookAt.current.set(car.x + 8, car.y, car.z);
+      if (!homeOrbitRef.current) homeOrbitRef.current = { pos: targetCameraPos.current.clone(), look: targetLookAt.current.clone() };
     } else if (mode === 'bev') {
       cameraRef.current.up.set(1, 0, 0);
       targetCameraPos.current.set(car.x, car.y, car.z + bevHeightRef.current);
@@ -249,6 +269,78 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
       targetLookAt.current.set(car.x + 25.0, car.y, car.z);
     }
   };
+
+  // Fly-through of the planned route. The script drives the camera exactly while it runs; when it ends the camera holds
+  // briefly and glides back to this mode's normal pose. Any mouse drag, wheel, camera change or reset takes over.
+  const flightRef = useRef<FlightRun | null>(null);
+  const onFlightChangeRef = useRef(onFlightChange);
+  const endFlightRef = useRef<(glideBack: boolean) => void>(() => undefined);
+
+  const endFlight = (glideBack: boolean) => {
+    const run = flightRef.current;
+    if (!run) return;
+    flightRef.current = null;
+    const cam = cameraRef.current;
+    if (cam) {
+      cam.fov = run.before.fov;
+      cam.up.copy(run.before.up);
+      cam.updateProjectionMatrix();
+      if (glideBack) {
+        targetCameraPos.current.copy(run.before.pos); // the camera eases back to where it was before the shot
+        targetLookAt.current.copy(run.before.look);
+      }
+    }
+    onFlightChangeRef.current?.(false);
+  };
+
+  // The opening orbit pose, remembered the first time the orbit camera is placed after the view is built, so that reset
+  // returns to exactly what was on screen at load (the orbit pose is worked out from the car, which has moved by then).
+  const homeOrbitRef = useRef<{ pos: THREE.Vector3; look: THREE.Vector3 } | null>(null);
+  const resetCamera = () => {
+    handleCameraChange(cameraModeRef.current); // up vector, field of view and this mode's own pose
+    const home = homeOrbitRef.current;
+    if (cameraModeRef.current === 'orbit' && home) {
+      targetCameraPos.current.copy(home.pos);
+      targetLookAt.current.copy(home.look);
+    }
+  };
+
+  const startFlight = () => {
+    const cam = cameraRef.current;
+    if (!cam || !flightPath || !isPipeline) return;
+    const plan = planFlight(flightPath, pipelineGroundZRef.current);
+    if (!plan) return;
+    const before = { pos: targetCameraPos.current.clone(), look: targetLookAt.current.clone(), up: cam.up.clone(), fov: cam.fov };
+    const holdStill = prefersReducedMotion();
+    const deckXs = (pipelineData?.cells ?? []).filter((c) => c.overhang_z != null).map((c) => c.x_m);
+    const pose = holdStill ? poseNearX(plan, deckXs.length ? Math.min(...deckXs) - 2 : null) : poseAt(plan, 0);
+    cam.up.set(0, 0, 1);
+    cam.fov = FLIGHT_FOV_DEG;
+    cam.updateProjectionMatrix();
+    targetCameraPos.current.set(...pose.pos);
+    targetLookAt.current.set(...pose.look);
+    cam.position.copy(targetCameraPos.current); // a cut to the start of the shot, so it is the same every time
+    currentLookAt.current.copy(targetLookAt.current);
+    flightRef.current = { plan, t0: performance.now(), hold: holdStill, tDone: null, before };
+    onFlightChangeRef.current?.(true);
+  };
+
+  // The animation loop and the mouse handlers outlive a render, so they reach the latest callbacks through refs.
+  useEffect(() => {
+    onFlightChangeRef.current = onFlightChange;
+    endFlightRef.current = endFlight;
+  });
+
+  useEffect(() => {
+    if (!flySignal) return;
+    if (flightRef.current) endFlight(true);
+    else startFlight();
+  }, [flySignal]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The route belongs to the pipeline's own output; leaving it (concept view) ends the flight where the camera is.
+  useEffect(() => {
+    if (!isPipeline && flightRef.current) endFlight(false);
+  }, [isPipeline]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Lightweight Display Mode & ROS 2 Layer Toggles Effect.
   // In pipeline mode every hand-built object is hidden and the pipeline's own output is shown instead.
@@ -1567,6 +1659,7 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
     const mouseNDC = new THREE.Vector2();
 
     const handleMouseDown = (e: MouseEvent) => {
+      if (flightRef.current) endFlightRef.current(false);
       if (e.button === 2) {
         isPanning = true;
       } else {
@@ -1652,6 +1745,7 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      if (flightRef.current) endFlightRef.current(false);
 
       const zoomDelta = Math.sign(e.deltaY) * Math.min(Math.abs(e.deltaY) * 0.0015, 0.25);
       const zoomFactor = 1.0 + zoomDelta;
@@ -1797,6 +1891,21 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
         );
       }
 
+      // Fly-through: the script sets the camera exactly (no easing lag); at the end it holds, then glides back.
+      const flight = flightRef.current;
+      if (flight && !flight.hold) {
+        const flightNow = performance.now();
+        const pose = poseAt(flight.plan, (flightNow - flight.t0) / 1000);
+        targetCameraPos.current.set(...pose.pos);
+        targetLookAt.current.set(...pose.look);
+        camera.position.copy(targetCameraPos.current);
+        currentLookAt.current.copy(targetLookAt.current);
+        if (pose.done) {
+          flight.tDone ??= flightNow;
+          if (flightNow - flight.tDone > FLIGHT_HOLD_MS) endFlightRef.current(true);
+        }
+      }
+
       // Camera smooth interpolation
       camera.position.lerp(targetCameraPos.current, 0.08);
       currentLookAt.current.lerp(targetLookAt.current, 0.08);
@@ -1850,6 +1959,10 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
     resizeObserver.observe(container);
 
     return () => {
+      if (flightRef.current) {
+        flightRef.current = null;
+        onFlightChangeRef.current?.(false);
+      }
       cancelAnimationFrame(animationId);
       domElement.removeEventListener('mousedown', handleMouseDown);
       container.removeEventListener('wheel', handleWheel);
@@ -1897,6 +2010,7 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
   // Prop Synchronization Effects
   useEffect(() => {
     if (propCameraMode) {
+      if (flightRef.current) endFlight(false);
       setCameraMode(propCameraMode);
       handleCameraChange(propCameraMode);
     }
@@ -1937,8 +2051,10 @@ export const ThreeViewport: React.FC<ThreeViewportProps> = ({
   useEffect(() => {
     if (resetSignal) {
       handleResetCar();
+      if (flightRef.current) endFlight(false);
+      resetCamera();
     }
-  }, [resetSignal]);
+  }, [resetSignal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div data-region="viewport-canvas" style={{ flex: 1, position: 'relative', overflow: 'hidden' }} ref={mountRef}>

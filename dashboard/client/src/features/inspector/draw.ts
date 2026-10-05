@@ -39,6 +39,10 @@ export interface DrawParams {
   guides: boolean;
   selected: GridCellData | null;
   groundZ: number;
+  /** Restrict everything to screen x in [x0, x1): one pane of a side-by-side view. */
+  pane?: { x0: number; x1: number } | null;
+  /** Extra drawing after the cells and before the range rings (the underpass costmaps and path). */
+  overlay?: ((ctx: CanvasRenderingContext2D, proj: Projection) => void) | null;
 }
 
 export function cellFillFn(colorBy: InspectorColorBy, theme: ResolvedTheme, rings: RingGeom[]): (c: GridCellData) => string {
@@ -80,7 +84,7 @@ function ringPath(ctx: CanvasRenderingContext2D, proj: Projection, cx: number, c
 }
 
 export function drawInspector(p: DrawParams): void {
-  const { ctx, w, h, proj, layers, colorBy, theme, rings, shift, showOutline, guides, selected, groundZ } = p;
+  const { ctx, w, h, proj, layers, colorBy, theme, rings, shift, showOutline, guides, selected, groundZ, pane, overlay } = p;
   const iso = proj.mode === 'iso';
   const zoom = proj.zoom;
 
@@ -92,6 +96,13 @@ export function drawInspector(p: DrawParams): void {
   const overhangTint = readToken('--scene-overhang');
   const ringColors = rings.map((r) => readToken(`--scene-ring-${r.id}`));
   const fill = cellFillFn(colorBy, theme, rings);
+
+  if (pane) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(pane.x0, 0, pane.x1 - pane.x0, h);
+    ctx.clip();
+  }
 
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
@@ -194,6 +205,8 @@ export function drawInspector(p: DrawParams): void {
     ctx.restore();
   }
 
+  overlay?.(ctx, proj);
+
   // Range rings, always centred on the vehicle. Faint when a shifted fovea outline is also drawn.
   rings.forEach((r, idx) => {
     ctx.beginPath();
@@ -290,4 +303,6 @@ export function drawInspector(p: DrawParams): void {
   ctx.strokeStyle = egoColor;
   ctx.lineWidth = 2;
   ctx.stroke();
+
+  if (pane) ctx.restore();
 }

@@ -18,6 +18,8 @@ export interface InspectorState {
   guides: boolean;
   preset: FoveaPresetId;
   compare: boolean;
+  /** Underpass comparison: two costmaps side by side (one-height grid vs 2.5D), top-down only. Excludes `compare`. */
+  underpass: boolean;
   /** Swipe divider position for the uniform-vs-FoveaGrid comparison, 0..1 from the left. */
   divider: number;
   /** Ask the canvas to centre on a world point; `nonce` makes repeated requests distinct. */
@@ -32,6 +34,7 @@ export const INSPECTOR_DEFAULTS: InspectorState = {
   guides: true,
   preset: 'NOMINAL',
   compare: false,
+  underpass: false,
   divider: 0.5,
   focus: null,
 };
@@ -44,7 +47,16 @@ export function getInspector(): InspectorState {
 }
 
 export function setInspector(patch: Partial<InspectorState>): void {
-  state = { ...state, ...patch };
+  const next = { ...state, ...patch };
+  // The two comparisons share the canvas, and the underpass costmaps are flat. Whichever the caller turns on wins; a
+  // caller that sets both explicitly is trusted. Keeping this here means a click, a key and the tour all behave alike.
+  if (patch.underpass === true) {
+    if (patch.compare === undefined) next.compare = false;
+    if (patch.projection === undefined) next.projection = '2d';
+  }
+  if (patch.compare === true && patch.underpass === undefined) next.underpass = false;
+  if (patch.projection === 'iso' && patch.underpass === undefined) next.underpass = false;
+  state = next;
   listeners.forEach((l) => l());
 }
 

@@ -6,7 +6,7 @@ import { useSyncExternalStore } from 'react';
  * instead of sleeping. The set is mirrored to <html data-ready="a b c"> so Playwright can wait with
  * `[data-ready~="viewport-built"]`.
  */
-export type ReadyKey = 'scene-data' | 'viewport-built' | 'inspector-drawn' | 'evidence-loaded' | 'variant';
+export type ReadyKey = 'scene-data' | 'viewport-built' | 'inspector-drawn' | 'evidence-loaded' | 'variant' | 'planner';
 
 const ready = new Set<ReadyKey>();
 const listeners = new Set<() => void>();

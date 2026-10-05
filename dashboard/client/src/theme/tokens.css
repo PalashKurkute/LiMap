@@ -77,6 +77,8 @@
   --scene-pole: #f59e0b;
   --scene-track: #10b981;
   --scene-overhang: #c026d3;
+  --scene-cost-lethal: #dc2626;
+  --scene-cost-risk: #d97706;
   --scene-hover: #ea580c;
   --scene-guide: #64748b;
   --scene-ego: #e11d48;
@@ -154,6 +156,8 @@
   --scene-pole: #fbbf24;
   --scene-track: #34d399;
   --scene-overhang: #f472b6;
+  --scene-cost-lethal: #f87171;
+  --scene-cost-risk: #fbbf24;
   --scene-hover: #fb923c;
   --scene-guide: #94a3b8;
   --scene-ego: #fb7185;

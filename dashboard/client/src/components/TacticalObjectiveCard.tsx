@@ -4,7 +4,7 @@ import { POOL_MB } from '../lib/constants';
 import { sceneInfo } from '../data/scenes';
 import { CAMERA_OPTIONS, colorOptionsFor } from '../data/viewOptions';
 import { Segmented } from '../ui/Segmented';
-import { ChevronDown, ChevronUp, Camera, Palette } from 'lucide-react';
+import { ChevronDown, ChevronUp, Camera, Palette, Play, Square } from 'lucide-react';
 
 interface TacticalObjectiveCardProps {
   sceneId: SceneId;
@@ -16,6 +16,9 @@ interface TacticalObjectiveCardProps {
   colorMode?: ColorMapMode;
   onColorModeChange?: (mode: ColorMapMode) => void;
   renderMode?: RenderMode;
+  /** Present when this scene has a route to fly (the planner's path under the bridge). */
+  onFly?: () => void;
+  flying?: boolean;
 }
 
 export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
@@ -28,6 +31,8 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
   colorMode = 'elevation',
   onColorModeChange,
   renderMode = 'concept',
+  onFly,
+  flying = false,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const info = sceneInfo(sceneId);
@@ -259,6 +264,24 @@ export const TacticalObjectiveCard: React.FC<TacticalObjectiveCardProps> = ({
                 options={colorOptionsFor(renderMode).map((o) => ({ id: o.id, label: o.label, title: o.desc }))}
               />
             </div>
+
+            {onFly && (
+              <button
+                data-tour="fly"
+                onClick={onFly}
+                title={
+                  flying
+                    ? 'Stop and glide back to the normal view'
+                    : 'A camera shot along the route the 2.5D planner found under the bridge'
+                }
+                className={`flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  flying ? 'border-accent bg-accent text-accent-on' : 'border-line-strong bg-subtle text-fg-2 hover:text-fg hover:bg-line'
+                }`}
+              >
+                {flying ? <Square size={11} aria-hidden="true" /> : <Play size={11} aria-hidden="true" />}
+                <span>{flying ? 'Stop the fly-through' : 'Fly under the bridge'}</span>
+              </button>
+            )}
           </div>
         </div>
       )}

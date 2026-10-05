@@ -243,7 +243,7 @@ const Tour: React.FC<TourProps> = ({ startAt, onExit }) => {
   // ---- render ----
   const hole: Rect | null =
     phase === 'ready' && rect ? { left: rect.left - PAD, top: rect.top - PAD, width: rect.width + PAD * 2, height: rect.height + PAD * 2 } : null;
-  const pos = placePopover(hole, popSize, vp, step.placement ?? 'auto');
+  const pos = placePopover(hole, popSize, vp, step.placement ?? 'auto', undefined, undefined, step.align);
   const last = index === STEPS.length - 1;
   const reduced = prefersReducedMotion();
   const body = phase === 'ready' ? step.body(data) : 'Getting ready…';

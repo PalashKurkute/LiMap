@@ -232,6 +232,64 @@ export interface VariantManifestEntry {
 
 export type VariantManifest = Record<string, Partial<Record<VariantId, VariantManifestEntry>>>;
 
+/**
+ * Planner snapshot (schema limap.planner/1, docs/DATA_VARIANTS.md): the bridge underpass replayed through the real
+ * costmap generator and Hybrid-A* planner, once per grid philosophy. Costmaps are sparse (only non-zero cells).
+ */
+export type PlannerGridId = 'naive' | 'aware';
+
+export interface PlannerResult {
+  traversable: boolean;
+  /** Path length plus risk and steering penalties; null when no path was found. */
+  cost: number | null;
+  waypoints: number;
+  /** [x, y, heading] in metres and radians; null when blocked; absent for the reference run. */
+  path?: [number, number, number][] | null;
+}
+
+export interface PlannerMap {
+  n: number;
+  ix: number[];
+  iy: number[];
+  /** Cost 1..lethal; zero cells are not stored. */
+  v: number[];
+}
+
+export interface PlannerMeta {
+  scene_id: string;
+  scenario: string;
+  generated_at: string;
+  git_sha: string;
+  label_source: string;
+  costmap: {
+    resolution_m: number;
+    origin_x_m: number;
+    origin_y_m: number;
+    nx: number;
+    ny: number;
+    vehicle_height_m: number;
+    lethal: number;
+  };
+  planner: { name: string; step_size_m: number; xy_resolution_m: number };
+  start: [number, number, number];
+  goal: [number, number, number];
+  grids: Record<PlannerGridId, { label: string; ignore_overhang_clearance: boolean; lethal_cells: number }>;
+}
+
+export interface PlannerFile {
+  schema: 'limap.planner/1';
+  meta: PlannerMeta;
+  maps: Record<PlannerGridId, PlannerMap>;
+  results: Record<PlannerGridId, PlannerResult> & { reference: PlannerResult };
+}
+
+export interface PlannerManifestEntry {
+  file: string;
+  bytes: number;
+}
+
+export type PlannerManifest = Record<string, PlannerManifestEntry>;
+
 export type DataSource = 'snapshot' | 'live';
 
 /** Everything the views need for the active scene, regardless of where it came from. */

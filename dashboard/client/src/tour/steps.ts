@@ -5,6 +5,7 @@ import { setThemePreference } from '../theme/theme';
 import { cellKey, getInspector, setInspector, type FoveaPresetId } from '../state/inspector';
 import { CELL_BYTES } from '../lib/constants';
 import { ensure, frames } from './ensure';
+import type { Align } from '../ui/placement';
 
 /**
  * The tour script. One ordered list; every step is driven by the user clicking Next (nothing advances by itself).
@@ -34,6 +35,8 @@ export interface TourStep {
   title: string;
   body: (d: TourData) => string;
   enter?: (c: TourCtx) => Promise<void>;
+  /** With a side placement: `end` puts the popover at the anchor's bottom edge instead of centred on it. */
+  align?: Align;
   /** The highlighted element stays clickable (everything else is blocked). */
   interactive?: boolean;
   /** Skipped silently when its anchor is not on screen (for example a header chip hidden on narrow windows). */
@@ -153,6 +156,16 @@ export const STEPS: TourStep[] = [
     anchor: '[data-tour="camera"]',
     title: 'Camera',
     body: () => 'Orbit with the mouse, follow the vehicle, or look straight down.',
+    interactive: true,
+    enter: ({ actions }) => ensure(actions, { ...bridge, view: 'hook_3d', viewMode: 'pipeline', colour: 'elevation', camera: 'orbit', drawer: null }),
+  },
+  {
+    id: 'fly',
+    anchor: '[data-tour="fly"]',
+    optional: true, // only scenes with a planner route have the button
+    title: 'Fly under the bridge',
+    body: () =>
+      'Click it for a camera shot along the route the 2.5D planner found through the underpass. Drag or scroll to take the camera back.',
     interactive: true,
     enter: ({ actions }) => ensure(actions, { ...bridge, view: 'hook_3d', viewMode: 'pipeline', colour: 'elevation', camera: 'orbit', drawer: null }),
   },
@@ -284,6 +297,22 @@ export const STEPS: TourStep[] = [
     interactive: true,
     enter: ({ actions }) =>
       ensure(actions, { ...bridge, view: 'data_inspection', inspector: { colorBy: 'semantics', ringFilter: 'all', projection: '2d', preset: 'NOMINAL', compare: true, divider: 0.5, selectedKey: null } }),
+  },
+  {
+    id: 'underpass',
+    anchor: '[data-tour="inspector-canvas"]',
+    placement: 'right',
+    align: 'end', // the results card is at the top of the sidebar; keep the popover below it
+    title: 'Underpass: one height versus 2.5D',
+    body: () =>
+      'The same scan becomes a costmap two ways: from a one-height grid on the left and from the 2.5D grid on the right. The planner tries the same route on each, and the panel above says what it found.',
+    interactive: true,
+    enter: ({ actions }) =>
+      ensure(actions, {
+        ...bridge,
+        view: 'data_inspection',
+        inspector: { colorBy: 'semantics', ringFilter: 'all', projection: '2d', preset: 'NOMINAL', compare: false, underpass: true, selectedKey: null },
+      }),
   },
   evidenceStep('ev-memory', 'Memory', 'A fixed pool versus dense maps. Capacity ratios are calculated; the measured saving in occupied cells is smaller, and both are shown.'),
   evidenceStep('ev-fidelity', 'Fidelity by ring', 'What the coarser far rings cost in accuracy, including the curbs that do not survive.'),

@@ -25,6 +25,7 @@ import { SCENES, sceneInfo } from './data/scenes';
 import { drawOptionsFor } from './data/viewOptions';
 import { ViewportLegend } from './features/viewport/ViewportLegend';
 import { fetchJson } from './data/api';
+import { loadPlanner } from './data/planner';
 import { prefersReducedMotion } from './lib/motion';
 import { isAppScope } from './lib/keyScope';
 import { clearReady, markReady } from './state/readiness';
@@ -87,6 +88,20 @@ export const App: React.FC = () => {
     z: -1.41,
   });
   const [resetSignal, setResetSignal] = useState<number>(0);
+  // Fly-through: the route comes from the planner snapshot (only the bridge scene has one).
+  const [flySignal, setFlySignal] = useState<number>(0);
+  const [flying, setFlying] = useState<boolean>(false);
+  const [route, setRoute] = useState<{ scene: SceneId; path: [number, number, number][] | null } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    loadPlanner(activeScene).then((d) => {
+      if (!cancelled) setRoute({ scene: activeScene, path: d?.results.aware.path ?? null });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeScene]);
+  const routePath = route?.scene === activeScene ? route.path : null;
 
   // Viewport & Shading controls
   const [cameraMode, setCameraMode] = useState<CameraViewMode>('orbit');
@@ -333,6 +348,9 @@ export const App: React.FC = () => {
                     showScaleBar={showScaleBar}
                     renderMode={renderMode}
                     pipelineData={pipelineData}
+                    flightPath={routePath}
+                    flySignal={flySignal}
+                    onFlightChange={setFlying}
                   />
                 </Suspense>
               </ViewBoundary>
@@ -428,6 +446,8 @@ export const App: React.FC = () => {
                   colorMode={colorMode}
                   onColorModeChange={setColorMode}
                   renderMode={renderMode}
+                  onFly={routePath && renderMode === 'pipeline' ? () => setFlySignal((n) => n + 1) : undefined}
+                  flying={flying}
                 />
               </div>
 

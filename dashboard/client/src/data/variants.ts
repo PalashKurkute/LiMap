@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { SceneId, VariantData, VariantFile, VariantId, VariantManifest } from '../types/telemetry';
 import type { FoveaPresetId } from '../state/inspector';
 import { fetchJson } from './api';
+import { loadManifest } from './manifest';
 import { decodeCells } from './snapshots';
 import { clearReady, markReady } from '../state/readiness';
 
@@ -10,18 +11,8 @@ import { clearReady, markReady } from '../state/readiness';
  * reference grid. Static files like the scene snapshots. The manifest is read first and only files it lists are
  * fetched, so a missing variant is "unavailable" instead of a 404 in the console.
  */
-let manifestPromise: Promise<VariantManifest | null> | null = null;
-
 export function loadVariantManifest(): Promise<VariantManifest | null> {
-  if (!manifestPromise) {
-    manifestPromise = fetchJson<{ variants?: VariantManifest }>('/data/manifest.json', { timeoutMs: 8000 }).then(
-      (m) => m?.variants ?? null,
-    );
-    manifestPromise.then((m) => {
-      if (!m) manifestPromise = null; // let the next navigation retry
-    });
-  }
-  return manifestPromise;
+  return loadManifest().then((m) => m?.variants ?? null);
 }
 
 /** NOMINAL is the scene's base snapshot, so it has no variant file. */

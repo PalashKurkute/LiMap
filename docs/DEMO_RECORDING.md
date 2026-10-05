@@ -19,6 +19,13 @@ beyond its short popover**: narration is yours.
    ```
    It works with no backend: every scene is a precomputed snapshot, and the status bar shows `API: offline`. To show
    `API: online`, also start the server from the repo root with `npm run server` before opening the page.
+   For the **upload demo** ("Analyze your own scan") the server must be running; with `npm run build` done it also serves
+   the site, so `npm run server` and `http://127.0.0.1:8000/` is enough. Have a `.bin` ready, for example one of the
+   generated scenes in `data/synthetic/` (made by `python data/generate_synthetic.py`). The button is disabled with "Needs
+   the local API running" when the status bar says `API: offline`. A first upload takes a moment; the scene card then shows
+   the analysis time measured on that run, the cell and point counts and the label source (heuristic unless an ONNX
+   model is present). Say that the labels are not ground truth. Presets, compare, underpass and the fly-through are not
+   available for an upload, because they need snapshots made in advance; a reload clears the scan.
 4. **Start from the home screen.** `http://127.0.0.1:4173/` is the home screen (logos, a short description and the team);
    **Open the dashboard** goes to `/dashboard/`, and **Take the guided tour** starts the tour there. To skip the home
    screen, open `http://127.0.0.1:4173/dashboard/?tour=1` (an old `/?tour=1` link redirects to it). The flag is removed from

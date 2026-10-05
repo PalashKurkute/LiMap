@@ -45,6 +45,18 @@ topic and put `<HelpTip topic="..." />` beside the control (outside any `inert` 
 is disabled). `e2e/help.spec.ts` fails if a topic is not used anywhere, or a tip does not fit the window. The honesty guard
 scans `src/help/` and `src/home/` for typed numbers with units, like the tour.
 
+## Analyze your own scan
+
+A button at the top left of the 3D view (`src/components/AnalyzeScan.tsx`, the request in `src/data/uploadScan.ts`) sends a
+SemanticKITTI / Velodyne `.bin` to `POST /api/analyze_scan`. The server builds the same snapshot the exporter writes (one
+shared implementation in `dashboard/server/app.py`) on a fresh grid, and the result becomes the "Your scan" scene
+(`SceneId` `'upload'`, outside the numbered 1-5 list). It is stored in memory only (`registerUpload` in
+`src/data/snapshots.ts`): nothing goes to localStorage, so a reload clears it. The button is disabled unless the health
+ping says the API is online; the size limit comes from `/api/health` (`max_scan_bytes`), never typed in the interface.
+The scene card shows the file name, the analysis time (MEASURED on the API machine), cell and point counts and the label
+source. Concept view, the fly-through, foveation presets, compare and underpass are unavailable for an upload (no
+variant or planner snapshots exist for it), and each says why.
+
 ## Take the tour
 
 A guided tour of every feature in **15 steps**: a spotlight on the real UI plus a short popover, advanced **only** by the
@@ -200,6 +212,7 @@ BASE_URL=https://<preview> npx playwright test e2e/smoke.spec.ts e2e/data.spec.t
 | `flythrough.spec.ts` | The route maths (eased, continuous, below the vehicle height the planner used); the button is on the bridge scene's pipeline view only; reduced motion gives a still shot and Stop glides back; with animations on the shot ends by itself and a drag takes the camera back at once; `R` puts an orbited camera back. |
 | `shortcuts.spec.ts` | The `?` sheet opens by key and from the Controls panel, holds focus, leaves everything behind it inert, returns focus, lists only keys the app handles, and stays out of the tour. |
 | `quality.spec.ts` | Every view has one `main` landmark, one level-one heading and one banner; the MEASURED, CALCULATED, ESTIMATE and DATASET badge text reaches 4.5:1 on its own tint on every surface in both themes; the API health ping backs off while the API is down. |
+| `upload.spec.ts` | With `/api/health` and `/api/analyze_scan` answered by `page.route` (the success body is a real committed snapshot with only its `meta` changed): the button is disabled offline and says why; a chosen file is POSTed raw with its name and content type; success shows "Your scan" with the stamp, time and counts; 400, 413, 500 and network errors show their message and keep the scene; an oversize file makes no request; presets, compare, underpass and fly are unavailable; a reload drops the scan and nothing is stored in the browser; keys 1-5 still work; axe-core clean (skipped unless `axe-core` or `AXE_CORE_JS` is available). |
 | `home.spec.ts` | The home screen shows both logos (the team logo matching the theme) and the description in both themes; one `main`, one `h1`, one banner and footer; the buttons reach the dashboard and the tour; the dashboard logo leads home; an old `/?tour=1` redirects; no failed request or console error; no horizontal overflow at 1280 and 390 px. The "How it fits a robot" section: four stages in order, each with its real/only-described lines, the gaps list, heading order h1 > h2 > h3, the link scrolls it into view (instantly under reduced motion), readable text in both themes, no overflow at 1280 and 390 px. |
 | `help.spec.ts` | Every "?" icon in the 3D view, Concept view, Controls panel, Map Inspector and Evidence opens its tip on hover with the topic's words, keeps it inside the window and closes it on leaving; keyboard focus opens it, Esc closes only the tip; every topic is used somewhere. |
 | `smoke.spec.ts` / `matrix.spec.ts` | Every scene × view × theme loads with no console errors; the first-visit callout shows once. |

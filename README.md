@@ -32,6 +32,11 @@ npm run server         # FastAPI on http://127.0.0.1:8000
 After `npm run build`, that server also serves the built site itself (home at `/`, dashboard at `/dashboard/`), so one
 process is enough on a demo machine.
 
+With the server running, **Analyze your own scan** (top left of the 3D view) takes a SemanticKITTI / Velodyne `.bin` file,
+runs it through the same grid code as the snapshots and shows it as a "Your scan" scene, with the analysis time measured
+on that run. It needs the local API (the button is disabled without it), keeps the scan in memory only, and labels it with
+the geometric heuristic unless an ONNX model is present. See `docs/reference/KNOWN_LIMITATIONS.md` section 11.
+
 Production build and preview: `npm run build && npm run preview` (from the repository root, or inside
 `dashboard/client`). The build fails on retired claims, retyped benchmark numbers and hard-coded colours; see
 [dashboard/client/README.md](dashboard/client/README.md).

@@ -593,6 +593,14 @@ See `dashboard/client/README.md` for structure, data flow and test map, and `das
   `docs/reference/KNOWN_LIMITATIONS.md`, `ARCHITECTURE.md` or the code. While writing it I found that `ARCHITECTURE.md`'s status
   table (lines 253-262) is out of date against `KNOWN_LIMITATIONS.md` (it still says Nav2 / ROS 2 is not implemented and that
   real-dataset validation has not run); the home section follows `KNOWN_LIMITATIONS.md` and the code.
+- **Analyze your own scan.** `POST /api/analyze_scan` takes a raw `.bin`, runs the real sanitiser, labelling and grid on a fresh
+  grid (the live scene and filters are never touched, nothing is written to disk) and returns the same snapshot shape the
+  exporter writes plus a measured `timing_ms`. The snapshot builders moved from the export script into the server so the
+  live API and the static snapshots share one implementation (`--check` is unchanged). Limits: a size cap published in
+  `/api/health`, one analysis at a time, errors with plain-English messages. The button is in the 3D view and is disabled
+  without the API. Labels are the geometric heuristic unless an ONNX model is present, and the deployed static site cannot
+  run it. Checked against a real backend in a browser: a generated `.bin` came back gridded, a malformed one showed the
+  server's message, and no console errors.
 - **Server fix.** The API server only served `/` and `/assets`, so with the server alone `/dashboard/`, the favicon and the
   brand images returned 404. It now serves the whole built site (`mount_site`, registered after every API route).
 - **Tests.** `home.spec.ts`, `help.spec.ts`, the no-detour tour test, secondary-spotlight checks in the every-step test; the

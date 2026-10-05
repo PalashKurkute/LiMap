@@ -2,8 +2,8 @@
 name: planner_regret_benchmark
 description: >
   Methodology and automated verification routines for proving downstream navigational
-  fidelity. Compares Hybrid-A* and MPPI trajectory costs on full dense maps vs FoveaGrid 2.5D
-  to mathematically demonstrate near-zero planner regret.
+  fidelity. Compares Hybrid-A* trajectory costs on a dense reference vs FoveaGrid 2.5D (MPPI is planned)
+  and reports the regret honestly (measured: 3.45% mean, 10.52% max on 5 real frames, real_regret_results.json).
 ---
 
 # Planner Regret Benchmark Skill
@@ -15,10 +15,10 @@ This skill defines the verification process that closes the loop between compres
 ## 1. Why Planner Regret is Mandatory
 
 Most hackathon entries stop at asserting: *"Our grid saves memory."*  
-Evaluators and DRDO scientists will immediately ask:  
+Evaluators will immediately ask:  
 *"Does saving memory degrade the vehicle's driving path or cause collisions with overlooked obstacles?"*
 
-**Planner Regret** provides the rigorous, mathematical answer. It proves that a path planner operating on our compressed $3.4\text{ MB}$ map chooses virtually the identical trajectory as one operating on an uncompressed, dense $3.2\text{ GB}$ map.
+**Planner Regret** provides the rigorous, mathematical answer. It measures how much worse a planner does on our 3.2616 MB map than on a dense reference (CALCULATED 3,051.8 MB dense 3D), instead of assuming the paths are the same.
 
 ---
 

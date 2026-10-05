@@ -18,7 +18,7 @@ Because spinning LiDAR sensors acquire points over a finite rotational sweep (~$
 
 ### Deskewing Procedure
 1. Receive raw scan $P = \{\mathbf{p}_i = (x_i, y_i, z_i, I_i, t_i)\}_{i=1}^N$ where $t_i \in [t_{\text{start}}, t_{\text{end}}]$.
-2. Obtain high-rate vehicle poses $\mathbf{T}_{t_i} \in \text{SE}(3)$ from KISS-ICP or FAST-LIO2 odometry.
+2. Obtain high-rate vehicle poses $\mathbf{T}_{t_i} \in \text{SE}(3)$ from odometry (KISS-ICP or FAST-LIO2 are planned; the prototype uses its own constant-velocity deskewer in `core/ingestion/odometry.py` and does not register scans yet).
 3. Transform each point into the frame at scan completion $t_{\text{end}}$:
    $$\mathbf{p}_i' = \mathbf{T}_{t_{\text{end}}}^{-1} \cdot \mathbf{T}_{t_i} \cdot \mathbf{p}_i$$
 4. Output deskewed point cloud ready for spatial projection.

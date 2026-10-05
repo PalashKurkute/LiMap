@@ -1,92 +1,50 @@
-# SIH26053 official statement, SIH 2026 process, and public competitor repositories (as of 3 Oct 2026)
+# SIH26053: competitor repositories
 
-Research method notes: The official PS text was pulled directly from the HTML of https://www.sih.gov.in/sih2026PS (fetched 3 Oct 2026). SIH 2026 process facts come from the official "SIH 2026 Guidelines" PDF, the official Idea Presentation PPT template and the sih.gov.in homepage/FAQ. Repository facts come from the GitHub REST API (metadata, commit counts, file trees) and raw README files fetched on 3 Oct 2026. **All competitor numbers are self-reported in READMEs and were not reproduced.**
+Public entries for the same problem statement and what they claim. **Every rival figure is self-reported in a README and
+was not run by us.** Checked 2026-10-03 unless a row says otherwise. Re-date a row whenever you re-check it. Our own
+figures come only from `benchmark/*.json` (see `KNOWN_LIMITATIONS.md`). Never name rivals in the product, the demo or slides.
 
-## Q1. Official text of SIH26053 (verbatim)
+## Positioning at a glance (2026-10-03)
 
-### Takeaway
-The official sih.gov.in listing exists and is quoted verbatim below. It names four deliverables: a DL segmentation model (PointNet++ or Sparse CNN given as examples), a variable-resolution grid engine (e.g. 5 cm within 10 m, 50 cm up to 100 m), a real-time colour-coded dashboard showing memory reduction against a uniform high-res 3D map, and FPS/accuracy-across-distance metrics. No evaluation rubric specific to the PS, YouTube link or dataset is given. **The idea submission deadline for this PS was extended to 5 Oct 2026 and had not closed on 3 Oct.**
+All rival figures below are self-reported in READMEs and were not reproduced. LiMap's column uses its own best defensible, measured values.
 
-### Cited Findings
-- **Verbatim official text** (from sih.gov.in PS page, modal "ViewProblemStatement26053"; HTML entities decoded, bullet structure preserved) — [SIH 2026 Problem Statements](https://www.sih.gov.in/sih2026PS):
+| | **LiMap (honest)** | Pragyaam/VRgrid | pushpam sih_053 | NEXA | Drishti | LiFovea |
+|---|---|---|---|---|---|---|
+| Seg model / mIoU | SalsaNext, 42.25% (100 frames) | FRNet 65.2% seq 08 | none shipped | SqueezeSegV2 (in RESULTS.md) | 0.619 RELLIS-3D | 0.827 (simulator only) |
+| Latency | 122 ms grid (CPU); 3.2 s with DL | 22.3 ms (GPU) | 51.8 ms (CPU) | n/q | 106 ms (GPU) | 230 ms (CPU) |
+| Memory | 3.26 MB pool; 1.41× measured vs uniform 2.5D | 8.94 MB; 21.5× vs 2.5D | 18.3 MB; 26× vs 2.5D | 22.67× fewer cells | 12.6 MB; 16× | 9.9 MB; 97× |
+| Seam / conservation | Corner-alignment check only | Partition tests | 0/4M mismatches | 100% conservation | Property tests | 12k-jitter audit |
+| Ghost metric | Cells carved | 0/4,071 frames missed | 0/286 false-moving | — | Tracker | — |
+| ROS 2 / Nav2 | Publisher stub | — | Humble + Nav2 (unrun) | — | — | — |
+| Jetson measured | — | — | — | — | — | — |
 
-  > **Problem Statement ID:** 26053
-  > **Problem Statement Title:** Adaptive Variable Resolution 2.5D Lidar Mapping for Dynamic Environment Perception
-  > **Description:**
-  > • Background:
-  > Autonomous navigation depends on the ability of a vehicle to perceive its surroundings with high precision. While 3D Lidar point clouds provide rich spatial data, processing millions of points in real-time creates immense computational bottlenecks and memory latency. Conversely, standard 2D occupancy grids lose critical height information necessary for detecting curbs, potholes, or overhanging obstacles. To balance precision and performance, there is a need for a 'foveated' mapping approach—similar to human vision— where the immediate vicinity is rendered in high detail for safety, and distant areas are simplified to reduce the processing load.
-  > • Description:
-  > The goal is to build a deep learning pipeline that transforms raw Lidar point clouds into a variable resolution 2.5D grid (an elevation map with semantic layers). The system must perform three primary tasks:
-  > 1. Terrain Analysis: Distinguish between drivable surfaces and non-drivable terrain.
-  > 2. Object Detection: Identify and classify static obstacles (walls, poles) and dynamic objects (pedestrians, other vehicles).
-  > 3. Adaptive Spatial Representation: Implement a non-uniform grid where the cell size increases as the distance from the sensor increases. This requires a sophisticated data structure that can handle variable resolution without causing alignment errors or data loss during the projection from 3D to 2.5D.
-  > • Expected Solution:
-  > A software framework consisting of:
-  > • A Deep Learning Model: A network (e.g., PointNet++ or a Sparse Convolutional Neural Network) capable of semantic segmentation of point clouds into terrain, static obstacles, and moving objects.
-  > • Variable Resolution Grid Engine: An algorithm that projects classified 3D points into a 2.5D grid where the resolution is high (e.g., 5cm cells) within a 10m radius and decreases (e.g., 50cm cells) up to a 100m radius.
-  > • Real-time Visualization: A dashboard showing the 2.5D map with distinct color-coding for terrain and objects, demonstrating a significant reduction in memory usage compared to a uniform high-resolution 3D map.
-  > • Performance Metrics: Evidence of low latency (high FPS) and high accuracy in object classification across varying distances.
-  >
-  > **Organization:** DRDO · **Department:** Department of Defence R&D · **Category:** Software · **Theme:** Smart Vehicles · **Youtube Link / Dataset Link:** (blank)
+Sources: [Pragyaam](https://github.com/Stxtics03/Pragyaam-SIH26053), [pushpam](https://github.com/pushpam2404/sih_053), [NEXA](https://github.com/sam-eer12/sih2026), [Drishti](https://github.com/GargBhavya-tech/Drishti), [LiFovea](https://github.com/akumar4be26-crypto/LiFovea).
 
-- The listing shows an idea counter of **202/500** and a deadline of **5 October 2026 (05-10-2026)** for SIH26053 (and for all listed PSs) on 3 Oct 2026 — [SIH 2026 Problem Statements](https://www.sih.gov.in/sih2026PS). A third-party mirror showed 200/500 slightly earlier — [zaidsayyed.in mirror](https://zaidsayyed.in/tools/sih-problem-statements/sih26053).
-- Homepage banner: "Team Nomination & Idea Submission deadline extended to 05 Oct 2026." and "SPOCs and Team Leaders can edit/update Team Name, Consent, and PPT from 02–05 Oct 2026 (one-time only)." — [sih.gov.in](https://www.sih.gov.in/)
-- The original deadline in the official guidelines was 30 Sep 2026: "The last date for team nomination and idea submission by College SPOC and Team leader on SIH portal is till 30th Sept 2026 only." — [SIH 2026 Guidelines PDF](https://www.sih.gov.in/letters/2026/SIH%202026%20Guidelines.pdf). This conflicts with the later homepage extension notice; the extension is newer and takes precedence.
-- Secondary paraphrase (not official): some team READMEs add claims to the PS that are not in the official text, such as "At 50 m, consecutive laser rings land about 10.8 m apart… 99.87% of a uniform 5 cm grid cannot receive a return". This is Pragyaam's own analysis, and search engines sometimes present it as part of the PS — [Pragyaam README](https://github.com/Stxtics03/Pragyaam-SIH26053). sam-eer12 labels the organisation "DRDO — Department of Defence Production / iDEX" and saxenaatharv "DRDO / IDEX". The official listing says "Department of Defence R&D" — [sam-eer12/sih2026](https://github.com/sam-eer12/sih2026), [saxenaatharv/3D--2.5D-LIDAR](https://github.com/saxenaatharv/3D--2.5D-LIDAR).
-- RakshaSetu's README gives its theme as "Transportation & Logistics", but the official theme is "Smart Vehicles" — [p3iyanshu/RakshaSetu](https://github.com/p3iyanshu/RakshaSetu).
+**Table stakes**, meaning LiMap merely matches the field:
+- 5 cm/10 m → ~50 cm/100 m rings;
+- an MB or ×-reduction figure;
+- a SemanticKITTI-to-terrain/static/dynamic remap;
+- a colour-coded dashboard;
+- an answer to the PS's alignment/data-loss clause.
 
-### Inferences
-- The "5 cm within 10 m, 50 cm at 100 m" values are written as examples ("e.g."). Schedules such as 5/10/20/40 cm or 80 cm far-field should therefore comply, but a team that departs from them should state the reason.
-- The official baseline for memory comparison is "a uniform high-resolution 3D map", not a uniform 2.5D grid. Repos that report both (Pragyaam: 286× vs 3D, 21.5× vs 2.5D; pushpam: 210× vs 3D, 26× vs 2.5D) match this framing best.
-- "Without causing alignment errors or data loss during the projection" is the PS's only explicit correctness requirement. It is why several teams publish boundary, seam or nesting tests.
-- With 202/500 ideas already in and the deadline extended, the field for this PS is large. At 4–5 finalists per PS, roughly ≤2.5% of submitting teams reach the finale.
+**Already beaten**, where LiMap trails:
+- segmentation accuracy and GPU speed, against Pragyaam;
+- point conservation and seam proof, against NEXA and pushpam;
+- the honesty of the memory headline, against pushpam and Pragyaam;
+- ghost metrics, against Pragyaam.
 
-### Gaps
-- The official page gives no PS-specific evaluation rubric, dataset, sensor, or hardware target such as Jetson. Any such requirement in competitor READMEs is the team's own assumption.
-- It could not be confirmed whether the 202 count includes edits made during the 02–05 Oct window.
+Copying Pragyaam's FRNet/CuPy stack in ten weeks is unlikely to win. The lanes that remain open, i.e. claimed by at most one rival and verified by none, are better targets:
+- **Measured Jetson Orin latency.** No repo has any.
+- **A ROS 2/Nav2 stack that actually runs**, demonstrated on a rosbag. pushpam's admits it never ran.
+- **Truly adaptive, hazard-driven foveation.** No rival goes beyond kinematic stretch, and LiMap already promises it.
+- **Off-road and defence-relevant evaluation:** RELLIS-3D/GOOSE plus SemanticKITTI-C corruption robustness. Only Drishti has RELLIS-3D, and no rival frames dust or GNSS-denial.
+- **Planner regret with a real 3D reference across a full sequence.** Pragyaam lists the metric, but its fork admits "no universal planner-regret curve yet" ([vrgrid-26](https://github.com/victorysingh/vrgrid-26)).
 
-## Q2. SIH 2026 judging criteria, stage timeline, and idea-PPT requirements
+The candour bar is high: pushpam, LiFovea and saxenaatharv all publish "what we did not measure" sections. LiMap's `KNOWN_LIMITATIONS.md` can compete on that axis, but only after C1–C6 are fixed.
 
-### Takeaway
-Official 2026 sources state the idea-screening criteria: novelty, complexity, clarity and detail, feasibility, practicability, sustainability, scale of impact, user experience, and future potential. They also give a 6-slide PDF idea template, selection of 4–5 teams per PS for the finale, and an offline Grand Finale at nodal centres "proposed" for December 2026. The current homepage gives no published 2026 dates for shortlisting or the finale (its timeline widget is stale from 2023–24). Grand-finale judging rubrics come only from secondary sources.
+## Per-repository findings
 
-### Cited Findings
-**Official (primary):**
-- Process: SPOC registration from July 2026. Each institute runs an internal hackathon. The SPOC nominates up to 50 teams (45 shortlisted + 5 waitlisted) per institute, or 100 per university. Each team has 6 members including at least one woman, all from the same college. A team can submit ideas against at most 2 PSs. Each PS freezes at 500 ideas — [SIH 2026 Guidelines PDF](https://www.sih.gov.in/letters/2026/SIH%202026%20Guidelines.pdf)
-- Idea submission fields: team name, college authorization letter PDF, member names/genders/emails/mobiles, chosen PS, idea title, idea description, and "Idea presentation (PDF)" — [SIH 2026 Guidelines PDF](https://www.sih.gov.in/letters/2026/SIH%202026%20Guidelines.pdf)
-- **Idea selection criteria (verbatim):** "Post Idea submission process, the ideas will be evaluated by experts. Evaluation criteria will include novelty of the idea, complexity, clarity and details in the prescribed format, feasibility, practicability, sustainability, scale of impact, user experience and potential for future work progression." — [SIH 2026 Guidelines PDF](https://www.sih.gov.in/letters/2026/SIH%202026%20Guidelines.pdf)
-- Shortlisting: "4-5 teams per problem statement may be selected for the grand finale, but the final decision rests with the problem statement creating organization, which isn't obligated to declare a winner unless student proposals meet their expectations". Notification of selected teams is posted on the portal and sent by email. Selected teams must be available for meetings, sessions and trainings during a preparation phase — [SIH 2026 Guidelines PDF](https://www.sih.gov.in/letters/2026/SIH%202026%20Guidelines.pdf)
-- **Grand Finale (verbatim):** "SIH 2026 Grand Finale will be held offline at various nodal centers across pan India… The Grand Finale of Smart India Hackathon (SIH) 2026 is proposed to be organized in December 2026" — [SIH 2026 Guidelines PDF](https://www.sih.gov.in/letters/2026/SIH%202026%20Guidelines.pdf)
-- FAQ: "First stage i.e. idea screening is online. SIH Grand Finale would be conducted in an offline mode." — [SIH FAQs](https://www.sih.gov.in/faqs)
-- Prize: one winning team per PS, Rs 1,50,000 per PS, paid only if the organization likes the idea; the PS creator decides ties. IP of the winning idea is split between the PS-giving organization and the team, or set by mutual agreement. Ideas "must be new and must not have been present in any previous event/program" — [SIH 2026 Guidelines PDF](https://www.sih.gov.in/letters/2026/SIH%202026%20Guidelines.pdf)
-- Finalists may bring up to 2 mentors (5+ years of experience). Travel is reimbursed up to Rs 3,000 per person — [SIH 2026 Guidelines PDF](https://www.sih.gov.in/letters/2026/SIH%202026%20Guidelines.pdf)
-- **Official idea PPT template** ([SIH2026-IDEA-Presentation-Format.pptx](https://www.sih.gov.in/letters/2026/SIH2026-IDEA-Presentation-Format.pptx)) has 6 content slides:
-  1. Title page: PS ID, PS title, theme, PS category, team ID, team name.
-  2. Idea title / proposed solution: detailed explanation, how it addresses the problem, innovation and uniqueness.
-  3. Technical approach: technologies; methodology/process via flow charts, images or a working prototype.
-  4. Feasibility and viability: feasibility analysis, challenges and risks, mitigation strategies.
-  5. Impact and benefits: target audience; social, economic and environmental benefits.
-  6. Research and references.
-
-  Instructions (verbatim): "Kindly keep the maximum slides limit up to six (6). (Including the title slide)", "Try to avoid paragraphs and post your idea in points /diagrams / Infographics /pictures", "Idea should be unique and novel.", "You can only use provided template… without changing the idea details pointers", "save the file in PDF and upload… No PPT, Word Doc or any other format will be supported."
-- The sih.gov.in homepage timeline widget still shows 2023–24 dates (e.g., "Grand Finale … 19th December 2024 – 22nd December 2024 (Tentative)"), so no current official dated 2026 timeline is published there — [sih.gov.in](https://www.sih.gov.in/)
-
-**Secondary (non-official; treat with caution):**
-- Aggregator timelines give: SIH 2026 launched 21 Aug 2026; PSs released 25 Aug 2026; internal hackathons in September; SPOC nomination by 30 Sep; expert scoring of ideas on "novelty, feasibility, impact and clarity" in Oct–Nov; 4–5 teams per PS to the finale; and a Nov/Dec 36-hour finale. One aggregator listed a "Final Idea Submission up to September 15, 2026", which conflicts with the official 30 Sep (then 5 Oct) deadline — [Reskilll blog](https://reskilll.com/blogs/smart-india-hackathon-2026-launched-timeline-registration-how-to-participate/), [thenewviews](https://thenewviews.com/smart-india-hackathon/), [FirstVidya](https://firstvidya.com/sih-2026-guide/)
-- A DTU circular dated 28.08.2026 concerns the SIH 2026 internal hackathon. It was not opened; title only — [DTU PDF](https://www.dtu.ac.in/Web/upload/events/aug/file0807.pdf)
-- Grand finale format described by past participants and blogs: 36 hours of live building at nodal centres, with 3 mentoring rounds (no marks) and 3 evaluation rounds (marks). Reported jury criteria are "Innovation, Invention, Technical Feasibility, Impact and Benefits, and Architecture", or alternatively "Innovation, Scalability, Feasibility, Impact, and Tech Implementation" — [whereuelevate](https://whereuelevate.com/blogs/smart-india-hackathon-2026), [hashnode "how we won SIH 24"](https://how-we-won-sih-24-and-survived-it.hashnode.dev/everything-about-winning-sih-2024), [zaidsayyed SIH 2026 playbook](https://zaidsayyed.in/blog/sih-2026)
-
-### Inferences
-- With the deadline moved to 5 Oct, results of idea evaluation and finalist announcements likely come later than aggregator timelines suggest. Past editions announced finalists 4–8 weeks after idea close. This is inferred from the pattern and is not an official date.
-- The idea-stage criteria reward "complexity", "clarity and details in the prescribed format" and "user experience" as well as novelty and feasibility. A dashboard/UX screenshot and a clear architecture flowchart within the 6-slide limit are therefore directly scored items.
-
-### Gaps
-- No official SIH 2026 grand-finale scoring rubric, finale dates, nodal-centre list or finalist-announcement date was found. The homepage "Hackathon Timeline" section is stale.
-- The SIH 2026 "SPOC-updated" guidelines PDF appeared textually identical in size and length to the main guidelines and was not diffed line by line.
-
-## Q3. What each named competitor repository claims and has implemented
-
-### Takeaway
+#### Takeaway
 Of the 8 named repos, 7 are reachable. `Stxtics03/vrgrid` returns 404 and was renamed or replaced by `Stxtics03/Pragyaam-SIH26053`. `kaushik521645/lidar-2.5D` and `lidar-2.5D-mapping` return 404; the live repo is `kaushik521645/lidar-2.5D-mapping-main`. The strongest by README depth and evidence are:
 - Pragyaam/VRgrid: SemanticKITTI, FRNet, fixed 8.94 MB, ghost removal, planner regret, 338 commits.
 - pushpam2404/sih_053: C++ engine, ROS 2/Nav2/FAST-LIO2, negative obstacles, but no trained DL model.
@@ -95,9 +53,9 @@ Of the 8 named repos, 7 are reachable. `Stxtics03/vrgrid` returns 404 and was re
 
 The others are thinner: kaushik (4 commits), saxenaatharv (RandLA-Net wrapper), RakshaSetu (team scaffold with ROS 2 nodes and a PointNet++ checkpoint claim).
 
-### Cited Findings
+#### Cited Findings
 
-#### 3.1 Stxtics03/Pragyaam-SIH26053 (formerly "vrgrid"; Team Chronicles.exe, team ID 178295)
+### 3.1 Stxtics03/Pragyaam-SIH26053 (formerly "vrgrid"; Team Chronicles.exe, team ID 178295)
 - Repo status: `Stxtics03/vrgrid` returns HTTP 404 from the GitHub API. `Stxtics03/Pragyaam-SIH26053` was created 2026-09-10, last commit 2026-09-28 ("Update README.md"), with **338 commits**. The tree has 342 files (166 .py, 11 .cpp/.h — apparently the Unreal viewer — and **0 .cu files**). The README says "The Python package is still named `vrgrid`, from the project's earlier name." — [GitHub repo](https://github.com/Stxtics03/Pragyaam-SIH26053)
 - Claims, measured on SemanticKITTI (self-reported):
   - Schedule: rings 0–10 m at 5 cm, 10–25 m at 10 cm, 25–50 m at 20 cm, 50–100 m at 40 cm; PS 5/10/50 schedule supported as a config.
@@ -111,12 +69,12 @@ The others are thinner: kaushik (4 commits), saxenaatharv (RandLA-Net wrapper), 
 - Other features: law-of-total-variance merge ("merged kerb cell reports σ = 6.3 cm"), range-image visibility ghost removal, Patchwork++ ground segmentation, deskewing, a single world-coordinate query API, and planner regret listed as an evaluation metric. Tech stack: "Python 3.11 · NumPy · CuPy + custom CUDA kernels · PyTorch (FRNet) · Patchwork++ · Rerun · Unreal Engine 5.8 · pytest". It has a demo video, a Canva deck, Rerun dashboard demo scripts (foveation, ghosts-on/off, traffic), and a `docs/gpu-lane/` folder with AWS runbook, CUDA port plan, float audit and VRAM-contention logs — [Pragyaam README](https://github.com/Stxtics03/Pragyaam-SIH26053); [file tree via GitHub API](https://github.com/Stxtics03/Pragyaam-SIH26053/tree/main/docs/gpu-lane)
 - No ROS 2/Nav2 integration and no Jetson measurement are claimed. "Custom CUDA kernels" is claimed, but there are no .cu files; GPU code appears to be CuPy, and this was not verified in source — [Pragyaam README](https://github.com/Stxtics03/Pragyaam-SIH26053)
 
-#### 3.2 victorysingh/vrgrid-26 (fork of Stxtics03/Pragyaam-SIH26053)
+### 3.2 victorysingh/vrgrid-26 (fork of Stxtics03/Pragyaam-SIH26053)
 - A GitHub fork (parent: Stxtics03/Pragyaam-SIH26053), created 2026-09-12. Last commit 2026-09-12 ("gpu-lane: the float audit, and the overflow bound measured not reasoned"); pushed 2026-09-23; 215 commits; 198 files, 0 C++/CUDA — [GitHub repo](https://github.com/victorysingh/vrgrid-26)
 - This snapshot predates the Pragyaam rename and is more conservative. It says: "The mapping pipeline is a CPU reference implementation in numpy. There is no CUDA kernel in this repository, and every latency figure quoted here was measured single-threaded on an Intel i7-14650HX." It reports end-to-end latency of "89.18 ms p50 / 100.43 p99", "Zero allocation in the frame loop — 8.15 → 1.31 MB/frame, p99 74.7 → 49.4 ms", and "No model training is required" (labels come from SemanticKITTI ground-truth .label files). It gives the same 8.94 MB / 21.5× / 286× / 0 of 4,071 ghost figures, a coarsening ratio of "1.18–1.84 across rings 1–3", and a partition test over 10⁶ points. It admits: "No universal planner-regret curve yet… The current synthetic evaluation scene does not provide a sufficiently graded cost field" — [vrgrid-26 README](https://github.com/victorysingh/vrgrid-26)
 - Inference: between 12 Sep and 28 Sep the team added FRNet (a real DL model) and a GPU (CuPy) path. Their latency claim fell from ~89 ms CPU to ~22 ms GPU. The fork exposes the earlier, GT-label-only state.
 
-#### 3.3 pushpam2404/sih_053
+### 3.3 pushpam2404/sih_053
 - Created 2026-09-16; last commit 2026-09-21; 15 commits; 88 files (42 .py, 7 C++/CUDA including 1 .cu, ROS 2 packages and launch files). Model files `minkunet18_drdo.onnx`, `minkunet18_drdo_ep30.pth` and `minkunet18_traced.pt` are present — [GitHub repo](https://github.com/pushpam2404/sih_053)
 - Target platform is "NVIDIA Jetson AGX Orin + Ouster OS1-64, ROS 2 Humble". The README states: "We did not test on Jetson AGX Orin hardware… Every number in this repository is CPU latency on an Apple M4 laptop, single-threaded, against synthetic OS1-64 scans." It also says "The CUDA kernels exist but have never been compiled" and "ROS 2 nodes… have never run on a robot" — [pushpam README](https://github.com/pushpam2404/sih_053)
 - Claims (self-reported):
@@ -133,7 +91,7 @@ The others are thinner: kaushik (4 commits), saxenaatharv (RandLA-Net wrapper), 
   [pushpam README](https://github.com/pushpam2404/sih_053)
 - On deep learning: "The problem statement names a segmentation network. We did not ship one, and we do not claim one." The SalsaNext-Lite pipeline and ONNX export are built, but the "models/* files are placeholders… 5.01% mIoU against a 6.64% uniform-random baseline". RELLIS-3D could not be downloaded — [pushpam README](https://github.com/pushpam2404/sih_053)
 
-#### 3.4 sam-eer12/sih2026 ("NEXA", Team KANVSS)
+### 3.4 sam-eer12/sih2026 ("NEXA", Team KANVSS)
 - Created 2026-08-28; last commit 2026-09-10; 116 commits; 3 stars; 260 files (63 .py, 58 TS/JS). Model files `squeezesegV2_5class.pt` and `squeezesegV2_fp32.onnx` are present. Live demo: nexa-drdo.duckdns.org (not checked) — [GitHub repo](https://github.com/sam-eer12/sih2026)
 - Claims (self-reported):
   - Grid: ring-sector polar grid with "662 rings, 705,771 cells … 22.67× fewer cells than a uniform 5 cm grid"; "Closed-form O(1) projection… 100.000% point conservation asserted every frame".
@@ -147,11 +105,11 @@ The others are thinner: kaushik (4 commits), saxenaatharv (RandLA-Net wrapper), 
   [NEXA README](https://github.com/sam-eer12/sih2026)
 - No ROS 2, CUDA or Jetson ("Embedded-GPU latency measurement on Jetson-class hardware" is listed as future scope). Temporal accumulation is also future scope, so the map is single-scan — [NEXA README](https://github.com/sam-eer12/sih2026)
 
-#### 3.5 kaushik521645/lidar-2.5D(-mapping) → actual: kaushik521645/lidar-2.5D-mapping-main ("FoveaMap")
+### 3.5 kaushik521645/lidar-2.5D(-mapping) → actual: kaushik521645/lidar-2.5D-mapping-main ("FoveaMap")
 - `kaushik521645/lidar-2.5D` and `kaushik521645/lidar-2.5D-mapping` both return 404. The user's repo list shows `lidar-2.5D-mapping-main`: last commit 2026-09-23 (message "new"), **4 commits**, 53 files (36 .py, 7 JS), no model weights committed — [GitHub user repos](https://github.com/kaushik521645?tab=repositories)
 - Claims: "Extreme Memory Efficiency (85–90% Savings)" with a sparse 2.5D polar grid; multi-layer z_ground / z_obstacle_bottom / z_obstacle_top; "Kinematic Dynamic Foveation" (speed stretch, steering shear); RandLA-Net via Open3D-ML collapsed to 4 classes; constant-velocity Kalman tracker with ghost-trail erasure; FastAPI WebSocket to a deck.gl dashboard "at up to 30 FPS"; mIoU, distance-bucketed accuracy and latency utilities. It reports no measured mIoU, latency or MB, and admits that "lightweight AI checkpoints may overfit" — [kaushik README](https://github.com/kaushik521645/lidar-2.5D-mapping-main)
 
-#### 3.6 akumar4be26-crypto/LiFovea
+### 3.6 akumar4be26-crypto/LiFovea
 - Created 2026-09-18; last commit 2026-10-02; 9 commits; 56 files (34 .py, 44 tests claimed); Dockerfile and render.yaml for hosting — [GitHub repo](https://github.com/akumar4be26-crypto/LiFovea)
 - Claims (self-reported; **all on a built-in procedural simulator, not real data**, 20 held-out frames, 2 vCPU, no GPU):
   - Segmentation: "point accuracy / mIoU 95.4 % / 0.827". Dynamic-object IoU is 0.548 with recall 0.582.
@@ -166,7 +124,7 @@ The others are thinner: kaushik (4 commits), saxenaatharv (RandLA-Net wrapper), 
   [LiFovea README](https://github.com/akumar4be26-crypto/LiFovea)
 - Admitted limits: "Pedestrian recall is 0.58"; "Ego pose is taken as known"; no deskew; "Foveated inference is currently a no-op"; "Numbers here are not KITTI numbers, and the loaders for real data are not written." No ROS 2, CUDA or Jetson — [LiFovea README](https://github.com/akumar4be26-crypto/LiFovea)
 
-#### 3.7 p3iyanshu/RakshaSetu (Team JanSetu)
+### 3.7 p3iyanshu/RakshaSetu (Team JanSetu)
 - Created 2026-08-31; last commit 2026-09-28; 69 commits; 213 files (55 .py, 28 JS). It includes a ROS 2 package `ros2_ws/src/rakshasetu` (nodes: lidar_ingest, preprocessing, segmentation, grid_engine, tracking, fusion, ego_odometry; plus a launch file), a vanilla-JS/WebGL dashboard, an admin console, and android-app and desktop-admin folders. No model weights are committed — [GitHub repo](https://github.com/p3iyanshu/RakshaSetu)
 - The top-level README is a team-organization scaffold (6-member task briefs, mock data generator) with no metrics. It says the `security/` module "hasn't started yet" — [RakshaSetu README](https://github.com/p3iyanshu/RakshaSetu)
 - Sub-READMEs:
@@ -174,7 +132,7 @@ The others are thinner: kaushik (4 commits), saxenaatharv (RandLA-Net wrapper), 
   - The models README cites a PointNet++ checkpoint trained on SemanticKITTI (~19K scans, 50 epochs) with "held-out validation mIoU (0.868)". It also reports per-frame mIoU of 0.558, and 0.32 → 0.62 on one real frame after downsampling to 8192 points — [models/README.md](https://github.com/p3iyanshu/RakshaSetu/blob/main/models/README.md)
   - There is DBSCAN + Kalman/SORT tracking with ego-motion compensation (tracking/ folder).
 
-#### 3.8 saxenaatharv/3D--2.5D-LIDAR
+### 3.8 saxenaatharv/3D--2.5D-LIDAR
 - Created 2026-08-22; last commit 2026-09-20 ("Delete 000015.bin"); 49 commits; 25 files (13 .py) — [GitHub repo](https://github.com/saxenaatharv/3D--2.5D-LIDAR)
 - What it is: a wrapper around the **pretrained Open3D-ML RandLA-Net SemanticKITTI checkpoint**, with fine-tuning on a 90/10 split. Components:
   - Ring grid "VaRLA" (0–10 m at 5 cm, 10–30 m at 20 cm, 30–60 m at 35 cm, 60–100 m at 50 cm).
@@ -186,7 +144,7 @@ The others are thinner: kaushik (4 commits), saxenaatharv (RandLA-Net wrapper), 
 
   No numeric results are quoted in the README. No ROS 2, ghost/dynamic handling, or tracking — [saxenaatharv README](https://github.com/saxenaatharv/3D--2.5D-LIDAR)
 
-#### 3.9 Other notable public SIH26053 repos (GitHub search for "SIH26053", "SIH 26053", "2.5D lidar variable resolution", "foveated lidar", "sih 2026 lidar" returned 40+ PS-26053 repos)
+### 3.9 Other notable public SIH26053 repos (GitHub search for "SIH26053", "SIH 26053", "2.5D lidar variable resolution", "foveated lidar", "sih 2026 lidar" returned 40+ PS-26053 repos)
 - **GargBhavya-tech/Drishti** (last commit 2026-09-28; DRDO PS 26053), self-reported:
   - Sensor-derived schedule: "5 cm out to ~16 m, 40 cm by 100 m" on Ouster OS1-64.
   - Segmentation: 5.82M-param range-image network, 10-class defence-UGV taxonomy, **"Overall mIoU 0.619" on RELLIS-3D** (all 5 sequences; off-road).
@@ -208,20 +166,20 @@ The others are thinner: kaushik (4 commits), saxenaatharv (RandLA-Net wrapper), 
 - **Aarya562/TERRA-FOVEA**: ROS 2 + C++ description with an "adaptive controller"; the README is conceptual, with no metrics — [TERRA-FOVEA](https://github.com/Aarya562/TERRA-FOVEA)
 - Other PS-26053 repos found but not inspected (names, descriptions and last-push dates only, from GitHub search): AbhayVerma628/SIH26053_Lidar, Tonystankers/adaptive-foveated-lidar-mapping and sih26053-lidar-mapping (PointNet++ + UDP ingestion), misense726/MISENSE-SIH26053, Sarasbari/LocoLidar (pushed 2026-10-02), ayush110109mishra/foveated-lidar-mapping (2026-10-02), Prayash-in/risk-aware-lidar-mapping (quadtree + compute-budget control), siddhantkadu0001/AVLM (quadtree), Rj821/AVR-2.5D-LiDAR-Mapping (PointNet++), AmitKumarTripathi123/foveated-lidar-mapping (SemanticPOSS), yodhassu/grideye, prxthzz/Adapt---X-LiDAR-Points, saikoraudhran/AdaVoxel_proto, sih26053/LiDAR, sstharun08/Adaptive-Variable-Resolution-2.5D-LiDAR-Mapping, naveen-elayaraja/ELEVATE-X, LEGiT-47/Vistar-2.5D, arjun-713/veyra, j7452479-a11y/sih, and others — [GitHub search API results](https://github.com/search?q=SIH26053&type=repositories)
 
-### Inferences
+#### Inferences
 - Commit count and recency put Pragyaam (338 commits, 28 Sep) and NEXA (116) ahead in engineering effort among the named repos. pushpam has few commits (15) but dense, specific, self-critical documentation. kaushik (4 commits) looks like a single code drop.
 - The Pragyaam README's "custom CUDA kernels" claim and its fork's "There is no CUDA kernel in this repository" (12 Sep) are not necessarily contradictory, since GPU work came later via CuPy. However, no .cu files exist, so an evaluator checking the repo may question it.
 - Several teams pre-empt "inflated baseline" criticism by reporting an honest comparison (pushpam's uniform-20 cm, LiFovea's uniform-80 cm, Drishti's uniform 2.5D). Reporting only "X× vs 3D voxels" now looks weak by comparison.
 
-### Gaps
+#### Gaps
 - No README numbers were independently reproduced. Live demos (nexa-drdo.duckdns.org, foveamap-teal.vercel.app, Pragyaam YouTube) were not opened.
 - NEXA's `docs/RESULTS.md` (latency/mIoU) and Pragyaam's `docs/eval-metric-specs.md` / planner-regret results were not fetched. Pragyaam's README lists planner regret as a metric but quotes no regret number; its fork says no regret curve exists yet.
 - It was not verified whether pushpam's committed `minkunet18_*` weights are trained (the README says models are placeholders at 5.01% mIoU).
 - Which repos correspond to teams that actually submitted ideas is unknown; repos are not linked to SIH submissions.
 
-## Q4. Table stakes vs. rare capabilities across competitors
+## Table stakes vs rare capabilities
 
-### Takeaway
+#### Takeaway
 Table stakes, present in most repos:
 - concentric distance-based rings with 5 cm near-field cells;
 - a memory-reduction headline vs a uniform grid;
@@ -240,7 +198,7 @@ Rare, present in 1–2 repos:
 - honest per-range accuracy for a trained network on real LiDAR;
 - any measured Jetson numbers (zero repos have them).
 
-### Cited Findings
+#### Cited Findings
 Capability matrix (self-reported README claims; Y = claimed and described, P = partial, planned or unverified, — = absent):
 
 | Capability | Pragyaam/VRgrid | pushpam sih_053 | NEXA | kaushik FoveaMap | LiFovea | RakshaSetu | saxenaatharv | Drishti | foveamap (ammar) |
@@ -263,7 +221,7 @@ Sources: [Pragyaam](https://github.com/Stxtics03/Pragyaam-SIH26053), [vrgrid-26]
 
 Datasets used: SemanticKITTI (Pragyaam, kaushik, saxenaatharv, RakshaSetu, NEXA, foveamap); RELLIS-3D (Drishti; pushpam attempted but couldn't download); nuScenes(-mini) (foveamap, Drishti); SemanticPOSS (Drishti, AmitKumarTripathi123); synthetic/procedural only (LiFovea, pushpam, sentinel-fovea) — same sources as above.
 
-### Inferences
+#### Inferences
 - **Table stakes** (a team without these looks behind): 5 cm/10 m → ~50 cm/100 m rings; MB or × memory reduction; terrain/static/dynamic remap from SemanticKITTI; colour-coded dashboard; a stated answer to the PS's "alignment errors or data loss" clause (nesting by integer division, boundary tests, point conservation).
 - **Differentiators that are still rare**:
   - measured ghost-trail removal on real sequences (only Pragyaam quantifies it);
@@ -276,6 +234,14 @@ Datasets used: SemanticKITTI (Pragyaam, kaushik, saxenaatharv, RakshaSetu, NEXA,
   - deterministic, fixed-memory guarantees (Pragyaam).
 - The bar on candour is high. pushpam, LiFovea and saxenaatharv all have "honesty" sections that flag unmeasured items. Inflated or unverifiable numbers will compare badly side by side.
 
-### Gaps
+#### Gaps
 - The matrix is built from READMEs only. "Y" means the team claims and describes a feature, not that it was confirmed to run.
 - Most of the 40+ other PS-26053 repos were not assessed, so additional strong entrants may exist (e.g., Tonystankers, Prayash-in, Sarasbari/LocoLidar were active in late Sep/early Oct).
+
+## Other rivals noted earlier (2026-09-27, README skim only)
+
+| Repository | What it claims | What was missing then |
+|---|---|---|
+| `darshan-stack/DRDO` | Feedback-foveated elevation mapping scaffold; uniform baseline first, then adaptive | Scaffold only: no trained model, no quantified metrics |
+| `siddhantkadu0001/AVLM` | Quadtree grid; Streamlit dashboard; FPS measurement | No trained backbone |
+| `heetkakaria45-bit/LiDAR_Syntrix` | Semantic elevation grid; curbs, speed bumps, potholes, overhang handling | Architecture only: no mIoU or memory figures |

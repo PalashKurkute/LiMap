@@ -3,13 +3,16 @@
 **Project:** Adaptive Variable-Resolution 2.5D LiDAR Mapping for Dynamic Environment Perception  
 **Codename:** `LiMap-2.5D`  
 **Target Hardware (Planned Deployment):** NVIDIA Jetson Orin Series (AGX Orin / Orin Nano) & Standard x86_64 Edge Stations [Prototype currently validated on x86_64 CPU]  
-**Middleware Standards (Planned Integration):** ROS 2 (Humble / Jazzy), REP 103/105, `grid_map_msgs`, WebSocket Telemetry [Prototype currently uses standalone Python/NumPy engine with WebSocket telemetry server]  
+**Middleware Standards (Planned Integration):** ROS 2 (Humble / Jazzy), REP 103/105, `grid_map_msgs`, WebSocket Telemetry [Prototype: standalone Python/NumPy/Numba engine, FastAPI server, static snapshots for the dashboard]  
+
+> **Read this as the design.** Items marked *(planned)* are not built. What exists today, with evidence, is section 6 and
+> `docs/reference/KNOWN_LIMITATIONS.md`; every figure is from `benchmark/*.json`.
 
 ---
 
 ## 1. System Overview
 
-`LiMap-2.5D` is a real-time, memory-bounded, perception-to-planning engine designed to transform high-frequency 3D LiDAR point clouds ($1.3\text{M points/sec}$) into a multi-layer 2.5D spatial representation. It eliminates the single-plane overhang blindness of classic elevation maps, eliminates ghost streaks caused by dynamic objects, and reduces memory consumption by **$>97\%$** through multi-factor foveation while maintaining sub-millimeter/centimeter traversability precision where it matters.
+`LiMap-2.5D` is a real-time, memory-bounded, perception-to-planning engine designed to transform high-frequency 3D LiDAR point clouds ($1.3\text{M points/sec}$) into a multi-layer 2.5D spatial representation. It eliminates the single-plane overhang blindness of classic elevation maps, eliminates ghost streaks caused by dynamic objects, and holds the map in a fixed 3.2616 MB cell pool (a CALCULATED 935.7x below a dense 3D voxel grid of the same area; MEASURED 1.41x fewer occupied cells than a uniform 5 cm 2.5D grid). Foveation today is radius rings plus speed/turn presets; multi-factor foveation is *(planned)*.
 
 ```
 +---------------------------------------------------------------------------------------------------------+
@@ -18,7 +21,7 @@
 |                                                                                                         |
 |   +-----------------------+      +-------------------------------+      +---------------------------+   |
 |   |  LiDAR Stream (10Hz)  | ---> |  Ego-Motion Compensation      | ---> |  Range-Image Projection   |   |
-|   |  [Velodyne / Ouster]  |      |  [KISS-ICP / FAST-LIO2]       |      |  [64 x 2048 Range Tensor] |   |
+|   |  [Velodyne / Ouster]  |      |  [odometry (planned)]         |      |  [64 x 2048 Range Tensor] |   |
 |   +-----------------------+      +-------------------------------+      +---------------------------+   |
 |                                                                                       |                 |
 |                                                                                       v                 |
@@ -37,7 +40,7 @@
 |                     |                                                 |                                 |
 |                     |                                                 v                                 |
 |                     |                         +---------------------------------------------------+     |
-|                     |                         |   Multi-Factor Adaptive Grid Controller           |     |
+|                     |                         |   Ring grid + speed/turn presets                  |     |
 |                     |                         |   - Distance + Roughness + Hazard + Uncertainty   |     |
 |                     |                         |   - Seamless Nested Lattice (5, 10, 25, 50 cm)    |     |
 |                     |                         |   - Online Bayesian Fusion (Welford's Algorithm)  |     |
@@ -57,7 +60,7 @@
 |   +------------------------------------+          +------------------------------------+                |
 |   |  Downstream Navigation & Regret   |          |  Live Telemetry & Dashboard        |                |
 |   |  - Nav2 / ROS 2 `grid_map` Topic   |          |  - Fast WebSocket Binary Stream    |                |
-|   |  - Hybrid-A* Path Regret Validator |          |  - deck.gl 3D WebGL Point & Grid   |                |
+|   |  - Hybrid-A* Path Regret Validator |          |  - Three.js 3D WebGL point & grid  |                |
 |   |  - Clearance Trajectory Check      |          |  - Live Memory Delta Meter         |                |
 |   +------------------------------------+          +------------------------------------+                |
 +---------------------------------------------------------------------------------------------------------+
@@ -114,7 +117,7 @@ Within each spatial column $(u, v)$, incoming points are partitioned along the v
 
 ---
 
-### 2.4 Multi-Factor Foveation Policy Engine
+### 2.4 Multi-Factor Foveation Policy Engine *(planned, not built: rings are assigned by radius, shifted by five speed/turn presets)*
 The cell size $\Delta s(u, v)$ for any spatial region is determined by evaluating the **Dynamic Hazard Index** $\mathcal{H}$:
 
 $$\mathcal{H}(u, v) = w_r \left(\frac{r}{R_{\max}}\right) - w_\sigma \left(\frac{\sigma_z}{\sigma_{\max}}\right) - w_s \cdot \mathcal{S}_{\text{hazard}}(\mathcal{C}) - w_v \cdot \frac{\|\mathbf{v}_{\text{rel}}\|}{v_{\max}} + w_g \cdot \mathcal{L}_{\text{compute}}$$
@@ -174,12 +177,10 @@ struct alignas(32) FoveaCell {
 ```
 
 ### Memory Budget Verification
-* In a $200\text{ m} \times 200\text{ m}$ domain:
-  * Core 5 cm ring ($r \le 10\text{ m}$): $400 \times 400 = 160,000$ cells max.
-  * Adaptive outer rings ($10 < r \le 100\text{ m}$): $\approx 260,000$ active non-empty cells.
-  * Total Active Cells: $\approx 420,000$ cells.
-  * **Total Footprint:** $420,000 \times 32\text{ bytes} \approx \mathbf{13.44\text{ MB}}$ (Dense) / $\mathbf{\approx 3.4\text{ MB}}$ with spatial hash sparsity.
-  * **Cache Efficiency:** Preallocated continuous flat array with spatial Morton-order (Z-order) indexing, guaranteeing maximum L1/L2 cache locality during ray traversal.
+* The pool is preallocated: **106,875 cells x 32 bytes = 3.2616 MB** (`SpatialHashGrid.cells.nbytes`), open-addressed with a
+  bounded probe chain (no Morton ordering).
+* Full coverage of the 5/10/25/50 cm schedule out to 100 m would need about 479k cells (CALCULATED), so the pool relies on
+  scan sparsity. A dropped-point counter is not implemented yet (`KNOWN_LIMITATIONS.md` §12, H4).
 
 ---
 
@@ -189,7 +190,7 @@ struct alignas(32) FoveaCell {
 * **Sensors:** Spinning LiDAR (Velodyne HDL-64E, Ouster OS1-128) or Solid-State (Livox Mid-360).
 * **Motion Deskewing:** Because the vehicle translates and rotates while the beam rotates, each point $\mathbf{p}_i$ with micro-timestamp $t_i$ is deskewed using odometry pose $\mathbf{T}_{t_i}^{\text{base}}$:
   $$\mathbf{p}_{\text{deskewed}} = \mathbf{T}_{\text{end}}^{\text{base}} \left( \mathbf{T}_{t_i}^{\text{base}} \right)^{-1} \mathbf{p}_i$$
-* **Odometry Backend:** Fast LiDAR-Inertial Odometry via **KISS-ICP** or **FAST-LIO2**, publishing at $50\text{ Hz}$ with sub-$2\text{ cm}$ drift error.
+* **Odometry Backend *(planned)*:** LiDAR-inertial odometry via **KISS-ICP** or **FAST-LIO2**, publishing at $50\text{ Hz}$ with sub-$2\text{ cm}$ drift error.
 
 ### 4.2 Subsystem 2: Range-Image Semantic Segmentation Backbone
 * **Input Tensor:** Spherical range image $\mathbf{I} \in \mathbb{R}^{H \times W \times 5}$ $(x, y, z, \text{range}, \text{intensity})$ where $H=64, W=2048$.
@@ -225,38 +226,31 @@ struct alignas(32) FoveaCell {
 
 ---
 
-## 5. Telemetry & User Experience Specification
+## 5. Dashboard (as built)
 
-The live monitoring dashboard is built with a high-performance **deck.gl + Three.js** frontend receiving a low-overhead binary WebSocket stream from a **FastAPI (Python)** backend:
-
-1. **Dual-View 3D Canvas:**
-   * Left: Raw 3D point cloud colored by semantic class.
-   * Right: FoveaGrid 2.5D multi-layer elevation surface with concentric foveation ring overlays.
-2. **The "Memory Paradox" Live Bar:**
-   * Real-time running comparison widget:
-     * `Uniform 3D Voxel Grid: 3,200 MB` [Red]
-     * `Uniform 2.5D Grid: 128 MB` [Orange]
-     * `FoveaGrid-2.5D: 3.42 MB` [Electric Green - 97.3% Savings]
-3. **Overhang Clearance Slice Inspector:**
-   * Interactive cross-section tool: Hovering over a bridge or tree canopy displays the vertical profile $[z_{\text{ground}}, z_{\text{ceiling}}, \Delta z_{\text{clearance}}]$ with a pass/fail clearance tag for the vehicle.
-4. **Planner Regret Telemetry:**
-   * Real-time path overlay showing both the Dense Path (White dotted line) and Adaptive Path (Cyan solid line) with live error $\mathcal{D}_{\max} < 5\text{ cm}$.
-
----
+React 19 + Three.js, Vite multi-page build: home screen at `/` (with "How it fits a robot"), dashboard at `/dashboard/`.
+Scenes load from static snapshots made by `scripts/export_dashboard_data.py` (no backend needed); a running FastAPI server
+upgrades them to live data and enables "Analyze your own scan" (`POST /api/analyze_scan`). Views: 3D Explore (pipeline
+cells and returns, colour by height / class / ring / variance, fly-through), Map Inspector (cells top-down or isometric,
+foveation presets, uniform 5 cm comparison, underpass costmaps), Evidence (every figure read from `benchmark/*.json`,
+tagged MEASURED / CALCULATED / DATASET). Details: `dashboard/client/README.md`. The WebSocket stream in the server is not
+used by the dashboard.
 
 ## 6. Current Implementation Status
 
-| Component | Status | Location |
+| Component | Status (2026-10-05) | Location |
 |:---|:---|:---|
-| Nested Lattice Ring Grid | ✅ Implemented, unit-tested | `core/grid/` |
-| Welford Bayesian Fusion | ✅ Implemented, tested | `core/grid/welford_fusion.py` |
-| Dual-Elevation Extractor | ✅ Implemented, **not yet wired into main pipeline** | `core/grid/dual_elevation.py` |
-| Chan's Variance Merge | ✅ Implemented, **not yet called** | `core/grid/welford_fusion.py` |
-| PCA Ground Plane Fit | ✅ Implemented, **not yet called in main path** | `core/grid/local_plane.py` |
-| Semantic Segmentation (ONNX) | ❌ Dead code path — no model file | `core/perception/segmentation_infer.py` |
-| Moving Object Segmentation | ✅ Implemented | `core/tracking/mos_filter.py` |
-| Hybrid-A* Planner | ✅ Implemented (Python/Numba) | `core/planning/hybrid_a_star.py` |
-| Nav2 / ROS 2 Integration | ❌ Not implemented | — |
-| Jetson / TensorRT | ❌ Not implemented | — |
-| Real Dataset Validation | ❌ Not yet run | `core/ingestion/loader.py` ready |
-| Dashboard (deck.gl) | ✅ Built, hardcoded demo data | `dashboard/` |
+| Nested lattice ring grid (5/10/25/50 cm to 10/25/50/100 m) | Built, tested | `core/grid/nested_lattice.py` |
+| Spatial hash, fixed 3.2616 MB pool | Built; no dropped-point counter, `uint8` count saturates (H4) | `core/grid/spatial_hash.py` |
+| Welford mean / variance per cell | Built, in the insert path | `core/grid/welford_fusion.py` |
+| Kalman (Bayesian) elevation update | Written, called only by a test | `core/grid/welford_fusion.py` |
+| Dual-elevation (ground / overhang, clearance) | Built, in the insert path | `core/grid/dual_elevation.py` |
+| Chan variance merge, PCA ground fit | Built as grid methods, tested; not run per frame | `core/grid/spatial_hash.py` |
+| Foveation | Five speed/turn presets; hazard-driven *(planned)* | `core/grid/fovea_controller.py` |
+| Semantic segmentation (SalsaNext ONNX) | Built; model file not in the repo, so the rule-based fallback runs here | `core/perception/segmentation_infer.py` |
+| Moving-object filter + ghost eraser | Built; measured on 50 real frames | `core/tracking/` |
+| Hybrid A* planner, costmap generator | Built; regret on 5 real frames, underpass on 1 synthetic scene | `core/planning/` |
+| ROS 2 costmap bridge | Publisher only; not built with colcon; no Nav2 planner run | `core/planning/nav2_bridge.py`, `ros2_ws/` |
+| Jetson / TensorRT | Not done | — |
+| Real dataset | SemanticKITTI seq 08 run on the team's machine; a 5,000-point sample in the repo | `scripts/run_seq08.py` |
+| Dashboard | Built: home, dashboard, 15-step tour, Evidence, upload | `dashboard/client/` |

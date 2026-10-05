@@ -2,7 +2,7 @@
 name: adaptive_grid_engine
 description: >
   Specification and algorithms for the multi-factor variable-resolution 2.5D ring grid,
-  nested lattice indexing, Welford online Bayesian fusion, dual-elevation overhang extraction,
+  nested lattice indexing, Welford online mean/variance, dual-elevation overhang extraction,
   and spatial hash memory pooling.
 ---
 
@@ -43,7 +43,7 @@ In each cell $(u, v)$, points are sorted or binned vertically to detect underpas
 
 ---
 
-## 3. Welford's Online Bayesian Elevation Fusion
+## 3. Welford's Online Elevation Statistics (the Kalman update in `welford_fusion.py` is not wired in)
 
 For continuous updates without memory bloat:
 $$\mu_n = \mu_{n-1} + \frac{z_i - \mu_{n-1}}{n}$$
@@ -58,4 +58,4 @@ $$\sigma_n^2 = \frac{M_{2, n}}{n}$$
 * All active cells reside in a continuous preallocated array of `FoveaCell` structs (32 bytes each).
 * Hash key:
   $$\text{key} = (\text{Morton2D}(u, v) \oplus (\text{level} \times 0x9e3779b9)) \pmod{N_{\text{capacity}}}$$
-* Guaranteed memory upper bound: $<3.5\text{ MB}$ for active cells, eliminating all dynamic heap allocations during runtime.
+* Fixed pool: 106,875 cells x 32 B = 3.2616 MB, preallocated, so no heap allocation per frame.

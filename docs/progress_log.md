@@ -542,3 +542,26 @@ See `dashboard/client/README.md` for structure, data flow and test map, and `das
 - **Tour.** Two new steps (`fly`, `underpass`): 40 in all.
 - **Tests.** `underpass.spec.ts`, `flythrough.spec.ts`; the tour specs count steps from the script.
 - **Not done / limits:** see `docs/reference/KNOWN_LIMITATIONS.md` section 10.
+
+---
+
+## Polish and accessibility pass
+
+- **Method.** Screenshots of every view in both themes at 1440x900, 1280x720 and 1024x700, a console and network capture, and an
+  axe-core scan (installed outside the project) of the 3D view, Controls panel, Map Inspector (plain, comparison, underpass),
+  Evidence, the tour and the shortcuts sheet.
+- **Contrast (serious).** The provenance badges are 10 px bold text on a 10% tint of their own colour. axe flagged MEASURED
+  (3.6:1 in light, 3.9:1 in dark) and CALCULATED in dark (4.4:1); computing all four badge colours on every surface showed
+  ESTIMATE (2.6:1 in light) and DATASET (3.5:1 in light, 4.1:1 in dark) below 4.5:1 as well. They are the project's honesty
+  tags, so the `--prov-*` tokens were adjusted to 4.5:1 or better on every surface; `quality.spec.ts` guards it and was
+  confirmed to fail on the old MEASURED colour.
+- **Structure (moderate).** The page had no `main`, two banners (the Map Inspector's toolbar is a `header`), no level-one
+  heading outside Evidence, and content outside any landmark. Each view now has one `main` and one `h1` (the 3D view's is
+  visually hidden), the inspector sidebar is a named section rather than a nested `aside`, and the bar-chart wrapper is a
+  `div` with `role="img"` rather than a `figure` (axe: role not allowed on that element). The scan covered 14 states
+  (3D, Controls panel, inspector plain, comparison and underpass, Evidence, in both themes, plus the tour and the `?` sheet).
+- **Map Inspector.** The "Cell inspector" panel is not shown while the underpass comparison is on (cells cannot be picked
+  there, so "click any cell" was misleading), and the stats-row values no longer wrap ("3.2616 MB" split over two lines).
+- **Console noise.** With no backend the status bar's health ping logged a failed request every 10 s. It now backs off to 60 s while
+  the API is down (`pollDelayMs`) and returns to 10 s once it answers.
+- **Cleanup.** Removed the unused `public/icons.svg` (Vite template leftover) and a no-op `0.0 * f` term in the turbo colour ramp (one lint warning fewer).

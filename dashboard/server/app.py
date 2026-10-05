@@ -11,14 +11,21 @@ import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+import re
 import struct
+import subprocess
 import sys
+import threading
+import time
+import unicodedata
 from typing import Dict, List, Optional, Tuple
 
 # Add project root to sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -340,6 +347,206 @@ def build_result_envelope(name: str) -> Dict[str, object]:
     }
 
 
+# Snapshot builders. They live here (moved from scripts/export_dashboard_data.py, which imports them back) so the
+# committed static snapshots and the live POST /api/analyze_scan are produced by one implementation.
+
+MAX_CELLS = 40_000  # stride-sampled above this and flagged `sampled`
+MAX_POINTS = 25_000  # seeded subsample above this
+
+
+def git_sha() -> str:
+    """Short commit hash of this checkout, or "unknown" when git or the .git folder is missing. Never raises."""
+    try:
+        out = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=Path(__file__).resolve().parent.parent.parent,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=10,
+        ).strip()
+        return out or "unknown"
+    except Exception:
+        return "unknown"
+
+
+def _round_all(values: np.ndarray, nd: int) -> List[float]:
+    return [round(float(v), nd) for v in values]
+
+
+def cells_columnar(grid: SpatialHashGrid, limit: int) -> Dict[str, object]:
+    """Active cells as parallel arrays. x/y/res are derived on the client from (ix, iy, ring)."""
+    active = grid.get_active_cells()
+    total = int(len(active))
+    sampled = total > limit
+    if sampled:
+        active = active[np.linspace(0, total - 1, limit, dtype=np.int32)]
+
+    count = active["count"].astype(np.int64)
+    var = np.where(count > 1, active["m2_z"] / np.maximum(count - 1, 1), 0.0)
+    oh = active["overhang_z"].astype(np.float64)
+    cl = active["clearance"].astype(np.float64)
+    oh_ok = np.abs(oh) < NO_VALUE_THRESHOLD
+    cl_ok = np.abs(cl) < NO_VALUE_THRESHOLD
+
+    return {
+        "total_active": total,
+        "n": int(len(active)),
+        "sampled": sampled,
+        "ix": active["ix"].astype(int).tolist(),
+        "iy": active["iy"].astype(int).tolist(),
+        "ring": active["ring_id"].astype(int).tolist(),
+        "sem": active["sem_id"].astype(int).tolist(),
+        "count": count.tolist(),
+        "z": _round_all(active["mean_z"], 2),
+        "var": _round_all(var, 4),
+        "zmin": _round_all(active["min_z"], 2),
+        "zmax": _round_all(active["max_z"], 2),
+        "oh": [round(float(v), 2) if ok else None for v, ok in zip(oh, oh_ok)],
+        "cl": [round(float(v), 2) if ok else None for v, ok in zip(cl, cl_ok)],
+    }
+
+
+def points_columnar(pts: np.ndarray, sem: np.ndarray, limit: int) -> Dict[str, object]:
+    n = len(pts)
+    idx = np.arange(n)
+    if n > limit:
+        idx = np.sort(np.random.default_rng(0).choice(n, size=limit, replace=False))
+    return {
+        "total": int(n),
+        "n": int(len(idx)),
+        "x": _round_all(pts[idx, 0], 2),
+        "y": _round_all(pts[idx, 1], 2),
+        "z": _round_all(pts[idx, 2], 2),
+        "sem": sem[idx].astype(int).tolist(),
+    }
+
+
+def lattice_table(grid: SpatialHashGrid) -> List[Dict[str, float]]:
+    return [
+        {"ring_id": int(c.ring_id), "res_m": float(c.cell_size), "r_inner": float(c.r_inner), "r_outer": float(c.r_outer)}
+        for c in grid.lattice.rings
+    ]
+
+
+def scene_snapshot(scene_id: str, kind: str, pts: np.ndarray, sem: np.ndarray, label_source: str,
+                   inputs: Dict[str, str], note: Optional[str] = None) -> Dict[str, object]:
+    """meta + telemetry + cross-section + cells + points for one scan, built on a FRESH grid (no global is touched)."""
+    grid = SpatialHashGrid()
+    grid.insert_points(pts, semantic_labels=sem)
+    cells = cells_columnar(grid, MAX_CELLS)
+    return {
+        "meta": {
+            "scene_id": scene_id,
+            "kind": kind,
+            "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "git_sha": git_sha(),
+            "label_source": label_source,
+            "points_raw": int(len(pts)),
+            "active_cells": int(grid.active_count),
+            "cells_exported": cells["n"],
+            "cells_sampled": cells["sampled"],
+            "inputs_sha256": inputs,
+            "lattice": lattice_table(grid),
+            "note": note,
+        },
+        "telemetry": build_telemetry(grid),
+        "cross_section": build_cross_section(grid),
+        "cells": cells,
+        "points": points_columnar(pts, sem, MAX_POINTS),
+    }
+
+
+# ---------------------------------------------------------------------------
+# "Try your own scan": POST /api/analyze_scan (raw SemanticKITTI / Velodyne .bin bytes in, scene snapshot out)
+# ---------------------------------------------------------------------------
+
+MAX_SCAN_BYTES = 8 * 1024 * 1024  # published in /api/health; the upload is refused above this
+SCAN_POINT_BYTES = 16  # float32 x, y, z, intensity
+SCAN_MIN_RANGE_M = 0.5  # same sanitising window as load_scene_arrays
+SCAN_MAX_RANGE_M = 120.0
+SCAN_NAME_MAX_CHARS = 100
+SCAN_DEFAULT_NAME = "scan.bin"
+SCAN_ID = "upload"
+
+# One analysis at a time: a second upload waits its turn (it is queued, never rejected).
+_ANALYZE_LOCK = threading.Lock()
+
+
+def _describe_bytes(n: int) -> str:
+    return f"{n / (1024 * 1024):g} MB" if n >= 1024 * 1024 else f"{n:,} bytes"
+
+
+def clean_scan_name(name: Optional[str]) -> str:
+    """File name safe to echo back: final path component only, no control characters, length capped."""
+    final = re.split(r"[\\/]", name or "")[-1]
+    final = "".join(ch for ch in final if unicodedata.category(ch)[0] != "C")[:SCAN_NAME_MAX_CHARS].strip()
+    return final if final not in ("", ".", "..") else SCAN_DEFAULT_NAME
+
+
+def _scan_too_large() -> SceneError:
+    return SceneError(
+        413,
+        "SCAN_TOO_LARGE",
+        f"This file is larger than the {_describe_bytes(MAX_SCAN_BYTES)} limit for an uploaded scan. "
+        "Upload a single LiDAR frame as a SemanticKITTI / Velodyne .bin file.",
+    )
+
+
+async def read_capped_body(request: Request, cap: int) -> bytes:
+    """Reads the request body, refusing anything above `cap` without ever buffering more than cap bytes."""
+    declared = request.headers.get("content-length")
+    if declared is not None and declared.strip().isdigit() and int(declared) > cap:
+        raise _scan_too_large()
+    chunks: List[bytes] = []
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > cap:
+            raise _scan_too_large()
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+def analyze_scan_bytes(data: bytes, name: str) -> Dict[str, object]:
+    """Runs one uploaded .bin through the real pipeline. Pure: fresh grid, no global state modified, nothing written."""
+    if len(data) == 0:
+        raise SceneError(400, "EMPTY_SCAN", "The file is empty (0 bytes). Choose a LiDAR scan saved as a SemanticKITTI / Velodyne .bin file.")
+    if len(data) > MAX_SCAN_BYTES:
+        raise _scan_too_large()
+    if len(data) % SCAN_POINT_BYTES != 0:
+        raise SceneError(
+            400,
+            "BAD_SCAN_SIZE",
+            f"This file is {len(data):,} bytes, which is not a whole number of points. A SemanticKITTI / Velodyne .bin "
+            f"stores {SCAN_POINT_BYTES} bytes per point (four 32-bit floats: x, y, z, intensity), "
+            f"so its size must be a multiple of {SCAN_POINT_BYTES}.",
+        )
+
+    digest = hashlib.sha256(data).hexdigest()
+    with _ANALYZE_LOCK:
+        started = time.perf_counter()
+        raw = np.frombuffer(data, dtype="<f4").astype(np.float32).reshape(-1, 4)  # astype copies: writable, native
+        pts, _ = sanitize_point_cloud(raw, min_range=SCAN_MIN_RANGE_M, max_range=SCAN_MAX_RANGE_M)
+        if len(pts) == 0:
+            raise SceneError(
+                400,
+                "NO_VALID_POINTS",
+                f"No usable points were left in this file: every point was missing (NaN or infinite) or outside "
+                f"{SCAN_MIN_RANGE_M:g} to {SCAN_MAX_RANGE_M:g} m from the sensor. "
+                "Check that it is a SemanticKITTI / Velodyne .bin (float32 x, y, z, intensity).",
+            )
+        sem = SEMANTIC_ENGINE.infer(pts)
+        onnx = getattr(SEMANTIC_ENGINE, "session", None) is not None
+        note = (
+            "Uploaded scan, labelled by the ONNX segmentation model; these labels are model output, not ground truth."
+            if onnx else
+            "Uploaded scan, labelled by the geometric heuristic (no ONNX model is loaded); these labels are not ground truth."
+        )
+        snapshot = scene_snapshot(SCAN_ID, "upload", pts, sem, "onnx" if onnx else "heuristic", {name: digest}, note)
+        snapshot["timing_ms"] = round((time.perf_counter() - started) * 1000.0, 1)
+    return snapshot
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -360,6 +567,7 @@ def health_check() -> Dict[str, object]:
         "active_cells": int(GLOBAL_GRID.active_count),
         "scenes": {sid: (REPO_ROOT / files[0]).is_file() for sid, files in SCENE_FILES.items()},
         "label_engine": "onnx" if SEMANTIC_ENGINE.session is not None else "heuristic",
+        "max_scan_bytes": MAX_SCAN_BYTES,
     }
 
 
@@ -427,6 +635,28 @@ def load_scene(scene_id: str) -> Dict[str, object]:
         return load_scene_into(GLOBAL_GRID, scene_id)
     except SceneError as e:
         raise HTTPException(status_code=e.status_code, detail={"code": e.code, "message": e.message})
+
+
+@app.post(
+    "/api/analyze_scan",
+    openapi_extra={
+        "requestBody": {
+            "required": True,
+            "content": {"application/octet-stream": {"schema": {"type": "string", "format": "binary"}}},
+        }
+    },
+)
+async def analyze_scan(request: Request, name: str = Query(SCAN_DEFAULT_NAME)) -> JSONResponse:
+    """Analyses an uploaded SemanticKITTI / Velodyne .bin (raw bytes) and returns a scene snapshot plus `timing_ms`.
+
+    Uses a fresh grid: the live scene, tracker and filters are untouched, and nothing is written to disk.
+    """
+    try:
+        data = await read_capped_body(request, MAX_SCAN_BYTES)
+        snapshot = await run_in_threadpool(analyze_scan_bytes, data, clean_scan_name(name))
+    except SceneError as e:
+        raise HTTPException(status_code=e.status_code, detail={"code": e.code, "message": e.message})
+    return JSONResponse(snapshot)
 
 
 @app.websocket("/ws/stream")

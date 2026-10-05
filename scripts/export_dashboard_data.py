@@ -30,7 +30,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import subprocess
 import sys
 import tempfile
 from datetime import datetime, timezone
@@ -43,6 +42,11 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from dashboard.server import app as server  # noqa: E402  (builders + scene registry)
+# These builders moved into the server module so the live API (POST /api/analyze_scan) and the static snapshots share
+# one implementation. The old names stay importable from here (tests and callers use `exporter.<name>`).
+from dashboard.server.app import (  # noqa: E402,F401
+    MAX_CELLS, MAX_POINTS, cells_columnar, git_sha, lattice_table, points_columnar, scene_snapshot,
+)
 from core.grid.baselines import calculate_baselines  # noqa: E402
 from core.grid.nested_lattice import NestedLattice, RingConfig  # noqa: E402
 from core.grid.fovea_controller import FoveaState  # noqa: E402
@@ -55,8 +59,6 @@ SYNTHETIC_IDS = ["scene_a_bridge", "scene_b_potholes", "scene_c_moving", "scene_
 REAL_ID = "real_seq08_f00"
 KITTI_SAMPLE = REPO_ROOT / "dashboard" / "client" / "public" / "kitti_sample_08.json"
 
-MAX_CELLS = 40_000  # stride-sampled above this and flagged `sampled`
-MAX_POINTS = 25_000  # seeded subsample above this
 MAX_VARIANT_CELLS = 20_000  # variant files carry cells only, so they are capped lower than the base scene
 
 VARIANT_SCHEMA = "limap.variant/1"
@@ -98,78 +100,12 @@ LICENSE_NOTE = {
 }
 
 
-def git_sha() -> str:
-    try:
-        return subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=REPO_ROOT, text=True).strip()
-    except Exception:
-        return "unknown"
-
-
 def sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def dumps(obj: object) -> str:
     return json.dumps(obj, separators=(",", ":"), allow_nan=False)
-
-
-def r(values: np.ndarray, nd: int) -> List[float]:
-    return [round(float(v), nd) for v in values]
-
-
-def cells_columnar(grid: SpatialHashGrid, limit: int) -> Dict[str, object]:
-    """Active cells as parallel arrays. x/y/res are derived on the client from (ix, iy, ring)."""
-    active = grid.get_active_cells()
-    total = int(len(active))
-    sampled = total > limit
-    if sampled:
-        active = active[np.linspace(0, total - 1, limit, dtype=np.int32)]
-
-    count = active["count"].astype(np.int64)
-    var = np.where(count > 1, active["m2_z"] / np.maximum(count - 1, 1), 0.0)
-    oh = active["overhang_z"].astype(np.float64)
-    cl = active["clearance"].astype(np.float64)
-    oh_ok = np.abs(oh) < server.NO_VALUE_THRESHOLD
-    cl_ok = np.abs(cl) < server.NO_VALUE_THRESHOLD
-
-    return {
-        "total_active": total,
-        "n": int(len(active)),
-        "sampled": sampled,
-        "ix": active["ix"].astype(int).tolist(),
-        "iy": active["iy"].astype(int).tolist(),
-        "ring": active["ring_id"].astype(int).tolist(),
-        "sem": active["sem_id"].astype(int).tolist(),
-        "count": count.tolist(),
-        "z": r(active["mean_z"], 2),
-        "var": r(var, 4),
-        "zmin": r(active["min_z"], 2),
-        "zmax": r(active["max_z"], 2),
-        "oh": [round(float(v), 2) if ok else None for v, ok in zip(oh, oh_ok)],
-        "cl": [round(float(v), 2) if ok else None for v, ok in zip(cl, cl_ok)],
-    }
-
-
-def points_columnar(pts: np.ndarray, sem: np.ndarray, limit: int) -> Dict[str, object]:
-    n = len(pts)
-    idx = np.arange(n)
-    if n > limit:
-        idx = np.sort(np.random.default_rng(0).choice(n, size=limit, replace=False))
-    return {
-        "total": int(n),
-        "n": int(len(idx)),
-        "x": r(pts[idx, 0], 2),
-        "y": r(pts[idx, 1], 2),
-        "z": r(pts[idx, 2], 2),
-        "sem": sem[idx].astype(int).tolist(),
-    }
-
-
-def lattice_table(grid: SpatialHashGrid) -> List[Dict[str, float]]:
-    return [
-        {"ring_id": int(c.ring_id), "res_m": float(c.cell_size), "r_inner": float(c.r_inner), "r_outer": float(c.r_outer)}
-        for c in grid.lattice.rings
-    ]
 
 
 class SceneData(NamedTuple):
@@ -198,33 +134,6 @@ def run_grid(pts: np.ndarray, sem: np.ndarray, grid: SpatialHashGrid,
     state = grid.fovea.update(vel, yaw_rate_rads=yaw)
     grid.insert_points(pts, semantic_labels=sem, ego_velocity_xy=vel, yaw_rate_rads=yaw)
     return state
-
-
-def scene_snapshot(scene_id: str, kind: str, pts: np.ndarray, sem: np.ndarray, label_source: str,
-                   inputs: Dict[str, str], note: Optional[str] = None) -> Dict[str, object]:
-    grid = SpatialHashGrid()
-    run_grid(pts, sem, grid)
-    cells = cells_columnar(grid, MAX_CELLS)
-    return {
-        "meta": {
-            "scene_id": scene_id,
-            "kind": kind,
-            "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "git_sha": git_sha(),
-            "label_source": label_source,
-            "points_raw": int(len(pts)),
-            "active_cells": int(grid.active_count),
-            "cells_exported": cells["n"],
-            "cells_sampled": cells["sampled"],
-            "inputs_sha256": inputs,
-            "lattice": lattice_table(grid),
-            "note": note,
-        },
-        "telemetry": server.build_telemetry(grid),
-        "cross_section": server.build_cross_section(grid),
-        "cells": cells,
-        "points": points_columnar(pts, sem, MAX_POINTS),
-    }
 
 
 def load_synthetic_scenes(tmp: Path) -> Dict[str, SceneData]:

@@ -154,3 +154,13 @@ This ensures zero `FileNotFoundError` across offline tests and synthetic benchma
 - **The fly-through is a camera shot.** The route is the planner's path and the scenery is the grid's cells and returns; it
   is not a recorded drive. The eye height and speed are camera settings. With reduced motion it is a still pose, not a
   flight, and the drag, wheel, camera change or `R` ends it.
+
+---
+
+## 11. Dashboard: analysing your own scan
+
+- **Only a SemanticKITTI-style `.bin`, labelled by a heuristic, on the local API, up to a size cap.** `POST /api/analyze_scan`
+  reads one raw SemanticKITTI / Velodyne `.bin` (float32 x, y, z, intensity; no `.label` file and no other format). Its
+  labels come from the geometric heuristic unless an ONNX model is present, so they are not ground truth. It needs the
+  local FastAPI server: the static and serverless deployment cannot run it, so the button stays disabled there. The file
+  size is capped at `MAX_SCAN_BYTES` (8 MB, published by `/api/health`), and one scan is analysed at a time.

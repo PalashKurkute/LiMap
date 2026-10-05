@@ -179,9 +179,6 @@ def mount_site(application: FastAPI, dist_dir: Path) -> bool:
 def build_telemetry(grid: SpatialHashGrid) -> Dict[str, object]:
     """Memory footprint, active cells, load factor, and baseline comparison."""
     telemetry = dict(grid.export_telemetry())
-    # API-layer rename: the core keeps its historical key, the UI never sees "DRDO bound".
-    telemetry.pop("under_drdo_bound", None)
-    telemetry["within_pool_budget"] = bool(telemetry["total_heap_mb"] < 3.5)
     baselines = calculate_baselines()
     return {
         "telemetry": telemetry,

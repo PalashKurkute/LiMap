@@ -4,7 +4,7 @@
   <name>foveagrid_nav2</name>
   <version>1.0.0</version>
   <description>ROS 2 Nav2 Costmap Layer and Bridge for FoveaGrid 2.5D Adaptive LiDAR Mapping</description>
-  <maintainer email="autonomous-ugv@drdo.res.in">FoveaGrid DRDO Perception Team</maintainer>
+  <maintainer email="ved.amit.jadhav@gmail.com">Ved Jadhav</maintainer>
   <license>Apache-2.0</license>
 
   <depend>rclpy</depend>

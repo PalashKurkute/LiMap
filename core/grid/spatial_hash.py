@@ -359,7 +359,8 @@ class SpatialHashGrid:
             "load_factor": round(self.active_count / self.capacity, 4),
             "allocated_cell_mb": round(self.cells.nbytes / (1024 * 1024), 4),
             "total_heap_mb": round(self.total_memory_mb, 4),
-            "under_drdo_bound": self.total_memory_mb < 3.5,
+            # 3.5 MB is the team's own design budget; the pool itself is 3.2616 MB.
+            "within_pool_budget": self.total_memory_mb < 3.5,
             "tactical_summary": {
                 "min_clearance_m": min_clearance,
                 "max_variance_m2": max_variance,

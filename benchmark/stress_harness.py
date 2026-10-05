@@ -53,13 +53,13 @@ class SensorStressHarness:
         active = grid.insert_points(degraded_pts)
         telem = grid.export_telemetry()
 
-        assert telem["under_drdo_bound"], f"Memory breach under 50% dropout: {telem['total_heap_mb']} MB"
+        assert telem["within_pool_budget"], f"Memory breach under 50% dropout: {telem['total_heap_mb']} MB"
         return {
             "status": "PASSED",
             "input_points": len(degraded_pts),
             "active_cells": active,
             "heap_mb": float(str(telem["total_heap_mb"])),
-            "under_drdo_bound": True,
+            "within_pool_budget": True,
         }
 
     def test_mode_2_extreme_noise(self, noise_std_m: float = 0.10) -> Dict[str, Any]:
@@ -72,13 +72,13 @@ class SensorStressHarness:
         active = grid.insert_points(noisy_pts)
         telem = grid.export_telemetry()
 
-        assert telem["under_drdo_bound"]
+        assert telem["within_pool_budget"]
         return {
             "status": "PASSED",
             "noise_std_m": noise_std_m,
             "active_cells": active,
             "heap_mb": float(str(telem["total_heap_mb"])),
-            "under_drdo_bound": True,
+            "within_pool_budget": True,
         }
 
     def test_mode_3_ground_absorption(self, drop_ground_pct: float = 0.60) -> Dict[str, Any]:
@@ -93,13 +93,13 @@ class SensorStressHarness:
         active = grid.insert_points(retained_pts)
         telem = grid.export_telemetry()
 
-        assert telem["under_drdo_bound"]
+        assert telem["within_pool_budget"]
         return {
             "status": "PASSED",
             "ground_lost_pct": round(drop_ground_pct * 100.0, 1),
             "active_cells": active,
             "heap_mb": float(str(telem["total_heap_mb"])),
-            "under_drdo_bound": True,
+            "within_pool_budget": True,
         }
 
     def test_mode_4_high_speed_motion(
@@ -113,14 +113,14 @@ class SensorStressHarness:
         active = grid.insert_points(self.raw_points, ego_velocity_xy=vel_xy)
         telem = grid.export_telemetry()
 
-        assert telem["under_drdo_bound"]
+        assert telem["within_pool_budget"]
         return {
             "status": "PASSED",
             "speed_mps": linear_vel_mps,
             "forward_fovea_reach_m": round(grid.fovea.base_fovea_radius_m * 1.48, 2),
             "active_cells": active,
             "heap_mb": float(str(telem["total_heap_mb"])),
-            "under_drdo_bound": True,
+            "within_pool_budget": True,
         }
 
     def test_mode_5_reverse_driving(self, reverse_speed_mps: float = -6.0) -> Dict[str, Any]:
@@ -130,13 +130,13 @@ class SensorStressHarness:
         active = grid.insert_points(self.raw_points, ego_velocity_xy=vel_xy)
         telem = grid.export_telemetry()
 
-        assert telem["under_drdo_bound"]
+        assert telem["within_pool_budget"]
         return {
             "status": "PASSED",
             "reverse_speed_mps": reverse_speed_mps,
             "active_cells": active,
             "heap_mb": float(str(telem["total_heap_mb"])),
-            "under_drdo_bound": True,
+            "within_pool_budget": True,
         }
 
 
@@ -145,7 +145,7 @@ def run_stress_suite() -> None:
     results = harness.run_all_stress_tests()
 
     print("=" * 70)
-    print(" ADVERSARIAL SENSOR STRESS & DEGRADATION HARNESS (DRDO SIH26053)")
+    print(" ADVERSARIAL SENSOR STRESS & DEGRADATION HARNESS (SIH26053)")
     print("=" * 70)
     for mode, data in results.items():
         print(f"[{mode.upper()}] Status: {data['status']}")

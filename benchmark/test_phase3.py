@@ -88,9 +88,9 @@ def test_spatial_hash_memory_bound():
     grid = SpatialHashGrid(capacity=106_875)
     telemetry = grid.export_telemetry()
     
-    # DRDO Hard bound: Memory < 3.5 MB
-    print(f"Spatial Hash Total Memory: {telemetry['total_heap_mb']} MB (DRDO bound: < 3.5 MB)")
-    assert telemetry["under_drdo_bound"], f"Memory exceeded DRDO limit: {telemetry['total_heap_mb']} MB"
+    # Memory budget: < 3.5 MB (team-set; the pool is 3.2616 MB)
+    print(f"Spatial Hash Total Memory: {telemetry['total_heap_mb']} MB (budget: < 3.5 MB)")
+    assert telemetry["within_pool_budget"], f"Memory exceeded the pool budget: {telemetry['total_heap_mb']} MB"
 
     # Insert 100,000 points from Scene A
     pts = load_kitti_bin("data/synthetic/scene_a_bridge_underpass.bin")

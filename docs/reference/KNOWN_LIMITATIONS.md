@@ -148,9 +148,9 @@ and literature: `git show docs-before-consolidation:"reports/LiMap SIH26053 exte
 
 | # | Finding | Status | Fix |
 |---|---|---|---|
-| C1 | Invented "DRDO" thresholds and a 0.04% regret figure in a scorecard | **Mostly fixed**: scorecard removed and no threshold text in the UI; the internal key `under_drdo_bound` (`spatial_hash.py`) and `drdo_upper_bound_mb` (edge profile) remain, hidden from the UI; rename them | — |
+| C1 | Invented "DRDO" thresholds and a 0.04% regret figure in a scorecard | **Fixed**: scorecard removed, no threshold text in the UI, and the code keys are now `within_pool_budget` and `memory_budget_mb` (3.5 MB is the team's own design budget; the pool is 3.2616 MB). The edge profile kept its measured values; only the two key names changed | — |
 | C2 | Ground-truth leakage: `full_sequence_eval.py` defaults to GT labels (`stride_onnx=0`), so its 100% moving recall is label lookup; regret also uses GT labels | **Open** (default still 0) | Predicted labels by default; fail if labels 252-259 reach `mos_filter`; report IoU_MOS |
-| C3 | ROS 2 package lists a DRDO maintainer e-mail the team does not own (`ros2_ws/src/foveagrid_nav2/package.xml:7`, `setup.py:18-19`) | **Open, urgent** | Replace with a real team member's name and e-mail |
+| C3 | ROS 2 package lists a DRDO maintainer e-mail the team does not own (`ros2_ws/src/foveagrid_nav2/package.xml:7`, `setup.py:18-19`) | **Fixed**: the maintainer is now a team member (Ved Jadhav) in both files | — |
 | C4 | One pipeline quoted with four latencies and three accuracies across docs | **Fixed** in this consolidation: docs quote only `benchmark/*.json` | Keep it that way (`npm run check:docs`) |
 | C5 | False claims about rivals in the old competitive matrix | **Fixed**: matrix removed; `COMPETITORS.md` is self-reported and dated | — |
 | C6 | Docs cited files that do not exist (`full_sequence_results.json`, `mos_banded_results.json`, `JUDGE_QA.md`, ...) | Mostly fixed by this consolidation; not every code comment re-checked | Remove or commit any cited file |
@@ -167,7 +167,7 @@ and literature: `git show docs-before-consolidation:"reports/LiMap SIH26053 exte
 | H11 | ROS 2 node creates a publisher only (no PointCloud2 subscription, TF or timer), no ament `resource/` marker, stamped `map` not `odom`, never built with colcon | **Open** (publisher only, no `resource/`) | Subscribe, look up TF, publish in `odom`; rosbag launch and Docker |
 | H12 | Negative obstacles: fixed z thresholds, synthetic validation, curb survival fails in rings 1 and 3 (`fidelity_study_results.json`) | **Open** | Gap/shadow detection, upper-bound layer, hazard P/R by band |
 
-Medium and low findings (same audit): no LICENSE, CI or Dockerfile and an incomplete `requirements.txt` (M1); tests
+Medium and low findings (same audit): no CI or Dockerfile (a root LICENSE, Apache-2.0, has since been added) and an incomplete `requirements.txt` (M1); tests
 that need generated fixtures and a parity test that never runs (M2); deployment cannot stream (M3); "full sequence" was
 976 of 4,071 scans (M4); no per-band elevation RMSE or coverage metric (M5); no corruption, weather or SOTIF framing (M6);
 mixed names LiMap / FoveaGrid (L1); no related-work statement (L2); no determinism test (L3).

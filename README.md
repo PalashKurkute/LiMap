@@ -82,6 +82,10 @@ Stated in [docs/reference/KNOWN_LIMITATIONS.md](docs/reference/KNOWN_LIMITATIONS
 everything runs on a CPU, scans are processed one at a time rather than as a live stream, nothing has been run on an
 embedded board, and the foveation controller uses speed and turn presets (hazard-driven foveation is planned).
 
+## Licence, data and weights
+
+The code is licensed under Apache-2.0 ([LICENSE](LICENSE)). Third-party terms apply to what this project was run on, whatever the code's licence. SemanticKITTI is CC BY-NC-SA 4.0 (non-commercial); RELLIS-3D, planned for off-road checks and not used yet, is CC BY-NC-SA 3.0 ([licences](docs/reference/PROBLEM_STATEMENT.md)). The pretrained SalsaNext weights are not in this repository; they were trained on SemanticKITTI and their own licence has not been checked ([KNOWN_LIMITATIONS, finding H9](docs/reference/KNOWN_LIMITATIONS.md)). Do not treat any of these as cleared for commercial use.
+
 ## Docs
 
 Start at [docs/README.md](docs/README.md): the index, how the docs are kept current, and where the old docs went.

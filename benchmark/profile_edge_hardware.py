@@ -176,8 +176,8 @@ def audit_memory_and_cache() -> Dict[str, Any]:
         "total_preallocated_cells": total_cells,
         "static_heap_bytes": heap_bytes,
         "static_heap_mb": heap_mb,
-        "drdo_upper_bound_mb": 3.50,
-        "drdo_bound_preserved": heap_mb <= 3.50,
+        "memory_budget_mb": 3.50,
+        "memory_budget_preserved": heap_mb <= 3.50,
         "adversarial_burst_points": len(burst_pts),
         "active_cells_populated": active_cells,
         "hash_table_load_factor": load_factor,
@@ -270,7 +270,7 @@ def run_edge_hardware_profile(
     print("\n2. Auditing Deterministic Memory & Cache Alignment...")
     mem_audit = audit_memory_and_cache()
     print(f"   - Cell Struct Size:        {mem_audit['cell_struct_bytes']} bytes (Dual cache-line friendly: {mem_audit['fits_cache_line_perfectly']})")
-    print(f"   - Static Heap Footprint:   {mem_audit['static_heap_mb']:.2f} MiB (Bound: < {mem_audit['drdo_upper_bound_mb']} MB) -> PASS")
+    print(f"   - Static Heap Footprint:   {mem_audit['static_heap_mb']:.2f} MiB (Budget: < {mem_audit['memory_budget_mb']} MB) -> PASS")
     print(f"   - 200k Point Burst Realloc: {mem_audit['zero_heap_reallocation']} (Zero Heap Reallocations)")
     print(f"   - Hash Load Factor:        {mem_audit['hash_table_load_factor']*100:.1f}%")
 

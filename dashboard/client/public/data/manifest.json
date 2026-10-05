@@ -76,7 +76,7 @@
     },
     "edge_profile": {
       "file": "results/edge_profile.json",
-      "sha256": "8583873a2149fa28d6190e168f1b67cbfa6c3e4342a711799045d829af97a101",
+      "sha256": "6057a65ae23ba9b97ef38eedc11160c8db4958e9d7493aad989022037b9c360c",
       "source_path": "benchmark/edge_hardware_profile.json"
     }
   },

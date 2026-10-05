@@ -1,10 +1,10 @@
 """Ground Truth Memory & Computational Complexity Baseline Calculator.
 
 Computes exact theoretical and runtime byte allocations comparing:
-  1. Dense 3D Voxel Grid (3200 MB / 3.2 GB)
-  2. Uniform 2.5D Elevation Grid (128 MB)
-  3. FoveaGrid 2.5D Adaptive Multi-Ring Grid (<= 3.42 MB)
-Provides defensible, unassailable numbers for DRDO benchmarks and evaluator queries.
+  1. Dense 3D Voxel Grid (3,051.8 MB, 100 x 100 x 10 m at 5 cm)
+  2. Uniform 2.5D Elevation Grid (122.07 MB, 100 x 100 m at 5 cm)
+  3. FoveaGrid 2.5D Adaptive Multi-Ring Grid (3.2616 MB pool)
+These are CALCULATED capacities; the benchmarks and the dashboard quote them.
 """
 
 from __future__ import annotations
@@ -120,7 +120,7 @@ def calculate_baselines(
 def print_baseline_report() -> None:
     res = calculate_baselines()
     print("=" * 70)
-    print(" FOVEAGRID 2.5D - BASELINE MEMORY VERIFICATION (DRDO SIH26053)")
+    print(" FOVEAGRID 2.5D - BASELINE MEMORY VERIFICATION (SIH26053)")
     print("=" * 70)
     print(f"1. Dense 3D Voxel Grid:    {res.dense_3d_voxel_mb:.1f} MB ({res.dense_3d_voxel_count:,} voxels)")
     print(f"2. Uniform 2.5D Elevation: {res.uniform_25d_mb:.1f} MB ({res.uniform_25d_cell_count:,} cells)")

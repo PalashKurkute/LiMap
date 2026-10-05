@@ -281,7 +281,7 @@ def run_full_regret_benchmark() -> None:
     benchmark = PlannerRegretBenchmark()
 
     print("=" * 70)
-    print(" DOWNSTREAM PLANNER REGRET BENCHMARK (DRDO SIH26053)")
+    print(" DOWNSTREAM PLANNER REGRET BENCHMARK (SIH26053)")
     print("=" * 70)
 
     res_bridge = benchmark.benchmark_bridge_underpass()

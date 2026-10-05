@@ -61,7 +61,7 @@ def run_sequence_08_benchmark(
 
     initial_telemetry = grid.export_telemetry()
     allocated_mb = initial_telemetry["total_heap_mb"]
-    under_drdo = initial_telemetry["under_drdo_bound"]
+    within_budget = initial_telemetry["within_pool_budget"]
 
     latencies_ms: List[float] = []
     infer_latencies_ms: List[float] = []
@@ -159,8 +159,8 @@ def run_sequence_08_benchmark(
         "frames_evaluated": total_frames,
         "memory": {
             "allocated_heap_mb": allocated_mb,
-            "drdo_bound_mb": 3.5,
-            "under_drdo_bound": under_drdo,
+            "memory_budget_mb": 3.5,
+            "within_pool_budget": within_budget,
             "max_active_cells": max_active_cells,
             "mean_active_cells": round(mean_active_cells, 1),
             "table_capacity": grid.capacity,
@@ -212,7 +212,7 @@ def run_sequence_08_benchmark(
     print(f"  Ghost Cells Carved:      {total_ghost_cells_erased:,}")
     print(f"  Kalman Track Events:     {total_tracks_formed:,}")
     print(f"  Mean Active Cells:       {mean_active_cells:,.0f} (Peak: {max_active_cells})")
-    print(f"  Heap Memory:             {allocated_mb:.2f} MB (DRDO Bound: < 3.5 MB: {under_drdo})")
+    print(f"  Heap Memory:             {allocated_mb:.2f} MB (budget < 3.5 MB: {within_budget})")
     print(f"  Mean Insertion Latency:  {mean_latency:.2f} ms ({insertion_fps:.1f} FPS)")
     print(f"  P95 Insertion Latency:   {p95_latency:.2f} ms")
     print(f"  P99 Insertion Latency:   {p99_latency:.2f} ms")

@@ -68,7 +68,7 @@ def run_full_sequence_evaluation(
     print(f"  Total Scans to Run:  {total_frames} (All available local scans)")
     print(f"  Velodyne Source:     {velodyne_path.resolve()}")
     print(f"  Labels Source:       {lbl_path.resolve()}")
-    print(f"  Per-Frame Invariant: Heap footprint <= 3.2616 MB (DRDO bound < 3.50 MB)")
+    print(f"  Per-Frame Invariant: Heap footprint <= 3.2616 MB (budget < 3.50 MB)")
     print("-" * 78)
 
     grid = SpatialHashGrid()
@@ -161,7 +161,7 @@ def run_full_sequence_evaluation(
         grid_ms = (t_grid1 - t_grid0) * 1000.0
         grid_latencies_ms.append(grid_ms)
 
-        # 7. PER-FRAME MEMORY ASSERTION (< 3.5 MB DRDO Invariant)
+        # 7. PER-FRAME MEMORY ASSERTION (< 3.5 MB budget)
         telemetry = grid.export_telemetry()
         current_heap_mb = float(str(telemetry["total_heap_mb"]))
         if current_heap_mb > max_observed_heap_mb:
@@ -218,7 +218,7 @@ def run_full_sequence_evaluation(
             "assertions_violated": memory_assert_failures,
             "max_observed_heap_mb": round(float(max_observed_heap_mb), 4),
             "allocated_heap_bound_mb": 3.2616,
-            "drdo_strict_bound_mb": 3.50,
+            "memory_budget_mb": 3.50,
             "invariant_held_100_percent": (memory_assert_failures == 0),
         },
         "moving_object_segmentation": {

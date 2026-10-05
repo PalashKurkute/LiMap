@@ -38,7 +38,7 @@ def verify_milestone_1() -> bool:
     mem_mb = grid.cells.nbytes / (1024 * 1024)
     print(f"      - Points inserted: {len(pts):,}")
     print(f"      - Heap footprint:  {mem_mb:.4f} MB (Bound: < 3.50 MB)")
-    assert mem_mb <= 3.42, f"Memory {mem_mb} exceeded DRDO bound"
+    assert mem_mb <= 3.42, f"Memory {mem_mb} exceeded the pool budget"
     assert len(grid.get_active_cells()) > 1000, "Active cells underpopulated"
     print("      --> PASS: Invariant < 3.5 MB strictly preserved.")
     return True

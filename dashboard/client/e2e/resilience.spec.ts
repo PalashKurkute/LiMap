@@ -17,7 +17,7 @@ const alert = (page: Page) => page.getByRole('alert');
 test('a failed Evidence chunk: the idle prefetch stays silent, opening it shows a message, the rest keeps working', async ({ page }) => {
   const uncaught = await start(page, /\/assets\/EvidenceView-[^/]*\.js$/);
   const prefetchFailed = page.waitForEvent('requestfailed', { predicate: (r) => /EvidenceView-/.test(r.url()), timeout: 30_000 });
-  await page.goto('/');
+  await page.goto('/dashboard/');
   await expect(page.locator('[data-region="provenance"]')).toBeVisible();
   await prefetchFailed; // the browser went idle, tried the chunk, and it failed
   expect(uncaught, 'a failed prefetch must not raise an uncaught error').toEqual([]);
@@ -37,7 +37,7 @@ test('a failed Evidence chunk: the idle prefetch stays silent, opening it shows 
 
 test('a failed 3D chunk: the scene picker and the other views stay usable', async ({ page }) => {
   const uncaught = await start(page, /\/assets\/ThreeViewport-[^/]*\.js$/);
-  await page.goto('/');
+  await page.goto('/dashboard/');
   await expect(alert(page)).toContainText('could not be loaded');
 
   // The scene picker is part of the page, not of the 3D chunk.

@@ -29,7 +29,7 @@ for (const theme of ['light', 'dark'] as const) {
       localStorage.setItem('limap.theme', t);
       localStorage.setItem('limap.welcomeSeen', '1');
     }, theme);
-    await page.goto('/');
+    await page.goto('/dashboard/');
 
     for (const key of SCENES) {
       await page.keyboard.press(key);
@@ -56,7 +56,7 @@ for (const theme of ['light', 'dark'] as const) {
     fs.mkdirSync(OUT, { recursive: true });
     const problems = watch(page);
     await page.addInitScript((t) => localStorage.setItem('limap.theme', t), theme);
-    await page.goto('/');
+    await page.goto('/dashboard/');
     await page.waitForTimeout(400);
     await page.screenshot({ path: path.join(OUT, `${theme}__tour_nudge.png`) });
     await page.locator('[data-region="tour-nudge"]').getByRole('button', { name: 'Take the tour' }).click();

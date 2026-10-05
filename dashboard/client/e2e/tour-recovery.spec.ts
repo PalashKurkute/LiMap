@@ -14,7 +14,7 @@ const stepIndex = (id: string) => {
 /** Pre-seed saved progress, so "Resume tour" starts at this step and a test does not have to click through the earlier ones. */
 async function resumeAt(page: Page, id: string) {
   await page.addInitScript(
-    ([k, n]) => localStorage.setItem('limap.tour.v1', JSON.stringify({ lastStep: k, total: n, done: false })),
+    ([k, n]) => localStorage.setItem('limap.tour.v2', JSON.stringify({ lastStep: k, total: n, done: false })),
     [stepIndex(id), N],
   );
 }
@@ -32,7 +32,7 @@ test('if the tour code cannot be loaded, the tour does not start, the app says s
   const uncaught = collectUncaught(page);
   await seen(page);
   await page.route(TOUR_CHUNK, (route) => route.abort());
-  await page.goto('/');
+  await page.goto('/dashboard/');
   await expect(page.locator('[data-region="provenance"]')).toBeVisible();
 
   await headerTour(page).click();
@@ -54,7 +54,7 @@ test('?tour=1 with the tour code unavailable shows the same message and still cl
   const uncaught = collectUncaught(page);
   await seen(page);
   await page.route(TOUR_CHUNK, (route) => route.abort());
-  await page.goto('/?tour=1');
+  await page.goto('/dashboard/?tour=1');
   await expect(alert(page)).toContainText('could not be loaded');
   expect(page.url()).not.toContain('tour=1');
   await expect(page.locator('[data-region="provenance"]')).toBeVisible();
@@ -65,10 +65,10 @@ test('a step whose data never arrives still shows, and the tour carries on and l
   test.setTimeout(300_000);
   const uncaught = collectUncaught(page);
   await seen(page);
-  await resumeAt(page, 'preset-city_cruise');
+  await resumeAt(page, 'presets');
   // Every foveation variant file fails to download; the manifest and scene snapshots are untouched.
   await page.route(/\/data\/variants\//, (route) => route.abort());
-  await page.goto('/');
+  await page.goto('/dashboard/');
   await page.waitForSelector('html[data-ready~="scene-data"]');
   await page.getByRole('button', { name: 'Evidence', exact: true }).click();
   const before = await appState(page);
@@ -77,15 +77,15 @@ test('a step whose data never arrives still shows, and the tour carries on and l
   await page.getByRole('menuitem', { name: /Resume at step/ }).click();
   // The step waits for its data (up to 15 s), then shows anyway.
   await ready(page);
-  expect(await currentId(page)).toBe('preset-city_cruise');
-  await expect(popover(page)).toContainText('Foveation: city speed');
+  expect(await currentId(page)).toBe('presets');
+  await expect(popover(page)).toContainText('Foveation presets');
   expect(await page.evaluate(() => document.documentElement.dataset.ready ?? '')).not.toContain('variant');
   await expect(page.locator('[data-region="tour-spotlight"]')).toBeVisible();
 
   // Next still works, and the next failing step also shows.
   await next(page);
-  expect(await currentId(page)).toBe('preset-highway_extended');
-  await expect(popover(page)).toContainText('Foveation: highway speed');
+  expect(await currentId(page)).toBe('compare');
+  await expect(popover(page)).toContainText('Uniform 5 cm versus FoveaGrid');
 
   // Leaving restores what the user had, failure or not.
   await page.keyboard.press('Escape');
@@ -98,8 +98,8 @@ test('Finish restores the app exactly as it was, including an unsaved theme chan
   test.setTimeout(300_000);
   await seen(page);
   await page.addInitScript(() => localStorage.setItem('limap.theme', 'light'));
-  await resumeAt(page, 'theme');
-  await page.goto('/');
+  await resumeAt(page, 'finish');
+  await page.goto('/dashboard/');
   await page.waitForSelector('html[data-ready~="scene-data"]');
 
   // A state that is not the tour's start state.
@@ -113,12 +113,10 @@ test('Finish restores the app exactly as it was, including an unsaved theme chan
   await headerTour(page).click();
   await page.getByRole('menuitem', { name: /Resume at step/ }).click();
   await ready(page);
-  expect(await currentId(page)).toBe('theme');
+  expect(await currentId(page)).toBe('finish');
   expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark'); // switched for the step, not saved
   expect(await page.evaluate(() => localStorage.getItem('limap.theme'))).toBe('light');
 
-  await next(page);
-  expect(await currentId(page)).toBe('finish');
   await page.getByRole('button', { name: 'Finish' }).click();
   await expect(tour(page)).toHaveCount(0);
 
@@ -127,6 +125,6 @@ test('Finish restores the app exactly as it was, including an unsaved theme chan
   await expect(headerTour(page)).toBeFocused();
   // A finished tour offers a fresh start, not a resume.
   await expect(headerTour(page)).toContainText('Take the tour');
-  const progress = await page.evaluate(() => JSON.parse(localStorage.getItem('limap.tour.v1') ?? 'null'));
+  const progress = await page.evaluate(() => JSON.parse(localStorage.getItem('limap.tour.v2') ?? 'null'));
   expect(progress).toMatchObject({ done: true });
 });

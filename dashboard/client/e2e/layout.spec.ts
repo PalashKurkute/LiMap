@@ -54,7 +54,7 @@ for (const size of SIZES) {
     for (const drawer of [false, true]) {
       test(`3D view overlays do not collide${drawer ? ' (drawer open)' : ''}`, async ({ page }) => {
         await page.addInitScript(() => localStorage.setItem('limap.welcomeSeen', '1'));
-        await page.goto('/');
+        await page.goto('/dashboard/');
         await page.waitForTimeout(600);
         if (drawer) {
           await page.keyboard.press('t');
@@ -110,7 +110,7 @@ for (const size of SIZES) {
 
     test('map inspector has no horizontal overflow and keeps its controls on screen', async ({ page }) => {
       await page.addInitScript(() => localStorage.setItem('limap.welcomeSeen', '1'));
-      await page.goto('/');
+      await page.goto('/dashboard/');
       await page.getByRole('button', { name: 'Map Inspector', exact: true }).click();
       await page.waitForTimeout(400);
       const docOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -124,7 +124,7 @@ for (const size of SIZES) {
     });
 
     test('first-visit tour callout fits the viewport and covers none of the 3D overlays', async ({ page }) => {
-      await page.goto('/');
+      await page.goto('/dashboard/');
       await page.waitForTimeout(600);
       const found = await boxes(page, {
         nudge: '[data-region="tour-nudge"]',

@@ -15,7 +15,7 @@ for (const theme of ['light', 'dark'] as const) {
       localStorage.setItem('limap.welcomeSeen', '1');
     }, theme);
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto('/');
+    await page.goto('/dashboard/');
     await page.waitForTimeout(2500);
     await page.screenshot({ path: path.join(OUT, `${theme}__pipe_bridge_height.png`) });
 

@@ -9,7 +9,7 @@ async function open(page: Page, theme: 'light' | 'dark' = 'light') {
     localStorage.setItem('limap.welcomeSeen', '1');
     localStorage.setItem('limap.theme', t);
   }, theme);
-  await page.goto('/');
+  await page.goto('/dashboard/');
   await expect(page.locator('[data-region="data-source"]')).toContainText('Snapshot');
 }
 

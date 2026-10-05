@@ -42,7 +42,7 @@ export async function appState(page: Page) {
     const colour = [...document.querySelectorAll('[role="radiogroup"][aria-label="Colour by"] [role="radio"]')].find((r) => r.getAttribute('aria-checked') === 'true')?.getAttribute('aria-label') ?? null;
     const view = document.querySelector('nav[aria-label="Views"] [aria-current="page"]')?.textContent ?? null;
     const storage: Record<string, string | null> = {};
-    for (const k of Object.keys(localStorage)) if (k !== 'limap.tour.v1' && k !== 'limap.welcomeSeen') storage[k] = localStorage.getItem(k);
+    for (const k of Object.keys(localStorage)) if (k !== 'limap.tour.v2' && k !== 'limap.welcomeSeen') storage[k] = localStorage.getItem(k);
     return {
       scenePressed,
       colour,

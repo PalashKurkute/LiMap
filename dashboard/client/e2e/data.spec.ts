@@ -15,7 +15,7 @@ const errors = (page: Page) => {
 test('snapshot data drives the 3D card, status bar and inspector with no backend', async ({ page }) => {
   await boot(page);
   const problems = errors(page);
-  await page.goto('/');
+  await page.goto('/dashboard/');
   await expect(page.locator('[data-region="data-source"]')).toContainText('Snapshot');
   await expect(page.locator('[data-region="statusbar"]')).toContainText('ACTIVE CELLS: 47,307 / 106,875');
   await expect(page.locator('[data-region="statusbar"]')).toContainText('LABELS: gt');
@@ -28,7 +28,7 @@ test('snapshot data drives the 3D card, status bar and inspector with no backend
 
 test('clicking a cell in the map inspector selects it and shows its statistics', async ({ page }) => {
   await boot(page);
-  await page.goto('/');
+  await page.goto('/dashboard/');
   await page.getByRole('button', { name: 'Map Inspector', exact: true }).click();
   await expect(page.locator('[data-region="inspector-legend"]')).toBeVisible();
 
@@ -46,7 +46,7 @@ test('clicking a cell in the map inspector selects it and shows its statistics',
 
 test('every scene has a snapshot with cells (including the real scene)', async ({ page }) => {
   await boot(page);
-  await page.goto('/');
+  await page.goto('/dashboard/');
   await page.getByRole('button', { name: 'Map Inspector', exact: true }).click();
   for (const key of ['1', '2', '3', '4', '5']) {
     await page.keyboard.press(key);
@@ -60,7 +60,7 @@ test('snapshot files missing: honest empty state, no crash, no invented data', a
   await boot(page);
   const problems = errors(page);
   await page.route('**/data/scenes/**', (r) => r.fulfill({ status: 404, body: 'nope' }));
-  await page.goto('/');
+  await page.goto('/dashboard/');
   await expect(page.locator('[data-region="data-source"]')).toContainText('No scene data');
   await expect(page.locator('[data-region="statusbar"]')).toContainText('no scene data');
   await page.getByRole('button', { name: 'Map Inspector', exact: true }).click();
@@ -75,7 +75,7 @@ test('deployed API without scene data (503) keeps the snapshot', async ({ page }
   await page.route('**/api/load_scene/**', (r) =>
     r.fulfill({ status: 503, json: { detail: { code: 'SCENE_DATA_MISSING', message: 'missing' } } }),
   );
-  await page.goto('/');
+  await page.goto('/dashboard/');
   await expect(page.locator('[data-region="data-source"]')).toContainText('Snapshot');
   await page.waitForTimeout(800);
   await expect(page.locator('[data-region="data-source"]')).toContainText('Snapshot'); // still, after the API answered
@@ -103,7 +103,7 @@ test('live API with data upgrades the view in place', async ({ page }) => {
       },
     }),
   );
-  await page.goto('/');
+  await page.goto('/dashboard/');
   await expect(page.locator('[data-region="data-source"]')).toContainText('Live API');
   await expect(page.locator('[data-region="statusbar"]')).toContainText('ACTIVE CELLS: 3 /');
   await page.getByRole('button', { name: 'Map Inspector', exact: true }).click();
@@ -116,7 +116,7 @@ test('a hung API never blocks the snapshot', async ({ page }) => {
     /* never respond */
   });
   const t0 = Date.now();
-  await page.goto('/');
+  await page.goto('/dashboard/');
   await expect(page.locator('[data-region="data-source"]')).toContainText('Snapshot', { timeout: 5000 });
   expect(Date.now() - t0).toBeLessThan(6000);
 });

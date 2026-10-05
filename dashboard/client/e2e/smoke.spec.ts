@@ -28,7 +28,7 @@ async function dismissWelcome(page: Page) {
 
 test('the first visit offers the tour once, then stays out of the way', async ({ page }) => {
   const problems = watch(page);
-  await page.goto('/');
+  await page.goto('/dashboard/');
   const nudge = page.locator('[data-region="tour-nudge"]');
   await expect(nudge).toBeVisible();
   await nudge.getByRole('button', { name: 'Not now' }).click();
@@ -40,7 +40,7 @@ test('the first visit offers the tour once, then stays out of the way', async ({
 
 test('every scene renders in both views without errors', async ({ page }) => {
   const problems = watch(page);
-  await page.goto('/');
+  await page.goto('/dashboard/');
   await dismissWelcome(page);
 
   for (const key of SCENES) {
@@ -61,7 +61,7 @@ test('every scene renders in both views without errors', async ({ page }) => {
 
 test('drawer tabs open and no fabricated claims are shown', async ({ page }) => {
   const problems = watch(page);
-  await page.goto('/');
+  await page.goto('/dashboard/');
   await dismissWelcome(page);
   await page.keyboard.press('t');
 
@@ -80,7 +80,7 @@ test.describe('normal motion', () => {
 test.use({ reducedMotion: 'no-preference' });
 
 test('keyboard: Space toggles playback, arrows step, Esc closes the drawer', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/dashboard/');
   await dismissWelcome(page);
   await page.getByRole('button', { name: 'Concept view' }).click(); // the illustrative drive only exists in concept mode
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur()); // Space on a focused button activates that button
@@ -107,7 +107,7 @@ test('keyboard: Space toggles playback, arrows step, Esc closes the drawer', asy
 test.describe('reduced motion', () => {
   test('playback starts paused and Space still starts it', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('limap.welcomeSeen', '1'));
-    await page.goto('/');
+    await page.goto('/dashboard/');
     await page.getByRole('button', { name: 'Concept view' }).click();
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur()); // Space on a focused button activates that button
     const playBtn = page.getByRole('button', { name: /^(Pause|Play)$/ });

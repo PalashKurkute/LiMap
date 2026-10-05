@@ -16,7 +16,7 @@ async function boot(page: Page, theme: Theme, welcome = false) {
     },
     [theme, welcome],
   );
-  await page.goto('/');
+  await page.goto('/dashboard/');
   await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
 }
 
@@ -172,7 +172,7 @@ test('no theme flash: data-theme is set before the app bundle executes', async (
     await new Promise((r) => setTimeout(r, 600)); // delay React so only the inline script could have run
     await route.continue();
   });
-  await page.goto('/', { waitUntil: 'commit' });
+  await page.goto('/dashboard/', { waitUntil: 'commit' });
   await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark', null, { timeout: 500 });
   const rootChildren = await page.evaluate(() => document.getElementById('root')?.childElementCount ?? 0);
   expect(rootChildren, 'React must not have rendered yet').toBe(0);
@@ -183,7 +183,7 @@ test('no theme flash: data-theme is set before the app bundle executes', async (
 test('system preference is honoured when no theme is stored, and changes live', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.addInitScript(() => localStorage.setItem('limap.welcomeSeen', '1'));
-  await page.goto('/');
+  await page.goto('/dashboard/');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 });
 

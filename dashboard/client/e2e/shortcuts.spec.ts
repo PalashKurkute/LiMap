@@ -3,7 +3,7 @@ import { test, expect, type Page } from '@playwright/test';
 // The keyboard-shortcut sheet: opened with `?` or from the Controls panel, owns the keyboard while open, lists only
 // keys the app really handles, and stays out of the way of the tour.
 
-async function open(page: Page, url = '/') {
+async function open(page: Page, url = '/dashboard/') {
   await page.addInitScript(() => localStorage.setItem('limap.welcomeSeen', '1'));
   await page.goto(url);
   await expect(page.locator('[data-region="provenance"]')).toBeVisible();
@@ -56,7 +56,7 @@ test('every group is listed, and the keys named belong to this app', async ({ pa
 });
 
 test('the sheet is inert during the tour', async ({ page }) => {
-  await open(page, '/?tour=1');
+  await open(page, '/dashboard/?tour=1');
   await expect(page.locator('[data-region="tour"]')).toHaveAttribute('data-tour-phase', 'ready', { timeout: 90_000 });
   await page.keyboard.press('?');
   await page.waitForTimeout(300);

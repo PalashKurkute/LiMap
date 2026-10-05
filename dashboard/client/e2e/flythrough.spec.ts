@@ -12,13 +12,13 @@ const planner = JSON.parse(
   fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public', 'data', 'planner', 'scene_a_bridge.json'), 'utf8'),
 );
 
-const FLY = (page: Page) => page.getByRole('button', { name: 'Fly under the bridge' });
+const FLY = (page: Page) => page.getByRole('button', { name: 'Fly under the bridge', exact: true }); // exact: the "?" beside it is "About Fly under the bridge"
 const STOP = (page: Page) => page.getByRole('button', { name: 'Stop the fly-through' });
 const view = (page: Page) => page.locator('[data-region="viewport-canvas"] canvas');
 
 async function openBridge(page: Page) {
   await page.addInitScript(() => localStorage.setItem('limap.welcomeSeen', '1'));
-  await page.goto('/');
+  await page.goto('/dashboard/');
   await page.waitForSelector('html[data-ready~="viewport-built"]', { timeout: 60_000 });
   await expect(FLY(page)).toBeVisible();
 }

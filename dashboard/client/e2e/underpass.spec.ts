@@ -19,7 +19,7 @@ async function openInspector(page: Page, theme: 'light' | 'dark' = 'light') {
     localStorage.setItem('limap.welcomeSeen', '1');
     localStorage.setItem('limap.theme', t);
   }, theme);
-  await page.goto('/');
+  await page.goto('/dashboard/');
   await page.waitForSelector('html[data-ready~="scene-data"]', { timeout: 30_000 });
   await page.getByRole('button', { name: 'Map Inspector', exact: true }).click();
   await page.waitForSelector('html[data-ready~="inspector-drawn"]', { timeout: 30_000 });

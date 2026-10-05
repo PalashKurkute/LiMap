@@ -4,7 +4,7 @@ import { test, expect, type Page } from '@playwright/test';
 
 async function open(page: Page) {
   await page.addInitScript(() => localStorage.setItem('limap.welcomeSeen', '1'));
-  await page.goto('/');
+  await page.goto('/dashboard/');
   await page.getByRole('button', { name: 'Evidence', exact: true }).click();
   await expect(page.locator('[data-region="evidence"]')).toBeVisible();
 }
@@ -128,7 +128,7 @@ test('evidence page follows the theme (light and dark) including after a live to
     localStorage.setItem('limap.welcomeSeen', '1');
     localStorage.setItem('limap.theme', 'light');
   });
-  await page.goto('/');
+  await page.goto('/dashboard/');
   await page.getByRole('button', { name: 'Evidence', exact: true }).click();
   await expect(page.locator('[data-region="evidence"]')).toBeVisible(); // the view's code loads on demand
   const bg = () => page.evaluate(() => getComputedStyle(document.querySelector('[data-region="evidence"]')!).backgroundColor);

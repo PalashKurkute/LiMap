@@ -22,12 +22,12 @@ const BANNED = [
 
 test('the launcher is in the header on every view, and ?tour=1 starts the tour and clears the flag', async ({ page }) => {
   await seen(page);
-  await page.goto('/');
+  await page.goto('/dashboard/');
   for (const v of ['Map Inspector', 'Evidence', '3D Explore']) {
     await page.getByRole('button', { name: v, exact: true }).click();
     await expect(headerTour(page)).toBeVisible();
   }
-  await page.goto('/?tour=1');
+  await page.goto('/dashboard/?tour=1');
   await ready(page);
   expect(page.url()).not.toContain('tour=1');
   await expect(popover(page)).toContainText(`Step 1 of ${N}`);
@@ -36,7 +36,7 @@ test('the launcher is in the header on every view, and ?tour=1 starts the tour a
 });
 
 test('first visit offers the tour once, then stays out of the way', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/dashboard/');
   const nudge = page.locator('[data-region="tour-nudge"]');
   await expect(nudge).toBeVisible();
   const box = (await nudge.boundingBox())!;
@@ -52,7 +52,7 @@ test('first visit offers the tour once, then stays out of the way', async ({ pag
 
 test('nothing advances by itself', async ({ page }) => {
   await seen(page);
-  await page.goto('/?tour=1');
+  await page.goto('/dashboard/?tour=1');
   await ready(page);
   const first = await currentId(page);
   await page.waitForTimeout(3500);
@@ -66,7 +66,7 @@ test('every step: the anchor is on screen, the spotlight sits on it, the popover
   await seen(page);
   await page.addInitScript(() => localStorage.setItem('limap.theme', 'dark'));
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/?tour=1');
+  await page.goto('/dashboard/?tour=1');
   await ready(page);
 
   const visited: string[] = [];
@@ -94,6 +94,21 @@ test('every step: the anchor is on screen, the spotlight sits on it, the popover
       expect(Math.abs(sb!.x - (ab!.x - 6)), `${id} spotlight x`).toBeLessThan(10);
       expect(Math.abs(sb!.y - (ab!.y - 6)), `${id} spotlight y`).toBeLessThan(10);
     }
+    // Every secondary anchor that is on screen is lit up as well.
+    const extras = await page.locator('[data-region="tour-spotlight-extra"]').evaluateAll((els) =>
+      els.map((e) => {
+        const r = e.getBoundingClientRect();
+        return { x: r.x, y: r.y };
+      }),
+    );
+    for (const sel of step.also ?? []) {
+      const eb = await page.locator(sel).first().boundingBox();
+      if (!eb || eb.width === 0) continue; // not on screen at this window size: the tour skips it too
+      expect(
+        extras.some((e) => Math.abs(e.x - (eb.x - 6)) < 10 && Math.abs(e.y - (eb.y - 6)) < 10),
+        `${id}: ${sel} is lit up`,
+      ).toBe(true);
+    }
     await page.screenshot({ path: path.join(OUT, `tour_${String(i).padStart(2, '0')}_${id}.png`) });
     await next(page);
   }
@@ -110,10 +125,10 @@ test('Back goes back, Esc exits, and the app is exactly as it was (including a n
   await seen(page);
   await page.addInitScript(() => {
     localStorage.setItem('limap.theme', 'light');
-    // Start the tour late so the run is short: resume at the theme step (which changes the theme without saving it).
-    localStorage.setItem('limap.tour.v1', JSON.stringify({ lastStep: 1, total: 0, done: false }));
+    // Start the tour late so the run is short.
+    localStorage.setItem('limap.tour.v2', JSON.stringify({ lastStep: 1, total: 0, done: false }));
   });
-  await page.goto('/');
+  await page.goto('/dashboard/');
   await page.waitForSelector('html[data-ready~="scene-data"]');
   // A state that is not the tour's start state.
   await page.keyboard.press('2');
@@ -130,7 +145,7 @@ test('Back goes back, Esc exits, and the app is exactly as it was (including a n
   await expect.poll(() => currentId(page)).toBe('intro');
   await ready(page);
 
-  await goToStep(page, 'theme');
+  await goToStep(page, 'finish');
   expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark'); // tour switched it, unsaved
   expect(await page.evaluate(() => localStorage.getItem('limap.theme'))).toBe('light'); // saved choice untouched
 
@@ -142,7 +157,7 @@ test('Back goes back, Esc exits, and the app is exactly as it was (including a n
 
 test('app shortcuts are inert while the tour runs and work again afterwards', async ({ page }) => {
   await seen(page);
-  await page.goto('/?tour=1');
+  await page.goto('/dashboard/?tour=1');
   await ready(page);
   const themeBefore = await page.evaluate(() => document.documentElement.dataset.theme);
   await page.keyboard.press('3');
@@ -161,7 +176,7 @@ test('app shortcuts are inert while the tour runs and work again afterwards', as
 
 test('arrow keys step and a reload offers to resume', async ({ page }) => {
   await seen(page);
-  await page.goto('/?tour=1');
+  await page.goto('/dashboard/?tour=1');
   await ready(page);
   await page.keyboard.press('ArrowRight');
   await expect.poll(() => currentId(page)).toBe(STEPS[1].id);
@@ -177,11 +192,42 @@ test('arrow keys step and a reload offers to resume', async ({ page }) => {
   await expect(page.getByRole('menuitem', { name: /Resume at step/ })).toBeVisible();
 });
 
+test('while the next step gets ready the popover stays where it was, and never detours through the centre', async ({ page }) => {
+  test.setTimeout(300_000);
+  await seen(page);
+  await page.goto('/dashboard/?tour=1');
+  await ready(page);
+  for (let i = 0; i < 6; i++) {
+    // Record every position the popover is given (its inline style) from now until the next step is ready. The style is
+    // read rather than the layout, so a CSS transition cannot hide an intermediate position.
+    await page.evaluate(() => {
+      const w = window as unknown as { __pops: [number, number][]; __obs?: MutationObserver };
+      w.__obs?.disconnect();
+      w.__pops = [];
+      const el = document.querySelector('[data-region="tour-popover"]') as HTMLElement;
+      const record = () => w.__pops.push([parseFloat(el.style.left), parseFloat(el.style.top)]);
+      record();
+      w.__obs = new MutationObserver(record);
+      w.__obs.observe(el, { attributes: true, attributeFilter: ['style'] });
+    });
+    await next(page);
+    const pops = await page.evaluate(() => {
+      const w = window as unknown as { __pops: [number, number][]; __obs?: MutationObserver };
+      w.__obs?.disconnect();
+      return w.__pops;
+    });
+    const before = pops[0];
+    const after = pops[pops.length - 1];
+    const at = (p: [number, number], b: [number, number]) => Math.abs(p[0] - b[0]) <= 1 && Math.abs(p[1] - b[1]) <= 1;
+    for (const p of pops) expect(at(p, before) || at(p, after), `step ${i + 1}: popover at ${p} is neither where it was (${before}) nor where it goes (${after})`).toBe(true);
+  }
+});
+
 test('the popover fits a 1280x720 window on the first steps', async ({ page }) => {
   test.setTimeout(300_000);
   await seen(page);
   await page.setViewportSize({ width: 1280, height: 720 });
-  await page.goto('/?tour=1');
+  await page.goto('/dashboard/?tour=1');
   await ready(page);
   for (let i = 0; i < 8; i++) {
     const pb = (await popover(page).boundingBox())!;
@@ -196,25 +242,25 @@ test('the popover fits a 1280x720 window on the first steps', async ({ page }) =
 test.describe('with animations on', () => {
   test.use({ reducedMotion: 'no-preference' });
 
-  // Every other test runs with reduced motion. This one lets the spotlight slide and the page scroll smoothly (the
-  // Evidence steps scroll their section into view) and checks the spotlight still settles on its anchor.
-  test('the spotlight settles on its anchor through the smooth-scrolled Evidence steps', async ({ page }) => {
+  // Every other test runs with reduced motion. This one lets the spotlight and popover glide between steps and checks
+  // the spotlight still settles on its anchor (the Map Inspector steps are cheap to draw, so it runs through those).
+  test('the spotlight settles on its anchor as it glides through the Map Inspector steps', async ({ page }) => {
     test.setTimeout(300_000);
-    const first = STEPS.findIndex((s) => s.id === 'ev-memory');
+    const first = STEPS.findIndex((s) => s.id === 'inspector');
     expect(first).toBeGreaterThan(0);
     await page.addInitScript(
       ([k, n]) => {
         localStorage.setItem('limap.welcomeSeen', '1');
-        localStorage.setItem('limap.tour.v1', JSON.stringify({ lastStep: k, total: n, done: false }));
+        localStorage.setItem('limap.tour.v2', JSON.stringify({ lastStep: k, total: n, done: false }));
       },
       [first, N],
     );
-    await page.goto('/');
+    await page.goto('/dashboard/');
     await headerTour(page).click();
     await page.getByRole('menuitem', { name: /Resume at step/ }).click();
     await ready(page);
 
-    for (let i = first; i < first + 7; i++) {
+    for (let i = first; i < first + 5; i++) {
       const id = await currentId(page);
       const step = STEPS.find((s) => s.id === id)!;
       expect(id).toBe(STEPS[i].id);

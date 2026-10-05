@@ -15,7 +15,7 @@ const variant = (scene: string, id: string) => JSON.parse(fs.readFileSync(path.j
 
 async function openInspector(page: Page, sceneKey = '1') {
   await page.addInitScript(() => localStorage.setItem('limap.welcomeSeen', '1'));
-  await page.goto('/');
+  await page.goto('/dashboard/');
   await page.waitForSelector('html[data-ready~="scene-data"]', { timeout: 30_000 });
   if (sceneKey !== '1') {
     await page.keyboard.press(sceneKey);
@@ -92,7 +92,7 @@ test('cursor readout reports world position, distance and ring under the pointer
 test('guides toggle and per-scene hint are present', async ({ page }) => {
   await openInspector(page);
   await expect(page.locator('[data-region="inspector-hint"]')).toContainText('Minimum clearance here:');
-  const guides = page.getByRole('button', { name: 'Guides' });
+  const guides = page.getByRole('button', { name: 'Guides', exact: true });
   await expect(guides).toHaveAttribute('aria-pressed', 'true');
   await guides.click();
   await expect(guides).toHaveAttribute('aria-pressed', 'false');

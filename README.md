@@ -29,6 +29,9 @@ python -m venv .venv && .venv/Scripts/pip install -r requirements.txt   # use .v
 npm run server         # FastAPI on http://127.0.0.1:8000
 ```
 
+After `npm run build`, that server also serves the built site itself (home at `/`, dashboard at `/dashboard/`), so one
+process is enough on a demo machine.
+
 Production build and preview: `npm run build && npm run preview` (from the repository root, or inside
 `dashboard/client`). The build fails on retired claims, retyped benchmark numbers and hard-coded colours; see
 [dashboard/client/README.md](dashboard/client/README.md).

@@ -15,7 +15,7 @@ import type { Align } from '../ui/placement';
  *    `TourData` (loaded data), never typed:
  *    check-honesty.mjs enforces this for this folder.
  *  - Anchors are `data-tour="..."` attributes (or an element id on the Evidence page).
- * See dashboard/client/docs/TOUR.md.
+ * The presenter's walk-through of these steps is docs/DEMO_RECORDING.md.
  */
 export interface TourData {
   scene: SceneId;
@@ -74,7 +74,7 @@ export const STEPS: TourStep[] = [
     align: 'start',
     title: 'Scenes, and what each view is',
     body: () =>
-      'Four synthetic test scenes and one real SemanticKITTI scan: keys 1 to 5 switch between them, and ? lists every shortcut. The stamp says whether a view is pipeline output, a hand-built illustration or a real recording, and the header chip shows the data comes from a precomputed snapshot, so no server is needed.',
+      'Four synthetic test scenes and one real SemanticKITTI scan: click a scene to switch. Keys 1 to 5 work outside the tour, and ? lists every shortcut. The stamp says whether a view is pipeline output, a hand-built illustration or a real recording, and the header chip shows the data comes from a precomputed snapshot, so no server is needed.',
     interactive: true,
     enter: ({ actions }) => ensure(actions, live3d),
   },
@@ -143,7 +143,7 @@ export const STEPS: TourStep[] = [
         d.sceneData?.meta?.note?.includes('Sparse')
           ? 'A SemanticKITTI scan from a public road, coloured with dataset labels. This copy is a sparse sample, so it shows few cells.'
           : 'A SemanticKITTI scan from a public road, coloured with dataset labels.'
-      } Press 3 for the Traffic scene, where the grid flags cells that belong to moving objects; how well it does that on real data is on the Evidence page.`,
+      } Click Traffic to see the grid flag cells that belong to moving objects; how well it does that on real data is on the Evidence page.`,
     interactive: true,
     enter: ({ actions }) => ensure(actions, { scene: 'real_seq08_f00', view: 'hook_3d', viewMode: 'pipeline', colour: 'elevation', drawer: null }),
   },

@@ -1,8 +1,8 @@
 /**
- * The tour's only persisted state: `limap.tour.v1` (progress) and `limap.welcomeSeen` (the first-visit callout
+ * The tour's only persisted state: `limap.tour.v2` (progress) and `limap.welcomeSeen` (the first-visit callout
  * was dismissed or a tour was started). Nothing else is ever written by the tour.
  */
-const KEY = 'limap.tour.v1';
+const KEY = 'limap.tour.v2';
 const SEEN_KEY = 'limap.welcomeSeen';
 
 export interface TourProgress {

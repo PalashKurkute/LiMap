@@ -18,6 +18,7 @@ import { pickShowcaseCell } from './showcase';
 import { STEPS, type TourData } from './steps';
 import { frames, resetToStart } from './ensure';
 import { writeProgress } from './storage';
+import { useGlide, type Shown } from './useGlide';
 
 export type TourExit = 'done' | 'exit' | 'error';
 
@@ -27,6 +28,7 @@ interface TourProps {
 }
 
 const PAD = 6; // spotlight padding around the anchor, px
+const RADIUS = 12; // spotlight corner radius, px (matches rounded-xl)
 
 async function waitForElement(selector: string, ms: number, cancelled: () => boolean): Promise<Element | null> {
   const t0 = performance.now();
@@ -41,6 +43,37 @@ async function waitForElement(selector: string, ms: number, cancelled: () => boo
   return null;
 }
 
+/** The on-screen rectangle of an element, or null when it is missing or not shown. */
+function rectOf(el: Element | null): Rect | null {
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0 ? { left: r.left, top: r.top, width: r.width, height: r.height } : null;
+}
+
+/** The step's own anchor first, then its secondary anchors that are on screen. Anything missing is skipped. */
+function measure(primary: Element | null, also: string[] | undefined): Rect[] {
+  return [rectOf(primary), ...(also ?? []).map((sel) => rectOf(document.querySelector(sel)))].filter((r): r is Rect => r !== null);
+}
+
+const sameRects = (a: Rect[], b: Rect[]) =>
+  a.length === b.length &&
+  a.every(
+    (r, i) =>
+      Math.abs(r.left - b[i].left) < 0.5 && Math.abs(r.top - b[i].top) < 0.5 && Math.abs(r.width - b[i].width) < 0.5 && Math.abs(r.height - b[i].height) < 0.5,
+  );
+
+/** The dimmed layer: the whole screen with one rounded hole per spotlight (even-odd fill). */
+function dimPath(vp: { w: number; h: number }, holes: Rect[]): string {
+  let d = `M0 0H${vp.w}V${vp.h}H0Z`;
+  for (const h of holes) {
+    const r = Math.max(0, Math.min(RADIUS, h.width / 2, h.height / 2));
+    const x2 = h.left + h.width;
+    const y2 = h.top + h.height;
+    d += `M${h.left + r} ${h.top}H${x2 - r}A${r} ${r} 0 0 1 ${x2} ${h.top + r}V${y2 - r}A${r} ${r} 0 0 1 ${x2 - r} ${y2}H${h.left + r}A${r} ${r} 0 0 1 ${h.left} ${y2 - r}V${h.top + r}A${r} ${r} 0 0 1 ${h.left + r} ${h.top}Z`;
+  }
+  return d;
+}
+
 const Tour: React.FC<TourProps> = ({ startAt, onExit }) => {
   const actions = useAppActions();
   const { scene, sceneData } = useAppData();
@@ -51,7 +84,7 @@ const Tour: React.FC<TourProps> = ({ startAt, onExit }) => {
   // new step's text over the previous step's spotlight.
   const [readyIndex, setReadyIndex] = useState(-1);
   const phase: 'entering' | 'ready' = readyIndex === index ? 'ready' : 'entering';
-  const [rect, setRect] = useState<Rect | null>(null);
+  const [rects, setRects] = useState<Rect[]>([]);
   const [popSize, setPopSize] = useState({ w: 320, h: 220 });
   const [vp, setVp] = useState({ w: window.innerWidth, h: window.innerHeight });
 
@@ -115,7 +148,6 @@ const Tour: React.FC<TourProps> = ({ startAt, onExit }) => {
     if (!started) return;
     let cancelled = false;
     setReadyIndex(-1);
-    setRect(null);
     anchorRef.current = null;
 
     const advance = (to: number) => {
@@ -147,6 +179,8 @@ const Tour: React.FC<TourProps> = ({ startAt, onExit }) => {
       }
       if (cancelled) return;
       anchorRef.current = el;
+      // Measured in the same update that marks the step ready, so the first ready frame already has the right spotlight.
+      setRects(measure(el, step.also));
       setReadyIndex(index);
       writeProgress({ lastStep: index, total: STEPS.length, done: false });
     })();
@@ -156,7 +190,7 @@ const Tour: React.FC<TourProps> = ({ startAt, onExit }) => {
     };
   }, [index, started]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ---- keep the spotlight on its anchor (it can move: scrolling, resizing, the drawer opening) ----
+  // ---- keep the spotlights on their anchors (they can move: scrolling, resizing, the drawer opening) ----
   useEffect(() => {
     if (phase !== 'ready') return;
     let raf = 0;
@@ -166,20 +200,8 @@ const Tour: React.FC<TourProps> = ({ startAt, onExit }) => {
         el = document.querySelector(step.anchor);
         anchorRef.current = el;
       }
-      if (el) {
-        const r = el.getBoundingClientRect();
-        const next = r.width > 0 && r.height > 0 ? { left: r.left, top: r.top, width: r.width, height: r.height } : null;
-        setRect((prev) =>
-          prev &&
-          next &&
-          Math.abs(prev.left - next.left) < 0.5 &&
-          Math.abs(prev.top - next.top) < 0.5 &&
-          Math.abs(prev.width - next.width) < 0.5 &&
-          Math.abs(prev.height - next.height) < 0.5
-            ? prev
-            : next,
-        );
-      } else setRect(null);
+      const next = measure(el, step.also);
+      setRects((prev) => (sameRects(prev, next) ? prev : next));
       raf = requestAnimationFrame(tick);
     };
     tick();
@@ -241,54 +263,37 @@ const Tour: React.FC<TourProps> = ({ startAt, onExit }) => {
   }, [finish, next, back]);
 
   // ---- render ----
-  const hole: Rect | null =
-    phase === 'ready' && rect ? { left: rect.left - PAD, top: rect.top - PAD, width: rect.width + PAD * 2, height: rect.height + PAD * 2 } : null;
-  const pos = placePopover(hole, popSize, vp, step.placement ?? 'auto', undefined, undefined, step.align);
-  const last = index === STEPS.length - 1;
   const reduced = prefersReducedMotion();
-  const body = phase === 'ready' ? step.body(data) : 'Getting ready…';
+  const holes: Rect[] = rects.map((r) => ({ left: r.left - PAD, top: r.top - PAD, width: r.width + PAD * 2, height: r.height + PAD * 2 }));
+  // The popover and spotlights that are shown. While a step is getting ready this keeps the previous step's, so nothing
+  // jumps to the middle of the screen and back; `target` is null until the new step is ready.
+  const pos = placePopover(holes[0] ?? null, popSize, vp, step.placement ?? 'auto', undefined, undefined, step.align);
+  const target: Shown | null = phase === 'ready' ? { holes, pos: { left: pos.left, top: pos.top } } : null;
+  const shown = useGlide(target, !reduced);
+  const centre = placePopover(null, popSize, vp);
+  const display: Shown = shown ?? { holes: [], pos: { left: centre.left, top: centre.top } };
+  const live = phase === 'ready' && !!step.interactive && display.holes.length > 0;
 
-  const blocker = (r: Rect, key: string) => (
-    <div
-      key={key}
-      aria-hidden="true"
-      className="fixed pointer-events-auto"
-      style={{ left: r.left, top: r.top, width: Math.max(0, r.width), height: Math.max(0, r.height) }}
-    />
-  );
+  const last = index === STEPS.length - 1;
+  const body = phase === 'ready' ? step.body(data) : 'Getting ready…';
 
   return createPortal(
     <div data-region="tour" data-tour-step={step.id} data-tour-phase={phase} data-tour-index={index} className="fixed inset-0 z-[70] pointer-events-none">
-      {hole ? (
-        <>
-          <div
-            aria-hidden="true"
-            data-region="tour-spotlight"
-            className="fixed rounded-xl pointer-events-none"
-            style={{
-              left: hole.left,
-              top: hole.top,
-              width: hole.width,
-              height: hole.height,
-              boxShadow: '0 0 0 9999px var(--overlay)',
-              outline: '2px solid var(--focus)',
-              transition: reduced ? undefined : 'left 160ms ease, top 160ms ease, width 160ms ease, height 160ms ease',
-            }}
-          />
-          {step.interactive ? (
-            <>
-              {blocker({ left: 0, top: 0, width: vp.w, height: hole.top }, 'top')}
-              {blocker({ left: 0, top: hole.top + hole.height, width: vp.w, height: vp.h - (hole.top + hole.height) }, 'bottom')}
-              {blocker({ left: 0, top: hole.top, width: hole.left, height: hole.height }, 'left')}
-              {blocker({ left: hole.left + hole.width, top: hole.top, width: vp.w - (hole.left + hole.width), height: hole.height }, 'right')}
-            </>
-          ) : (
-            <div aria-hidden="true" className="fixed inset-0 pointer-events-auto" />
-          )}
-        </>
-      ) : (
-        <div aria-hidden="true" className="fixed inset-0 bg-overlay pointer-events-auto" />
-      )}
+      {/* The dimmed screen with a hole for each spotlight. Only the dimmed part takes clicks, so holes stay usable. */}
+      <svg aria-hidden="true" width={vp.w} height={vp.h} className="fixed inset-0 pointer-events-none" style={{ overflow: 'visible' }}>
+        <path d={dimPath(vp, display.holes)} fillRule="evenodd" style={{ fill: 'var(--overlay)', pointerEvents: live ? 'auto' : 'none' }} />
+      </svg>
+      {!live && <div aria-hidden="true" className="fixed inset-0 pointer-events-auto" />}
+      {/* Movement is driven by useGlide, so no CSS transition (even the near-zero one the reduced-motion rule leaves) may delay it. */}
+      {display.holes.map((h, i) => (
+        <div
+          key={i}
+          aria-hidden="true"
+          data-region={i === 0 ? 'tour-spotlight' : 'tour-spotlight-extra'}
+          className="fixed rounded-xl pointer-events-none"
+          style={{ left: h.left, top: h.top, width: h.width, height: h.height, outline: '2px solid var(--focus)', transition: 'none' }}
+        />
+      ))}
 
       <div
         ref={popRef}
@@ -297,7 +302,7 @@ const Tour: React.FC<TourProps> = ({ startAt, onExit }) => {
         aria-label={`Tour: ${step.title}`}
         data-region="tour-popover"
         className="fixed w-80 max-w-[calc(100vw-1.5rem)] rounded-xl border border-line-strong bg-panel p-4 text-fg shadow-xl pointer-events-auto"
-        style={{ left: pos.left, top: pos.top }}
+        style={{ left: display.pos.left, top: display.pos.top, transition: 'none' }}
       >
         <div className="flex items-center justify-between gap-2">
           <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-fg-muted">
